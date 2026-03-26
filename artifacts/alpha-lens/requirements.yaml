@@ -1,0 +1,17 @@
+packages:
+  "recharts": "Data visualization for portfolio charts and probability gauges"
+  "framer-motion": "Smooth page transitions and micro-interactions for terminal feel"
+  "date-fns": "Human-readable date formatting for signals and trades"
+
+images:
+  - path: "artifacts/alpha-lens/public/images/logo-mark.png"
+    description: "A minimal, futuristic logo mark for 'Alpha Lens'. It should look like a sleek, glowing neon-blue diamond or abstract lens shape on a pure black background. Professional financial terminal aesthetic."
+    aspect_ratio: "1:1"
+  - path: "artifacts/alpha-lens/public/images/empty-portfolio.png"
+    description: "Abstract dark-mode 3D illustration of a floating coin or geometric shapes in deep blues and neon greens, representing an empty investment portfolio waiting for trades."
+    aspect_ratio: "1:1"
+
+notes:
+  - Wouter params are strings, so `parseInt(id)` is used before passing to API hooks.
+  - The API hooks from @workspace/api-client-react are used directly.
+  - Chart data for the portfolio uses closed trades history to generate a P&L chart.
