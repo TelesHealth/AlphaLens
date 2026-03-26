@@ -1,0 +1,17 @@
+run = "bash start.sh"
+entrypoint = "backend/main.py"
+hidden = [".pythonlibs", "__pycache__", ".pytest_cache"]
+
+[nix]
+channel = "stable-23_11"
+
+[env]
+PYTHONPATH = "${REPL_HOME}"
+
+[deployment]
+run = ["bash", "start.sh"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 8000
+externalPort = 80

@@ -1,0 +1,30 @@
+# Alpha Lens — Environment Variables
+# Copy this to .env for local dev, or add to Replit Secrets for production
+# Never commit actual keys to git
+
+# ── REQUIRED ──────────────────────────────────────────────────
+ANTHROPIC_API_KEY=your_key_here
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_KEY=your_service_role_key
+
+# ── RECOMMENDED ────────────────────────────────────────────────
+UPSTASH_REDIS_URL=https://your-db.upstash.io
+UPSTASH_REDIS_TOKEN=your_token
+
+# ── MARKET DATA (optional, enables more data sources) ──────────
+COINGECKO_API_KEY=
+ALPACA_API_KEY=
+ALPACA_SECRET_KEY=
+NEWSAPI_KEY=
+
+# ── POLYMARKET (non-US only) ───────────────────────────────────
+POLYMARKET_API_KEY=
+POLYMARKET_SECRET=
+POLYMARKET_PASSPHRASE=
+
+# ── APP CONFIG ─────────────────────────────────────────────────
+APP_ENV=development
+PAPER_BALANCE_DEFAULT=10000.0
+MIN_EDGE_THRESHOLD=5.0
+MAX_POSITION_PCT=0.05
