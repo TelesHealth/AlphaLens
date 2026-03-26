@@ -26,6 +26,8 @@ import type {
   EventsResponse,
   ExecuteTradeRequest,
   GetGlobalEventsParams,
+  GetRadarAlertsParams,
+  GetRadarHistoryParams,
   GetSignalsParams,
   GetTradeHistoryParams,
   HealthStatus,
@@ -36,6 +38,14 @@ import type {
   PendingOrdersResponse,
   PortfolioResponse,
   PortfolioStatsResponse,
+  RadarAlertsResponse,
+  RadarAllChainsResponse,
+  RadarChainsResponse,
+  RadarHistoryResponse,
+  RadarPricesResponse,
+  RadarScanResponse,
+  RadarStatusResponse,
+  RadarThresholdsResponse,
   RefreshResponse,
   RejectPendingOrder200,
   RoutingDecisionResponse,
@@ -2065,6 +2075,662 @@ export function useGetTradingPositions<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetTradingPositionsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get recent radar alerts (price spikes, volume anomalies, chain reactions)
+ */
+export const getGetRadarAlertsUrl = (params?: GetRadarAlertsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/radar/alerts?${stringifiedParams}`
+    : `/api/radar/alerts`;
+};
+
+export const getRadarAlerts = async (
+  params?: GetRadarAlertsParams,
+  options?: RequestInit,
+): Promise<RadarAlertsResponse> => {
+  return customFetch<RadarAlertsResponse>(getGetRadarAlertsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarAlertsQueryKey = (params?: GetRadarAlertsParams) => {
+  return [`/api/radar/alerts`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRadarAlertsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarAlerts>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetRadarAlertsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarAlerts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRadarAlertsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRadarAlerts>>> = ({
+    signal,
+  }) => getRadarAlerts(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarAlerts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarAlertsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarAlerts>>
+>;
+export type GetRadarAlertsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get recent radar alerts (price spikes, volume anomalies, chain reactions)
+ */
+
+export function useGetRadarAlerts<
+  TData = Awaited<ReturnType<typeof getRadarAlerts>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetRadarAlertsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarAlerts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarAlertsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get current prices with spike status for all monitored assets
+ */
+export const getGetRadarPricesUrl = () => {
+  return `/api/radar/prices`;
+};
+
+export const getRadarPrices = async (
+  options?: RequestInit,
+): Promise<RadarPricesResponse> => {
+  return customFetch<RadarPricesResponse>(getGetRadarPricesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarPricesQueryKey = () => {
+  return [`/api/radar/prices`] as const;
+};
+
+export const getGetRadarPricesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarPrices>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarPrices>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRadarPricesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRadarPrices>>> = ({
+    signal,
+  }) => getRadarPrices({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarPrices>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarPricesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarPrices>>
+>;
+export type GetRadarPricesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get current prices with spike status for all monitored assets
+ */
+
+export function useGetRadarPrices<
+  TData = Awaited<ReturnType<typeof getRadarPrices>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarPrices>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarPricesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Manually trigger a radar scan
+ */
+export const getTriggerRadarScanUrl = () => {
+  return `/api/radar/scan`;
+};
+
+export const triggerRadarScan = async (
+  options?: RequestInit,
+): Promise<RadarScanResponse> => {
+  return customFetch<RadarScanResponse>(getTriggerRadarScanUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getTriggerRadarScanMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof triggerRadarScan>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof triggerRadarScan>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["triggerRadarScan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof triggerRadarScan>>,
+    void
+  > = () => {
+    return triggerRadarScan(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TriggerRadarScanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof triggerRadarScan>>
+>;
+
+export type TriggerRadarScanMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Manually trigger a radar scan
+ */
+export const useTriggerRadarScan = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof triggerRadarScan>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof triggerRadarScan>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getTriggerRadarScanMutationOptions(options));
+};
+
+/**
+ * @summary Get chain reaction map for a specific asset
+ */
+export const getGetRadarChainsUrl = (assetId: string) => {
+  return `/api/radar/chains/${assetId}`;
+};
+
+export const getRadarChains = async (
+  assetId: string,
+  options?: RequestInit,
+): Promise<RadarChainsResponse> => {
+  return customFetch<RadarChainsResponse>(getGetRadarChainsUrl(assetId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarChainsQueryKey = (assetId: string) => {
+  return [`/api/radar/chains/${assetId}`] as const;
+};
+
+export const getGetRadarChainsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarChains>>,
+  TError = ErrorType<unknown>,
+>(
+  assetId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarChains>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRadarChainsQueryKey(assetId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRadarChains>>> = ({
+    signal,
+  }) => getRadarChains(assetId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!assetId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarChains>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarChainsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarChains>>
+>;
+export type GetRadarChainsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get chain reaction map for a specific asset
+ */
+
+export function useGetRadarChains<
+  TData = Awaited<ReturnType<typeof getRadarChains>>,
+  TError = ErrorType<unknown>,
+>(
+  assetId: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarChains>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarChainsQueryOptions(assetId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get full cross-asset chain reaction map
+ */
+export const getGetRadarAllChainsUrl = () => {
+  return `/api/radar/chains`;
+};
+
+export const getRadarAllChains = async (
+  options?: RequestInit,
+): Promise<RadarAllChainsResponse> => {
+  return customFetch<RadarAllChainsResponse>(getGetRadarAllChainsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarAllChainsQueryKey = () => {
+  return [`/api/radar/chains`] as const;
+};
+
+export const getGetRadarAllChainsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarAllChains>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarAllChains>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRadarAllChainsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRadarAllChains>>
+  > = ({ signal }) => getRadarAllChains({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarAllChains>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarAllChainsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarAllChains>>
+>;
+export type GetRadarAllChainsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get full cross-asset chain reaction map
+ */
+
+export function useGetRadarAllChains<
+  TData = Awaited<ReturnType<typeof getRadarAllChains>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarAllChains>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarAllChainsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get spike detection thresholds for all monitored assets
+ */
+export const getGetRadarThresholdsUrl = () => {
+  return `/api/radar/thresholds`;
+};
+
+export const getRadarThresholds = async (
+  options?: RequestInit,
+): Promise<RadarThresholdsResponse> => {
+  return customFetch<RadarThresholdsResponse>(getGetRadarThresholdsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarThresholdsQueryKey = () => {
+  return [`/api/radar/thresholds`] as const;
+};
+
+export const getGetRadarThresholdsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarThresholds>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarThresholds>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRadarThresholdsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRadarThresholds>>
+  > = ({ signal }) => getRadarThresholds({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarThresholds>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarThresholdsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarThresholds>>
+>;
+export type GetRadarThresholdsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get spike detection thresholds for all monitored assets
+ */
+
+export function useGetRadarThresholds<
+  TData = Awaited<ReturnType<typeof getRadarThresholds>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarThresholds>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarThresholdsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get historical radar alerts for trend analysis
+ */
+export const getGetRadarHistoryUrl = (params?: GetRadarHistoryParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/radar/history?${stringifiedParams}`
+    : `/api/radar/history`;
+};
+
+export const getRadarHistory = async (
+  params?: GetRadarHistoryParams,
+  options?: RequestInit,
+): Promise<RadarHistoryResponse> => {
+  return customFetch<RadarHistoryResponse>(getGetRadarHistoryUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarHistoryQueryKey = (params?: GetRadarHistoryParams) => {
+  return [`/api/radar/history`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRadarHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarHistory>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetRadarHistoryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarHistory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRadarHistoryQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRadarHistory>>> = ({
+    signal,
+  }) => getRadarHistory(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarHistory>>
+>;
+export type GetRadarHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get historical radar alerts for trend analysis
+ */
+
+export function useGetRadarHistory<
+  TData = Awaited<ReturnType<typeof getRadarHistory>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetRadarHistoryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarHistory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarHistoryQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get radar engine status and data source availability
+ */
+export const getGetRadarStatusUrl = () => {
+  return `/api/radar/status`;
+};
+
+export const getRadarStatus = async (
+  options?: RequestInit,
+): Promise<RadarStatusResponse> => {
+  return customFetch<RadarStatusResponse>(getGetRadarStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarStatusQueryKey = () => {
+  return [`/api/radar/status`] as const;
+};
+
+export const getGetRadarStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRadarStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRadarStatus>>> = ({
+    signal,
+  }) => getRadarStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarStatus>>
+>;
+export type GetRadarStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get radar engine status and data source availability
+ */
+
+export function useGetRadarStatus<
+  TData = Awaited<ReturnType<typeof getRadarStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarStatusQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

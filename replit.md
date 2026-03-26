@@ -51,6 +51,7 @@ artifacts-monorepo/
 - **Evidence Signals**: Structured evidence records with source quality and directional analysis
 - **Intelligence Briefing (E6)**: AI-powered daily briefings with trade calls, watch alerts, and global event scanning. 30-min auto-scan via cron.
 - **Live Trading (E7)**: Kalshi-priority platform router with risk gates. Supports Kalshi (CFTC-regulated, US legal), Alpaca (stocks/ETFs), and Polymarket (non-US). US jurisdiction mode auto-routes to Kalshi. Pending order approval flow.
+- **Market Radar (E8)**: Real-time price spike detection (per-asset thresholds), volume anomaly monitoring (30-day avg comparison), cross-asset chain reaction triggers. 5-min auto-scan via cron. 18 monitored assets, 8 chain reaction maps across energy, crypto, equities, metals, agriculture, FX.
 
 ## Database Schema
 
@@ -64,6 +65,7 @@ artifacts-monorepo/
 - `watchlist` — User's watched assets with alert edge thresholds
 - `live_trades` — Executed live/paper trades with platform, price, and AI metadata
 - `pending_orders` — Orders awaiting user approval with platform routing reasons
+- `radar_alerts` — Market radar alerts (price spikes, volume anomalies, chain reactions) with severity, asset data, and chain links
 
 ## API Routes (all under `/api`)
 
@@ -92,6 +94,14 @@ artifacts-monorepo/
 - `POST /trading/pending/:id/reject` — Reject pending order
 - `GET /trading/history` — Live trade history
 - `GET /trading/positions` — Open live trading positions
+- `GET /radar/alerts` — Recent radar alerts (price spikes, volume anomalies, chain reactions) with severity/type filtering
+- `GET /radar/prices` — Current prices with spike status for all monitored assets
+- `POST /radar/scan` — Manually trigger a radar scan (idempotent lock prevents concurrent scans)
+- `GET /radar/chains/:assetId` — Chain reaction map for a specific asset
+- `GET /radar/chains` — Full cross-asset chain reaction map
+- `GET /radar/thresholds` — Spike detection thresholds for all monitored assets
+- `GET /radar/history` — Historical radar alerts for trend analysis (capped at 30 days, 500 limit)
+- `GET /radar/status` — Radar engine status and data source availability
 
 ## TypeScript & Composite Projects
 

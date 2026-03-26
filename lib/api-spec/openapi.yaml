@@ -21,6 +21,8 @@ tags:
     description: AI recommendations and briefing operations
   - name: trading
     description: Live trading with Kalshi-priority platform routing
+  - name: radar
+    description: Market radar — price spikes, volume anomalies, chain reactions
 
 paths:
   /healthz:
@@ -473,6 +475,141 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TradingPositionsResponse"
+
+  /radar/alerts:
+    get:
+      operationId: getRadarAlerts
+      tags: [radar]
+      summary: Get recent radar alerts (price spikes, volume anomalies, chain reactions)
+      parameters:
+        - name: hours
+          in: query
+          schema:
+            type: integer
+            default: 4
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Alerts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarAlertsResponse"
+
+  /radar/prices:
+    get:
+      operationId: getRadarPrices
+      tags: [radar]
+      summary: Get current prices with spike status for all monitored assets
+      responses:
+        "200":
+          description: Prices
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarPricesResponse"
+
+  /radar/scan:
+    post:
+      operationId: triggerRadarScan
+      tags: [radar]
+      summary: Manually trigger a radar scan
+      responses:
+        "200":
+          description: Scan started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarScanResponse"
+
+  /radar/chains/{assetId}:
+    get:
+      operationId: getRadarChains
+      tags: [radar]
+      summary: Get chain reaction map for a specific asset
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chain reactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarChainsResponse"
+
+  /radar/chains:
+    get:
+      operationId: getRadarAllChains
+      tags: [radar]
+      summary: Get full cross-asset chain reaction map
+      responses:
+        "200":
+          description: All chains
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarAllChainsResponse"
+
+  /radar/thresholds:
+    get:
+      operationId: getRadarThresholds
+      tags: [radar]
+      summary: Get spike detection thresholds for all monitored assets
+      responses:
+        "200":
+          description: Thresholds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarThresholdsResponse"
+
+  /radar/history:
+    get:
+      operationId: getRadarHistory
+      tags: [radar]
+      summary: Get historical radar alerts for trend analysis
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 7
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: History
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarHistoryResponse"
+
+  /radar/status:
+    get:
+      operationId: getRadarStatus
+      tags: [radar]
+      summary: Get radar engine status and data source availability
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarStatusResponse"
 
 components:
   schemas:
@@ -1241,3 +1378,235 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LiveTradeItem"
+
+    RadarAlert:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        severity:
+          type: string
+        assetId:
+          type: string
+        assetLabel:
+          type: string
+        title:
+          type: string
+        pctChange:
+          type: number
+          nullable: true
+        direction:
+          type: string
+          nullable: true
+        priceStart:
+          type: number
+          nullable: true
+        priceNow:
+          type: number
+          nullable: true
+        windowMinutes:
+          type: integer
+          nullable: true
+        thresholdPct:
+          type: number
+          nullable: true
+        volumeMultiplier:
+          type: number
+          nullable: true
+        volumeType:
+          type: string
+          nullable: true
+        confidence:
+          type: integer
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        triggerAsset:
+          type: string
+          nullable: true
+        triggerPct:
+          type: number
+          nullable: true
+        chainAssets:
+          type: array
+          items:
+            type: string
+          nullable: true
+        historicalNote:
+          type: string
+          nullable: true
+        aiScanning:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        dataSource:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    RadarAlertsResponse:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadarAlert"
+        total:
+          type: integer
+        generatedAt:
+          type: string
+
+    RadarPriceRow:
+      type: object
+      properties:
+        assetId:
+          type: string
+        assetLabel:
+          type: string
+        price:
+          type: number
+        spikeDetected:
+          type: boolean
+        pctChange:
+          type: number
+          nullable: true
+        severity:
+          type: string
+        threshold:
+          type: string
+        updatedAt:
+          type: string
+
+    RadarPricesResponse:
+      type: object
+      properties:
+        prices:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadarPriceRow"
+        total:
+          type: integer
+        updatedAt:
+          type: string
+
+    RadarScanResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+
+    RadarChainReaction:
+      type: object
+      properties:
+        asset:
+          type: string
+        direction:
+          type: string
+        confidence:
+          type: integer
+        reason:
+          type: string
+
+    RadarChainsResponse:
+      type: object
+      properties:
+        assetId:
+          type: string
+        chains:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadarChainReaction"
+        total:
+          type: integer
+        note:
+          type: string
+
+    RadarAllChainsResponse:
+      type: object
+      properties:
+        chains:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: "#/components/schemas/RadarChainReaction"
+        totalAssets:
+          type: integer
+        note:
+          type: string
+
+    RadarThresholdsResponse:
+      type: object
+      properties:
+        thresholds:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              pct:
+                type: number
+              window:
+                type: integer
+              severity:
+                type: string
+        total:
+          type: integer
+        note:
+          type: string
+
+    RadarHistoryResponse:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/RadarAlert"
+        total:
+          type: integer
+        byType:
+          type: object
+          additionalProperties:
+            type: integer
+        bySeverity:
+          type: object
+          additionalProperties:
+            type: integer
+        periodDays:
+          type: integer
+
+    RadarStatusResponse:
+      type: object
+      properties:
+        engine:
+          type: string
+        scanFrequency:
+          type: string
+        assetsMonitored:
+          type: integer
+        chainMaps:
+          type: integer
+        sources:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              status:
+                type: string
+              tier:
+                type: string
+              note:
+                type: string
+        activeSources:
+          type: integer
+        totalSources:
+          type: integer

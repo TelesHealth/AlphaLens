@@ -719,3 +719,211 @@ export const GetTradingPositionsResponse = zod.object({
     )
     .optional(),
 });
+
+/**
+ * @summary Get recent radar alerts (price spikes, volume anomalies, chain reactions)
+ */
+export const getRadarAlertsQueryHoursDefault = 4;
+
+export const GetRadarAlertsQueryParams = zod.object({
+  hours: zod.coerce.number().default(getRadarAlertsQueryHoursDefault),
+  type: zod.coerce.string().optional(),
+  severity: zod.coerce.string().optional(),
+});
+
+export const GetRadarAlertsResponse = zod.object({
+  alerts: zod
+    .array(
+      zod.object({
+        id: zod.string().optional(),
+        type: zod.string().optional(),
+        severity: zod.string().optional(),
+        assetId: zod.string().optional(),
+        assetLabel: zod.string().optional(),
+        title: zod.string().optional(),
+        pctChange: zod.number().nullish(),
+        direction: zod.string().nullish(),
+        priceStart: zod.number().nullish(),
+        priceNow: zod.number().nullish(),
+        windowMinutes: zod.number().nullish(),
+        thresholdPct: zod.number().nullish(),
+        volumeMultiplier: zod.number().nullish(),
+        volumeType: zod.string().nullish(),
+        confidence: zod.number().nullish(),
+        reason: zod.string().nullish(),
+        triggerAsset: zod.string().nullish(),
+        triggerPct: zod.number().nullish(),
+        chainAssets: zod.array(zod.string()).nullish(),
+        historicalNote: zod.string().nullish(),
+        aiScanning: zod.string().nullish(),
+        note: zod.string().nullish(),
+        dataSource: zod.string().nullish(),
+        createdAt: zod.date().nullish(),
+      }),
+    )
+    .optional(),
+  total: zod.number().optional(),
+  generatedAt: zod.string().optional(),
+});
+
+/**
+ * @summary Get current prices with spike status for all monitored assets
+ */
+export const GetRadarPricesResponse = zod.object({
+  prices: zod
+    .array(
+      zod.object({
+        assetId: zod.string().optional(),
+        assetLabel: zod.string().optional(),
+        price: zod.number().optional(),
+        spikeDetected: zod.boolean().optional(),
+        pctChange: zod.number().nullish(),
+        severity: zod.string().optional(),
+        threshold: zod.string().optional(),
+        updatedAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  total: zod.number().optional(),
+  updatedAt: zod.string().optional(),
+});
+
+/**
+ * @summary Manually trigger a radar scan
+ */
+export const TriggerRadarScanResponse = zod.object({
+  status: zod.string().optional(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary Get chain reaction map for a specific asset
+ */
+export const GetRadarChainsParams = zod.object({
+  assetId: zod.coerce.string(),
+});
+
+export const GetRadarChainsResponse = zod.object({
+  assetId: zod.string().optional(),
+  chains: zod
+    .array(
+      zod.object({
+        asset: zod.string().optional(),
+        direction: zod.string().optional(),
+        confidence: zod.number().optional(),
+        reason: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  total: zod.number().optional(),
+  note: zod.string().optional(),
+});
+
+/**
+ * @summary Get full cross-asset chain reaction map
+ */
+export const GetRadarAllChainsResponse = zod.object({
+  chains: zod
+    .record(
+      zod.string(),
+      zod.array(
+        zod.object({
+          asset: zod.string().optional(),
+          direction: zod.string().optional(),
+          confidence: zod.number().optional(),
+          reason: zod.string().optional(),
+        }),
+      ),
+    )
+    .optional(),
+  totalAssets: zod.number().optional(),
+  note: zod.string().optional(),
+});
+
+/**
+ * @summary Get spike detection thresholds for all monitored assets
+ */
+export const GetRadarThresholdsResponse = zod.object({
+  thresholds: zod
+    .record(
+      zod.string(),
+      zod.object({
+        pct: zod.number().optional(),
+        window: zod.number().optional(),
+        severity: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  total: zod.number().optional(),
+  note: zod.string().optional(),
+});
+
+/**
+ * @summary Get historical radar alerts for trend analysis
+ */
+export const getRadarHistoryQueryDaysDefault = 7;
+export const getRadarHistoryQueryLimitDefault = 100;
+
+export const GetRadarHistoryQueryParams = zod.object({
+  days: zod.coerce.number().default(getRadarHistoryQueryDaysDefault),
+  limit: zod.coerce.number().default(getRadarHistoryQueryLimitDefault),
+});
+
+export const GetRadarHistoryResponse = zod.object({
+  alerts: zod
+    .array(
+      zod.object({
+        id: zod.string().optional(),
+        type: zod.string().optional(),
+        severity: zod.string().optional(),
+        assetId: zod.string().optional(),
+        assetLabel: zod.string().optional(),
+        title: zod.string().optional(),
+        pctChange: zod.number().nullish(),
+        direction: zod.string().nullish(),
+        priceStart: zod.number().nullish(),
+        priceNow: zod.number().nullish(),
+        windowMinutes: zod.number().nullish(),
+        thresholdPct: zod.number().nullish(),
+        volumeMultiplier: zod.number().nullish(),
+        volumeType: zod.string().nullish(),
+        confidence: zod.number().nullish(),
+        reason: zod.string().nullish(),
+        triggerAsset: zod.string().nullish(),
+        triggerPct: zod.number().nullish(),
+        chainAssets: zod.array(zod.string()).nullish(),
+        historicalNote: zod.string().nullish(),
+        aiScanning: zod.string().nullish(),
+        note: zod.string().nullish(),
+        dataSource: zod.string().nullish(),
+        createdAt: zod.date().nullish(),
+      }),
+    )
+    .optional(),
+  total: zod.number().optional(),
+  byType: zod.record(zod.string(), zod.number()).optional(),
+  bySeverity: zod.record(zod.string(), zod.number()).optional(),
+  periodDays: zod.number().optional(),
+});
+
+/**
+ * @summary Get radar engine status and data source availability
+ */
+export const GetRadarStatusResponse = zod.object({
+  engine: zod.string().optional(),
+  scanFrequency: zod.string().optional(),
+  assetsMonitored: zod.number().optional(),
+  chainMaps: zod.number().optional(),
+  sources: zod
+    .record(
+      zod.string(),
+      zod.object({
+        status: zod.string().optional(),
+        tier: zod.string().optional(),
+        note: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  activeSources: zod.number().optional(),
+  totalSources: zod.number().optional(),
+});

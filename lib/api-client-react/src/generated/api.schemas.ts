@@ -451,6 +451,129 @@ export interface TradingPositionsResponse {
   positions?: LiveTradeItem[];
 }
 
+export interface RadarAlert {
+  id?: string;
+  type?: string;
+  severity?: string;
+  assetId?: string;
+  assetLabel?: string;
+  title?: string;
+  pctChange?: number | null;
+  direction?: string | null;
+  priceStart?: number | null;
+  priceNow?: number | null;
+  windowMinutes?: number | null;
+  thresholdPct?: number | null;
+  volumeMultiplier?: number | null;
+  volumeType?: string | null;
+  confidence?: number | null;
+  reason?: string | null;
+  triggerAsset?: string | null;
+  triggerPct?: number | null;
+  chainAssets?: string[] | null;
+  historicalNote?: string | null;
+  aiScanning?: string | null;
+  note?: string | null;
+  dataSource?: string | null;
+  createdAt?: string | null;
+}
+
+export interface RadarAlertsResponse {
+  alerts?: RadarAlert[];
+  total?: number;
+  generatedAt?: string;
+}
+
+export interface RadarPriceRow {
+  assetId?: string;
+  assetLabel?: string;
+  price?: number;
+  spikeDetected?: boolean;
+  pctChange?: number | null;
+  severity?: string;
+  threshold?: string;
+  updatedAt?: string;
+}
+
+export interface RadarPricesResponse {
+  prices?: RadarPriceRow[];
+  total?: number;
+  updatedAt?: string;
+}
+
+export interface RadarScanResponse {
+  status?: string;
+  message?: string;
+}
+
+export interface RadarChainReaction {
+  asset?: string;
+  direction?: string;
+  confidence?: number;
+  reason?: string;
+}
+
+export interface RadarChainsResponse {
+  assetId?: string;
+  chains?: RadarChainReaction[];
+  total?: number;
+  note?: string;
+}
+
+export type RadarAllChainsResponseChains = {
+  [key: string]: RadarChainReaction[];
+};
+
+export interface RadarAllChainsResponse {
+  chains?: RadarAllChainsResponseChains;
+  totalAssets?: number;
+  note?: string;
+}
+
+export type RadarThresholdsResponseThresholds = {
+  [key: string]: {
+    pct?: number;
+    window?: number;
+    severity?: string;
+  };
+};
+
+export interface RadarThresholdsResponse {
+  thresholds?: RadarThresholdsResponseThresholds;
+  total?: number;
+  note?: string;
+}
+
+export type RadarHistoryResponseByType = { [key: string]: number };
+
+export type RadarHistoryResponseBySeverity = { [key: string]: number };
+
+export interface RadarHistoryResponse {
+  alerts?: RadarAlert[];
+  total?: number;
+  byType?: RadarHistoryResponseByType;
+  bySeverity?: RadarHistoryResponseBySeverity;
+  periodDays?: number;
+}
+
+export type RadarStatusResponseSources = {
+  [key: string]: {
+    status?: string;
+    tier?: string;
+    note?: string;
+  };
+};
+
+export interface RadarStatusResponse {
+  engine?: string;
+  scanFrequency?: string;
+  assetsMonitored?: number;
+  chainMaps?: number;
+  sources?: RadarStatusResponseSources;
+  activeSources?: number;
+  totalSources?: number;
+}
+
 export type ListMarketsParams = {
   sector?: ListMarketsSector;
   sort?: ListMarketsSort;
@@ -505,4 +628,15 @@ export type RejectPendingOrder200 = {
 export type GetTradeHistoryParams = {
   limit?: number;
   platform?: string;
+};
+
+export type GetRadarAlertsParams = {
+  hours?: number;
+  type?: string;
+  severity?: string;
+};
+
+export type GetRadarHistoryParams = {
+  days?: number;
+  limit?: number;
 };

@@ -2,9 +2,11 @@ import cron from "node-cron";
 import { logger } from "../lib/logger";
 import { refreshAllMarketData } from "./market-data";
 import { scanForRecommendations } from "./recommendations";
+import { runRadarScan } from "./market-radar";
 
 let isRefreshing = false;
 let isScanning = false;
+let isRadarScanning = false;
 
 async function safeRefresh() {
   if (isRefreshing) {
@@ -36,6 +38,22 @@ async function safeScan() {
   }
 }
 
+async function safeRadarScan() {
+  if (isRadarScanning) {
+    logger.info("Radar scan already in progress, skipping");
+    return;
+  }
+  isRadarScanning = true;
+  try {
+    const alerts = await runRadarScan();
+    logger.info({ count: alerts.length }, "Radar scan complete");
+  } catch (e: any) {
+    logger.error({ err: e.message }, "Scheduled radar scan failed");
+  } finally {
+    isRadarScanning = false;
+  }
+}
+
 export function startScheduler() {
   cron.schedule("*/5 * * * *", () => {
     safeRefresh();
@@ -45,7 +63,11 @@ export function startScheduler() {
     safeScan();
   });
 
-  logger.info("Scheduler started: markets(5min) · recommendations(30min)");
+  cron.schedule("*/5 * * * *", () => {
+    safeRadarScan();
+  });
+
+  logger.info("Scheduler started: markets(5min) · recommendations(30min) · radar(5min)");
 
   setTimeout(() => {
     logger.info("Running initial market data refresh...");
