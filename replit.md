@@ -25,8 +25,8 @@ artifacts-monorepo/
 ├── artifacts/
 │   ├── api-server/         # Express API server (port 8080)
 │   │   └── src/
-│   │       ├── routes/     # markets, signals, portfolio, coach, health
-│   │       └── services/   # scoring (AI), coach (AI)
+│   │       ├── routes/     # markets, signals, portfolio, coach, recommendations, health
+│   │       └── services/   # scoring (AI), coach (AI), recommendations (AI), market-data, scheduler
 │   ├── alpha-lens/         # React + Vite frontend (previewPath: /)
 │   └── mockup-sandbox/     # Design preview server
 ├── lib/
@@ -49,6 +49,7 @@ artifacts-monorepo/
 - **Paper Trading**: $10,000 virtual balance, open/close positions, P&L tracking
 - **AI Coach**: Chat interface for market analysis and trading guidance
 - **Evidence Signals**: Structured evidence records with source quality and directional analysis
+- **Intelligence Briefing (E6)**: AI-powered daily briefings with trade calls, watch alerts, and global event scanning. 30-min auto-scan via cron.
 
 ## Database Schema
 
@@ -56,6 +57,10 @@ artifacts-monorepo/
 - `signals` — Evidence records linked to assets (type, source, headline, impact, direction, confidence)
 - `trades` — Paper trading positions (entry/exit prices, P&L, status)
 - `portfolio` — Virtual balance tracking
+- `daily_briefings` — AI-generated daily intelligence briefings with summary and scan metadata
+- `recommendations` — Individual trade/watch/avoid recommendations linked to briefings
+- `global_events` — Scanned global market events with impact levels and affected assets
+- `watchlist` — User's watched assets with alert edge thresholds
 
 ## API Routes (all under `/api`)
 
@@ -70,6 +75,12 @@ artifacts-monorepo/
 - `POST /portfolio/close/:id` — Close a paper trade
 - `GET /portfolio/stats` — Performance statistics
 - `POST /coach/analyze` — AI coaching analysis (calls Claude)
+- `GET /recommendations/briefing` — Latest AI intelligence briefing
+- `POST /recommendations/scan` — Trigger a new AI recommendations scan
+- `GET /recommendations/events` — Recent global market events
+- `GET /recommendations/watchlist` — Get watchlist items
+- `POST /recommendations/watchlist` — Add asset to watchlist
+- `DELETE /recommendations/watchlist/:id` — Remove from watchlist
 
 ## TypeScript & Composite Projects
 

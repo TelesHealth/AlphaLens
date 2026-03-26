@@ -404,3 +404,125 @@ export const GetPortfolioStatsResponse = zod.object({
   balance: zod.number(),
   totalPnl: zod.number(),
 });
+
+/**
+ * @summary Get the latest AI intelligence briefing
+ */
+export const GetBriefingResponse = zod.object({
+  id: zod.number().nullish(),
+  summary: zod.string(),
+  tradeCount: zod.number().optional(),
+  watchCount: zod.number().optional(),
+  signalsProcessed: zod.number().optional(),
+  scanNumber: zod.number().optional(),
+  generatedAt: zod.date().nullish(),
+  recommendations: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        briefingId: zod.number().nullish(),
+        type: zod.enum(["trade", "watch", "avoid"]),
+        urgency: zod.enum(["high", "medium", "low"]).optional(),
+        title: zod.string(),
+        assetId: zod.number().nullish(),
+        assetTitle: zod.string().optional(),
+        assetClass: zod.string().optional(),
+        sector: zod.string().optional(),
+        region: zod.string().optional(),
+        direction: zod.string().optional(),
+        aiProbability: zod.number().nullish(),
+        marketPrice: zod.number().nullish(),
+        edge: zod.number().nullish(),
+        headline: zod.string().optional(),
+        why: zod.array(zod.string()).optional(),
+        historicalContext: zod.string().optional(),
+        bearCase: zod.string().optional(),
+        entryTrigger: zod.string().optional(),
+        confidence: zod.number(),
+        window: zod.string().optional(),
+        urgencyReason: zod.string().optional(),
+        createdAt: zod.date().nullish(),
+      }),
+    )
+    .optional(),
+  globalEvents: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        title: zod.string(),
+        region: zod.string().optional(),
+        impactLevel: zod.enum(["critical", "high", "medium", "low"]).optional(),
+        detail: zod.string().optional(),
+        affectedAssets: zod.array(zod.string()).optional(),
+        direction: zod.enum(["bullish", "bearish", "mixed"]).optional(),
+        timeContext: zod.string().optional(),
+        scannedAt: zod.date().nullish(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Trigger a new AI recommendations scan
+ */
+export const TriggerScanResponse = zod.object({
+  status: zod.string(),
+  message: zod.string(),
+});
+
+/**
+ * @summary Get recent global market events
+ */
+export const getGlobalEventsQueryLimitDefault = 10;
+
+export const GetGlobalEventsQueryParams = zod.object({
+  limit: zod.coerce.number().default(getGlobalEventsQueryLimitDefault),
+});
+
+export const GetGlobalEventsResponse = zod.object({
+  events: zod.array(
+    zod.object({
+      id: zod.number(),
+      title: zod.string(),
+      region: zod.string().optional(),
+      impactLevel: zod.enum(["critical", "high", "medium", "low"]).optional(),
+      detail: zod.string().optional(),
+      affectedAssets: zod.array(zod.string()).optional(),
+      direction: zod.enum(["bullish", "bearish", "mixed"]).optional(),
+      timeContext: zod.string().optional(),
+      scannedAt: zod.date().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get watchlist items
+ */
+export const GetWatchlistResponse = zod.object({
+  watchlist: zod.array(
+    zod.object({
+      id: zod.number(),
+      assetId: zod.number().nullish(),
+      assetTitle: zod.string().optional(),
+      assetClass: zod.string().optional(),
+      alertEdgeThreshold: zod.number().optional(),
+      notes: zod.string().optional(),
+      addedAt: zod.date().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Add asset to watchlist
+ */
+export const AddToWatchlistBody = zod.object({
+  assetId: zod.number(),
+  assetTitle: zod.string().optional(),
+  assetClass: zod.string().optional(),
+  alertEdgeThreshold: zod.number().optional(),
+  notes: zod.string().optional(),
+});
+
+export const AddToWatchlistResponse = zod.object({
+  status: zod.string().optional(),
+});

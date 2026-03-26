@@ -17,6 +17,8 @@ tags:
     description: Paper trading operations
   - name: coach
     description: AI coach operations
+  - name: recommendations
+    description: AI recommendations and briefing operations
 
 paths:
   /healthz:
@@ -243,6 +245,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PortfolioStatsResponse"
+
+  /recommendations/briefing:
+    get:
+      operationId: getBriefing
+      tags: [recommendations]
+      summary: Get the latest AI intelligence briefing
+      responses:
+        "200":
+          description: Current briefing with recommendations and events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BriefingResponse"
+
+  /recommendations/scan:
+    post:
+      operationId: triggerScan
+      tags: [recommendations]
+      summary: Trigger a new AI recommendations scan
+      responses:
+        "200":
+          description: Scan initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResponse"
+
+  /recommendations/events:
+    get:
+      operationId: getGlobalEvents
+      tags: [recommendations]
+      summary: Get recent global market events
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: List of global events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventsResponse"
+
+  /recommendations/watchlist:
+    get:
+      operationId: getWatchlist
+      tags: [recommendations]
+      summary: Get watchlist items
+      responses:
+        "200":
+          description: Watchlist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WatchlistResponse"
+    post:
+      operationId: addToWatchlist
+      tags: [recommendations]
+      summary: Add asset to watchlist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WatchlistAddRequest"
+      responses:
+        "200":
+          description: Added to watchlist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
 
 components:
   schemas:
@@ -622,3 +702,201 @@ components:
         - analysis
         - recommendations
         - confidence
+
+    Recommendation:
+      type: object
+      properties:
+        id:
+          type: integer
+        briefingId:
+          type: integer
+          nullable: true
+        type:
+          type: string
+          enum: [trade, watch, avoid]
+        urgency:
+          type: string
+          enum: [high, medium, low]
+        title:
+          type: string
+        assetId:
+          type: integer
+          nullable: true
+        assetTitle:
+          type: string
+        assetClass:
+          type: string
+        sector:
+          type: string
+        region:
+          type: string
+        direction:
+          type: string
+        aiProbability:
+          type: number
+          nullable: true
+        marketPrice:
+          type: number
+          nullable: true
+        edge:
+          type: number
+          nullable: true
+        headline:
+          type: string
+        why:
+          type: array
+          items:
+            type: string
+        historicalContext:
+          type: string
+        bearCase:
+          type: string
+        entryTrigger:
+          type: string
+        confidence:
+          type: integer
+        window:
+          type: string
+        urgencyReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - type
+        - title
+        - confidence
+
+    GlobalEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        region:
+          type: string
+        impactLevel:
+          type: string
+          enum: [critical, high, medium, low]
+        detail:
+          type: string
+        affectedAssets:
+          type: array
+          items:
+            type: string
+        direction:
+          type: string
+          enum: [bullish, bearish, mixed]
+        timeContext:
+          type: string
+        scannedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - title
+
+    BriefingResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          nullable: true
+        summary:
+          type: string
+        tradeCount:
+          type: integer
+        watchCount:
+          type: integer
+        signalsProcessed:
+          type: integer
+        scanNumber:
+          type: integer
+        generatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recommendation"
+        globalEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/GlobalEvent"
+      required:
+        - summary
+
+    ScanResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+      required:
+        - status
+        - message
+
+    EventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/GlobalEvent"
+      required:
+        - events
+
+    WatchlistItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        assetId:
+          type: integer
+          nullable: true
+        assetTitle:
+          type: string
+        assetClass:
+          type: string
+        alertEdgeThreshold:
+          type: number
+        notes:
+          type: string
+        addedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+
+    WatchlistResponse:
+      type: object
+      properties:
+        watchlist:
+          type: array
+          items:
+            $ref: "#/components/schemas/WatchlistItem"
+      required:
+        - watchlist
+
+    WatchlistAddRequest:
+      type: object
+      properties:
+        assetId:
+          type: integer
+        assetTitle:
+          type: string
+        assetClass:
+          type: string
+        alertEdgeThreshold:
+          type: number
+        notes:
+          type: string
+      required:
+        - assetId

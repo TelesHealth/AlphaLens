@@ -6,10 +6,17 @@
  * OpenAPI spec version: 1.0.0
  */
 
+export * from "./addToWatchlist200";
+export * from "./briefingResponse";
 export * from "./coachRequest";
 export * from "./coachResponse";
 export * from "./errorResponse";
+export * from "./eventsResponse";
+export * from "./getGlobalEventsParams";
 export * from "./getSignalsParams";
+export * from "./globalEvent";
+export * from "./globalEventDirection";
+export * from "./globalEventImpactLevel";
 export * from "./healthStatus";
 export * from "./listMarketsParams";
 export * from "./listMarketsSector";
@@ -24,7 +31,11 @@ export * from "./openTradeRequest";
 export * from "./openTradeRequestDirection";
 export * from "./portfolioResponse";
 export * from "./portfolioStatsResponse";
+export * from "./recommendation";
+export * from "./recommendationType";
+export * from "./recommendationUrgency";
 export * from "./refreshResponse";
+export * from "./scanResponse";
 export * from "./scoreResponse";
 export * from "./scoreResponseScoring";
 export * from "./scoreResponseScoringDirection";
@@ -37,3 +48,6 @@ export * from "./trade";
 export * from "./tradeDirection";
 export * from "./tradeResponse";
 export * from "./tradeStatus";
+export * from "./watchlistAddRequest";
+export * from "./watchlistItem";
+export * from "./watchlistResponse";

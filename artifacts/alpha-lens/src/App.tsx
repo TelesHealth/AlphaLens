@@ -9,6 +9,7 @@ import Scanner from "@/pages/scanner";
 import MarketDetail from "@/pages/market-detail";
 import Portfolio from "@/pages/portfolio";
 import Coach from "@/pages/coach";
+import Briefing from "@/pages/briefing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,7 @@ function Router() {
         <Route path="/market/:id" component={MarketDetail} />
         <Route path="/portfolio" component={Portfolio} />
         <Route path="/coach" component={Coach} />
+        <Route path="/briefing" component={Briefing} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

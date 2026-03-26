@@ -237,6 +237,124 @@ export interface CoachResponse {
   confidence: number;
 }
 
+export type RecommendationType =
+  (typeof RecommendationType)[keyof typeof RecommendationType];
+
+export const RecommendationType = {
+  trade: "trade",
+  watch: "watch",
+  avoid: "avoid",
+} as const;
+
+export type RecommendationUrgency =
+  (typeof RecommendationUrgency)[keyof typeof RecommendationUrgency];
+
+export const RecommendationUrgency = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export interface Recommendation {
+  id: number;
+  briefingId?: number | null;
+  type: RecommendationType;
+  urgency?: RecommendationUrgency;
+  title: string;
+  assetId?: number | null;
+  assetTitle?: string;
+  assetClass?: string;
+  sector?: string;
+  region?: string;
+  direction?: string;
+  aiProbability?: number | null;
+  marketPrice?: number | null;
+  edge?: number | null;
+  headline?: string;
+  why?: string[];
+  historicalContext?: string;
+  bearCase?: string;
+  entryTrigger?: string;
+  confidence: number;
+  window?: string;
+  urgencyReason?: string;
+  createdAt?: string | null;
+}
+
+export type GlobalEventImpactLevel =
+  (typeof GlobalEventImpactLevel)[keyof typeof GlobalEventImpactLevel];
+
+export const GlobalEventImpactLevel = {
+  critical: "critical",
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export type GlobalEventDirection =
+  (typeof GlobalEventDirection)[keyof typeof GlobalEventDirection];
+
+export const GlobalEventDirection = {
+  bullish: "bullish",
+  bearish: "bearish",
+  mixed: "mixed",
+} as const;
+
+export interface GlobalEvent {
+  id: number;
+  title: string;
+  region?: string;
+  impactLevel?: GlobalEventImpactLevel;
+  detail?: string;
+  affectedAssets?: string[];
+  direction?: GlobalEventDirection;
+  timeContext?: string;
+  scannedAt?: string | null;
+}
+
+export interface BriefingResponse {
+  id?: number | null;
+  summary: string;
+  tradeCount?: number;
+  watchCount?: number;
+  signalsProcessed?: number;
+  scanNumber?: number;
+  generatedAt?: string | null;
+  recommendations?: Recommendation[];
+  globalEvents?: GlobalEvent[];
+}
+
+export interface ScanResponse {
+  status: string;
+  message: string;
+}
+
+export interface EventsResponse {
+  events: GlobalEvent[];
+}
+
+export interface WatchlistItem {
+  id: number;
+  assetId?: number | null;
+  assetTitle?: string;
+  assetClass?: string;
+  alertEdgeThreshold?: number;
+  notes?: string;
+  addedAt?: string | null;
+}
+
+export interface WatchlistResponse {
+  watchlist: WatchlistItem[];
+}
+
+export interface WatchlistAddRequest {
+  assetId: number;
+  assetTitle?: string;
+  assetClass?: string;
+  alertEdgeThreshold?: number;
+  notes?: string;
+}
+
 export type ListMarketsParams = {
   sector?: ListMarketsSector;
   sort?: ListMarketsSort;
@@ -268,4 +386,12 @@ export const ListMarketsSort = {
 
 export type GetSignalsParams = {
   limit?: number;
+};
+
+export type GetGlobalEventsParams = {
+  limit?: number;
+};
+
+export type AddToWatchlist200 = {
+  status?: string;
 };

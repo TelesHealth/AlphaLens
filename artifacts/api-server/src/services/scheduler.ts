@@ -1,8 +1,10 @@
 import cron from "node-cron";
 import { logger } from "../lib/logger";
 import { refreshAllMarketData } from "./market-data";
+import { scanForRecommendations } from "./recommendations";
 
 let isRefreshing = false;
+let isScanning = false;
 
 async function safeRefresh() {
   if (isRefreshing) {
@@ -19,12 +21,31 @@ async function safeRefresh() {
   }
 }
 
+async function safeScan() {
+  if (isScanning) {
+    logger.info("Recommendations scan already in progress, skipping");
+    return;
+  }
+  isScanning = true;
+  try {
+    await scanForRecommendations();
+  } catch (e: any) {
+    logger.error({ err: e.message }, "Scheduled recommendations scan failed");
+  } finally {
+    isScanning = false;
+  }
+}
+
 export function startScheduler() {
   cron.schedule("*/5 * * * *", () => {
     safeRefresh();
   });
 
-  logger.info("Scheduler started: market data refresh every 5 minutes");
+  cron.schedule("*/30 * * * *", () => {
+    safeScan();
+  });
+
+  logger.info("Scheduler started: markets(5min) · recommendations(30min)");
 
   setTimeout(() => {
     logger.info("Running initial market data refresh...");

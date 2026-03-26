@@ -4,7 +4,7 @@ import {
   Activity, 
   Briefcase, 
   MessageSquare, 
-  LayoutDashboard,
+  Zap,
   Menu,
   X
 } from "lucide-react";
@@ -22,6 +22,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const navItems = [
     { href: "/", label: "Scanner", icon: Activity },
+    { href: "/briefing", label: "Briefing", icon: Zap },
     { href: "/portfolio", label: "Portfolio", icon: Briefcase },
     { href: "/coach", label: "AI Coach", icon: MessageSquare },
   ];

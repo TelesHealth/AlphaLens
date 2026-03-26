@@ -1,0 +1,594 @@
+import { useState } from "react";
+import {
+  useGetBriefing,
+  useTriggerScan,
+  useGetGlobalEvents,
+  useGetWatchlist,
+} from "@workspace/api-client-react";
+import type {
+  Recommendation,
+  GlobalEvent,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Zap,
+  Globe,
+  Eye,
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Target,
+  ShieldAlert,
+  Crosshair,
+} from "lucide-react";
+import { cn, formatCurrency } from "@/components/ui-helpers";
+import { useToast } from "@/hooks/use-toast";
+
+function UrgencyBadge({ urgency }: { urgency?: string }) {
+  const styles: Record<string, string> = {
+    high: "bg-destructive/10 text-destructive border-destructive/20",
+    medium: "bg-warning/10 text-warning border-warning/20",
+    low: "bg-muted text-muted-foreground border-border",
+  };
+  return (
+    <span
+      className={cn(
+        "px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border",
+        styles[urgency ?? "low"] ?? styles.low
+      )}
+    >
+      {urgency ?? "low"}
+    </span>
+  );
+}
+
+function ImpactBadge({ level }: { level?: string }) {
+  const styles: Record<string, string> = {
+    critical:
+      "bg-destructive/20 text-destructive border-destructive/30 shadow-[0_0_8px_rgba(239,68,68,0.2)]",
+    high: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+    medium: "bg-warning/10 text-warning border-warning/20",
+    low: "bg-muted text-muted-foreground border-border",
+  };
+  return (
+    <span
+      className={cn(
+        "px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border",
+        styles[level ?? "low"] ?? styles.low
+      )}
+    >
+      {level}
+    </span>
+  );
+}
+
+function RecommendationCard({ rec }: { rec: Recommendation }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const typeConfig: Record<string, { icon: typeof Zap; color: string }> = {
+    trade: {
+      icon: Target,
+      color: "text-primary border-primary/30 bg-primary/5",
+    },
+    watch: {
+      icon: Eye,
+      color: "text-warning border-warning/30 bg-warning/5",
+    },
+    avoid: {
+      icon: ShieldAlert,
+      color: "text-destructive border-destructive/30 bg-destructive/5",
+    },
+  };
+
+  const config = typeConfig[rec.type ?? "watch"] ?? typeConfig.watch;
+  const Icon = config.icon;
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border bg-card overflow-hidden transition-all duration-300",
+        config.color
+      )}
+    >
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full text-left p-4 hover:bg-secondary/30 transition-colors"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className="mt-0.5 shrink-0">
+              <Icon className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-secondary border border-border">
+                  {rec.type}
+                </span>
+                <UrgencyBadge urgency={rec.urgency} />
+                {rec.assetClass && (
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {rec.assetClass}
+                  </span>
+                )}
+              </div>
+              <h3 className="font-semibold text-sm leading-snug">
+                {rec.title}
+              </h3>
+              {rec.headline && (
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                  {rec.headline}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            {rec.direction && (
+              <div className="flex items-center gap-1">
+                {rec.direction === "long" || rec.direction === "bullish" ? (
+                  <TrendingUp className="w-4 h-4 text-success" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-destructive" />
+                )}
+              </div>
+            )}
+            {rec.confidence != null && (
+              <div className="text-right">
+                <div
+                  className={cn(
+                    "text-lg font-bold font-mono",
+                    rec.confidence >= 70
+                      ? "text-success"
+                      : rec.confidence >= 40
+                        ? "text-warning"
+                        : "text-destructive"
+                  )}
+                >
+                  {rec.confidence}%
+                </div>
+              </div>
+            )}
+            {expanded ? (
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            )}
+          </div>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3 animate-in slide-in-from-top-2 duration-200">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {rec.marketPrice != null && (
+              <div className="bg-secondary/30 rounded-lg p-3">
+                <div className="text-[10px] font-mono text-muted-foreground mb-1">
+                  MARKET PRICE
+                </div>
+                <div className="text-sm font-mono font-bold">
+                  {formatCurrency(rec.marketPrice)}
+                </div>
+              </div>
+            )}
+            {rec.aiProbability != null && (
+              <div className="bg-secondary/30 rounded-lg p-3">
+                <div className="text-[10px] font-mono text-muted-foreground mb-1">
+                  AI PROBABILITY
+                </div>
+                <div className="text-sm font-mono font-bold">
+                  {(rec.aiProbability * 100).toFixed(1)}%
+                </div>
+              </div>
+            )}
+            {rec.edge != null && (
+              <div className="bg-secondary/30 rounded-lg p-3">
+                <div className="text-[10px] font-mono text-muted-foreground mb-1">
+                  EDGE
+                </div>
+                <div
+                  className={cn(
+                    "text-sm font-mono font-bold",
+                    rec.edge > 0 ? "text-success" : "text-destructive"
+                  )}
+                >
+                  {rec.edge > 0 ? "+" : ""}
+                  {rec.edge.toFixed(1)}%
+                </div>
+              </div>
+            )}
+          </div>
+
+          {rec.why && rec.why.length > 0 && (
+            <div>
+              <div className="text-[10px] font-mono text-muted-foreground mb-2">
+                WHY
+              </div>
+              <ul className="space-y-1">
+                {rec.why.map((reason, i) => (
+                  <li
+                    key={i}
+                    className="text-xs text-foreground/80 flex items-start gap-2"
+                  >
+                    <Crosshair className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
+                    {reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            {rec.historicalContext && (
+              <div>
+                <div className="text-[10px] font-mono text-muted-foreground mb-1">
+                  HISTORICAL CONTEXT
+                </div>
+                <p className="text-foreground/70">{rec.historicalContext}</p>
+              </div>
+            )}
+            {rec.bearCase && (
+              <div>
+                <div className="text-[10px] font-mono text-muted-foreground mb-1">
+                  BEAR CASE
+                </div>
+                <p className="text-foreground/70">{rec.bearCase}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1">
+            {rec.window && (
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" /> {rec.window}
+              </span>
+            )}
+            {rec.entryTrigger && (
+              <span className="flex items-center gap-1">
+                <Crosshair className="w-3 h-3" /> {rec.entryTrigger}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EventCard({ event }: { event: GlobalEvent }) {
+  const directionIcon =
+    event.direction === "bullish" ? (
+      <TrendingUp className="w-4 h-4 text-success" />
+    ) : event.direction === "bearish" ? (
+      <TrendingDown className="w-4 h-4 text-destructive" />
+    ) : (
+      <AlertTriangle className="w-4 h-4 text-warning" />
+    );
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/20 transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className="mt-0.5">{directionIcon}</div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <ImpactBadge level={event.impactLevel} />
+              {event.region && (
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  {event.region}
+                </span>
+              )}
+            </div>
+            <h3 className="text-sm font-semibold">{event.title}</h3>
+            {event.detail && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {event.detail}
+              </p>
+            )}
+            {event.affectedAssets && event.affectedAssets.length > 0 && (
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                {event.affectedAssets.map((asset, i) => (
+                  <span
+                    key={i}
+                    className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary border border-border"
+                  >
+                    {asset}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {event.timeContext && (
+          <span className="text-[10px] text-muted-foreground font-mono shrink-0 flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {event.timeContext}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function Briefing() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const {
+    data: briefing,
+    isLoading,
+    error,
+  } = useGetBriefing({
+    query: { refetchInterval: 60000 },
+  });
+
+  const { data: eventsData } = useGetGlobalEvents(
+    { limit: 10 },
+    { query: { refetchInterval: 120000 } }
+  );
+
+  const { data: watchlistData } = useGetWatchlist({
+    query: { refetchInterval: 60000 },
+  });
+
+  const scanMutation = useTriggerScan({
+    mutation: {
+      onSuccess: () => {
+        toast({
+          title: "Scan Initiated",
+          description:
+            "AI is scanning global markets. Results will appear shortly.",
+        });
+        setTimeout(() => {
+          queryClient.invalidateQueries({
+            predicate: (query) =>
+              (query.queryKey[0] as string)?.startsWith?.(
+                "/api/recommendations"
+              ) ?? false,
+          });
+        }, 15000);
+      },
+      onError: () => {
+        toast({
+          title: "Scan Failed",
+          description: "Could not start market scan.",
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  const trades =
+    briefing?.recommendations?.filter(
+      (r: Recommendation) => r.type === "trade"
+    ) ?? [];
+  const watches =
+    briefing?.recommendations?.filter(
+      (r: Recommendation) => r.type === "watch"
+    ) ?? [];
+  const avoids =
+    briefing?.recommendations?.filter(
+      (r: Recommendation) => r.type === "avoid"
+    ) ?? [];
+
+  const events = eventsData?.events ?? briefing?.globalEvents ?? [];
+  const watchlist = watchlistData?.watchlist ?? [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-center space-y-4">
+          <RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground font-mono text-sm">
+            Loading intelligence briefing...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-center space-y-4 max-w-md">
+          <AlertTriangle className="w-8 h-8 text-destructive mx-auto" />
+          <p className="text-destructive">Failed to load briefing</p>
+          <p className="text-xs text-muted-foreground">
+            {(error as Error).message}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+        <div>
+          <h1 className="text-3xl font-display text-glow-primary">
+            Intelligence Briefing
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            AI-powered daily market intelligence and trade recommendations.
+          </p>
+        </div>
+        <button
+          onClick={() => scanMutation.mutate()}
+          disabled={scanMutation.isPending}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary/10 border border-primary/30 hover:bg-primary/20 text-sm font-medium transition-all group disabled:opacity-50"
+        >
+          <Zap
+            className={cn(
+              "w-4 h-4 text-primary",
+              scanMutation.isPending && "animate-pulse"
+            )}
+          />
+          {scanMutation.isPending ? "Scanning..." : "Run AI Scan"}
+        </button>
+      </div>
+
+      {briefing?.summary && (
+        <div className="bg-card border border-card-border rounded-xl p-5 shadow-xl shadow-black/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-[80px] -mr-24 -mt-24 pointer-events-none" />
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4 h-4 text-primary" />
+            <span className="text-xs font-mono text-muted-foreground">
+              BRIEFING SUMMARY
+            </span>
+            {briefing.scanNumber != null && briefing.scanNumber > 0 && (
+              <span className="text-[10px] font-mono text-muted-foreground ml-auto">
+                SCAN #{briefing.scanNumber}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-foreground/90 leading-relaxed">
+            {briefing.summary}
+          </p>
+          <div className="flex items-center gap-4 mt-3 text-[10px] font-mono text-muted-foreground">
+            {briefing.tradeCount != null && (
+              <span>{briefing.tradeCount} trades</span>
+            )}
+            {briefing.watchCount != null && (
+              <span>{briefing.watchCount} watches</span>
+            )}
+            {briefing.generatedAt && (
+              <span className="ml-auto">
+                {new Date(briefing.generatedAt).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {trades.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="w-4 h-4 text-primary" />
+                <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
+                  TRADE CALLS ({trades.length})
+                </h2>
+              </div>
+              <div className="space-y-3">
+                {trades.map((rec: Recommendation) => (
+                  <RecommendationCard key={rec.id} rec={rec} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {watches.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Eye className="w-4 h-4 text-warning" />
+                <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
+                  WATCH LIST ({watches.length})
+                </h2>
+              </div>
+              <div className="space-y-3">
+                {watches.map((rec: Recommendation) => (
+                  <RecommendationCard key={rec.id} rec={rec} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {avoids.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <ShieldAlert className="w-4 h-4 text-destructive" />
+                <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
+                  AVOID ({avoids.length})
+                </h2>
+              </div>
+              <div className="space-y-3">
+                {avoids.map((rec: Recommendation) => (
+                  <RecommendationCard key={rec.id} rec={rec} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {trades.length === 0 &&
+            watches.length === 0 &&
+            avoids.length === 0 && (
+              <div className="bg-card border border-border rounded-xl p-8 text-center">
+                <Zap className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground text-sm">
+                  No recommendations yet. Click "Run AI Scan" to generate your
+                  first intelligence briefing.
+                </p>
+              </div>
+            )}
+        </div>
+
+        <div className="space-y-6">
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <Globe className="w-4 h-4 text-blue-400" />
+              <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
+                GLOBAL EVENTS
+              </h2>
+            </div>
+            {events.length > 0 ? (
+              <div className="space-y-3">
+                {events.map((event: GlobalEvent) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-card border border-border rounded-xl p-6 text-center">
+                <Globe className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">
+                  No events scanned yet
+                </p>
+              </div>
+            )}
+          </section>
+
+          {watchlist.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Eye className="w-4 h-4 text-primary" />
+                <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
+                  MY WATCHLIST ({watchlist.length})
+                </h2>
+              </div>
+              <div className="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
+                {watchlist.map((item) => (
+                  <div key={item.id} className="p-3 hover:bg-secondary/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium">
+                          {item.assetTitle}
+                        </div>
+                        {item.assetClass && (
+                          <div className="text-[10px] font-mono text-muted-foreground">
+                            {item.assetClass}
+                          </div>
+                        )}
+                      </div>
+                      {item.alertEdgeThreshold != null && (
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          Edge ≥{item.alertEdgeThreshold}%
+                        </span>
+                      )}
+                    </div>
+                    {item.notes && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {item.notes}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

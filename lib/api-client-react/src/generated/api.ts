@@ -17,9 +17,13 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AddToWatchlist200,
+  BriefingResponse,
   CoachRequest,
   CoachResponse,
   ErrorResponse,
+  EventsResponse,
+  GetGlobalEventsParams,
   GetSignalsParams,
   HealthStatus,
   ListMarketsParams,
@@ -29,9 +33,12 @@ import type {
   PortfolioResponse,
   PortfolioStatsResponse,
   RefreshResponse,
+  ScanResponse,
   ScoreResponse,
   SignalListResponse,
   TradeResponse,
+  WatchlistAddRequest,
+  WatchlistResponse,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -976,3 +983,414 @@ export function useGetPortfolioStats<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get the latest AI intelligence briefing
+ */
+export const getGetBriefingUrl = () => {
+  return `/api/recommendations/briefing`;
+};
+
+export const getBriefing = async (
+  options?: RequestInit,
+): Promise<BriefingResponse> => {
+  return customFetch<BriefingResponse>(getGetBriefingUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBriefingQueryKey = () => {
+  return [`/api/recommendations/briefing`] as const;
+};
+
+export const getGetBriefingQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBriefing>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBriefing>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBriefingQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBriefing>>> = ({
+    signal,
+  }) => getBriefing({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBriefing>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBriefingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBriefing>>
+>;
+export type GetBriefingQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get the latest AI intelligence briefing
+ */
+
+export function useGetBriefing<
+  TData = Awaited<ReturnType<typeof getBriefing>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBriefing>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBriefingQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Trigger a new AI recommendations scan
+ */
+export const getTriggerScanUrl = () => {
+  return `/api/recommendations/scan`;
+};
+
+export const triggerScan = async (
+  options?: RequestInit,
+): Promise<ScanResponse> => {
+  return customFetch<ScanResponse>(getTriggerScanUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getTriggerScanMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof triggerScan>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof triggerScan>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["triggerScan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof triggerScan>>,
+    void
+  > = () => {
+    return triggerScan(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TriggerScanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof triggerScan>>
+>;
+
+export type TriggerScanMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Trigger a new AI recommendations scan
+ */
+export const useTriggerScan = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof triggerScan>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof triggerScan>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getTriggerScanMutationOptions(options));
+};
+
+/**
+ * @summary Get recent global market events
+ */
+export const getGetGlobalEventsUrl = (params?: GetGlobalEventsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/recommendations/events?${stringifiedParams}`
+    : `/api/recommendations/events`;
+};
+
+export const getGlobalEvents = async (
+  params?: GetGlobalEventsParams,
+  options?: RequestInit,
+): Promise<EventsResponse> => {
+  return customFetch<EventsResponse>(getGetGlobalEventsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGlobalEventsQueryKey = (params?: GetGlobalEventsParams) => {
+  return [`/api/recommendations/events`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetGlobalEventsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGlobalEvents>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetGlobalEventsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGlobalEvents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetGlobalEventsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getGlobalEvents>>> = ({
+    signal,
+  }) => getGlobalEvents(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGlobalEvents>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGlobalEventsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGlobalEvents>>
+>;
+export type GetGlobalEventsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get recent global market events
+ */
+
+export function useGetGlobalEvents<
+  TData = Awaited<ReturnType<typeof getGlobalEvents>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetGlobalEventsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGlobalEvents>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGlobalEventsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get watchlist items
+ */
+export const getGetWatchlistUrl = () => {
+  return `/api/recommendations/watchlist`;
+};
+
+export const getWatchlist = async (
+  options?: RequestInit,
+): Promise<WatchlistResponse> => {
+  return customFetch<WatchlistResponse>(getGetWatchlistUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWatchlistQueryKey = () => {
+  return [`/api/recommendations/watchlist`] as const;
+};
+
+export const getGetWatchlistQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWatchlist>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWatchlist>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWatchlistQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getWatchlist>>> = ({
+    signal,
+  }) => getWatchlist({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWatchlist>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWatchlistQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWatchlist>>
+>;
+export type GetWatchlistQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get watchlist items
+ */
+
+export function useGetWatchlist<
+  TData = Awaited<ReturnType<typeof getWatchlist>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWatchlist>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWatchlistQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add asset to watchlist
+ */
+export const getAddToWatchlistUrl = () => {
+  return `/api/recommendations/watchlist`;
+};
+
+export const addToWatchlist = async (
+  watchlistAddRequest: WatchlistAddRequest,
+  options?: RequestInit,
+): Promise<AddToWatchlist200> => {
+  return customFetch<AddToWatchlist200>(getAddToWatchlistUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(watchlistAddRequest),
+  });
+};
+
+export const getAddToWatchlistMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addToWatchlist>>,
+    TError,
+    { data: BodyType<WatchlistAddRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof addToWatchlist>>,
+  TError,
+  { data: BodyType<WatchlistAddRequest> },
+  TContext
+> => {
+  const mutationKey = ["addToWatchlist"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof addToWatchlist>>,
+    { data: BodyType<WatchlistAddRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return addToWatchlist(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AddToWatchlistMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addToWatchlist>>
+>;
+export type AddToWatchlistMutationBody = BodyType<WatchlistAddRequest>;
+export type AddToWatchlistMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Add asset to watchlist
+ */
+export const useAddToWatchlist = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof addToWatchlist>>,
+    TError,
+    { data: BodyType<WatchlistAddRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof addToWatchlist>>,
+  TError,
+  { data: BodyType<WatchlistAddRequest> },
+  TContext
+> => {
+  return useMutation(getAddToWatchlistMutationOptions(options));
+};
