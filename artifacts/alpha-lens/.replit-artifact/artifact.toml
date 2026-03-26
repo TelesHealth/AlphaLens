@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Alpha Lens"
+version = "1.0.0"
+id = "artifacts/alpha-lens"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20246
+
+[services.development]
+run = "pnpm --filter @workspace/alpha-lens run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/alpha-lens", "run", "build" ]
+publicDir = "artifacts/alpha-lens/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20246"
+BASE_PATH = "/"

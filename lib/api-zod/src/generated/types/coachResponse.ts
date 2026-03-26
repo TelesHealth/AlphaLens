@@ -6,6 +6,9 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface CoachResponse {
+  analysis: string;
+  recommendations: string[];
+  riskAssessment?: string | null;
+  confidence: number;
 }

@@ -5,7 +5,9 @@
  * Alpha Lens Investment Intelligence API
  * OpenAPI spec version: 1.0.0
  */
+import type { Market } from "./market";
 
-export interface HealthStatus {
-  status: string;
+export interface MarketListResponse {
+  markets: Market[];
+  total: number;
 }

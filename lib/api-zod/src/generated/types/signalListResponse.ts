@@ -5,7 +5,9 @@
  * Alpha Lens Investment Intelligence API
  * OpenAPI spec version: 1.0.0
  */
+import type { Signal } from "./signal";
 
-export interface HealthStatus {
-  status: string;
+export interface SignalListResponse {
+  signals: Signal[];
+  total: number;
 }

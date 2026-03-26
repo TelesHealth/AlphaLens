@@ -1,22 +1,29 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
+  description: Alpha Lens Investment Intelligence API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: markets
+    description: Market scanner operations
+  - name: signals
+    description: Evidence and signal operations
+  - name: portfolio
+    description: Paper trading operations
+  - name: coach
+    description: AI coach operations
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +31,219 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /markets:
+    get:
+      operationId: listMarkets
+      tags: [markets]
+      summary: List all tracked markets
+      parameters:
+        - name: sector
+          in: query
+          schema:
+            type: string
+            enum: [energy, metals, agriculture, crypto, equities, fx, real_estate, prediction]
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [alpha_score, price_change, name]
+            default: alpha_score
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of markets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketListResponse"
+
+  /markets/{id}:
+    get:
+      operationId: getMarket
+      tags: [markets]
+      summary: Get market detail with evidence
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Market detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketDetailResponse"
+        "404":
+          description: Market not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /markets/{id}/score:
+    post:
+      operationId: scoreMarket
+      tags: [markets]
+      summary: Trigger AI research and scoring for a market
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Scoring result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreResponse"
+        "404":
+          description: Market not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /markets/refresh:
+    post:
+      operationId: refreshMarkets
+      tags: [markets]
+      summary: Refresh all market data
+      responses:
+        "200":
+          description: Refresh result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshResponse"
+
+  /signals/{assetId}:
+    get:
+      operationId: getSignals
+      tags: [signals]
+      summary: Get evidence records for an asset
+      parameters:
+        - name: assetId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Signal list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalListResponse"
+
+  /portfolio:
+    get:
+      operationId: getPortfolio
+      tags: [portfolio]
+      summary: Get paper trading portfolio
+      responses:
+        "200":
+          description: Portfolio data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioResponse"
+
+  /portfolio/trade:
+    post:
+      operationId: openTrade
+      tags: [portfolio]
+      summary: Open a paper trade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenTradeRequest"
+      responses:
+        "200":
+          description: Trade opened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeResponse"
+        "400":
+          description: Invalid trade
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /portfolio/trade/{id}/close:
+    post:
+      operationId: closeTrade
+      tags: [portfolio]
+      summary: Close a paper trade
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Trade closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeResponse"
+        "404":
+          description: Trade not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /coach/analyze:
+    post:
+      operationId: coachAnalyze
+      tags: [coach]
+      summary: Get AI coach analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachRequest"
+      responses:
+        "200":
+          description: Coach analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachResponse"
+
+  /portfolio/stats:
+    get:
+      operationId: getPortfolioStats
+      tags: [portfolio]
+      summary: Get portfolio performance statistics
+      responses:
+        "200":
+          description: Portfolio stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioStatsResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +254,371 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    MarketSector:
+      type: string
+      enum: [energy, metals, agriculture, crypto, equities, fx, real_estate, prediction]
+
+    Market:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        symbol:
+          type: string
+        sector:
+          $ref: "#/components/schemas/MarketSector"
+        currentPrice:
+          type: number
+          nullable: true
+        priceChange24h:
+          type: number
+          nullable: true
+        alphaScore:
+          type: number
+          nullable: true
+        aiProbability:
+          type: number
+          nullable: true
+        marketProbability:
+          type: number
+          nullable: true
+        edge:
+          type: number
+          nullable: true
+        direction:
+          type: string
+          enum: [bullish, bearish, neutral]
+          nullable: true
+        lastScoredAt:
+          type: string
+          format: date-time
+          nullable: true
+        aiSummary:
+          type: string
+          nullable: true
+        tradingBloc:
+          type: string
+          nullable: true
+        riskLevel:
+          type: string
+          enum: [low, medium, high, extreme]
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - symbol
+        - sector
+        - updatedAt
+
+    MarketListResponse:
+      type: object
+      properties:
+        markets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Market"
+        total:
+          type: integer
+      required:
+        - markets
+        - total
+
+    Signal:
+      type: object
+      properties:
+        id:
+          type: integer
+        assetId:
+          type: integer
+        type:
+          type: string
+          enum: [geopolitical, economic, technical, sentiment, fundamental, alternative]
+        source:
+          type: string
+        headline:
+          type: string
+        detail:
+          type: string
+          nullable: true
+        impact:
+          type: string
+          enum: [high, medium, low]
+        direction:
+          type: string
+          enum: [bullish, bearish, neutral]
+        confidence:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - assetId
+        - type
+        - source
+        - headline
+        - impact
+        - direction
+        - confidence
+        - createdAt
+
+    SignalListResponse:
+      type: object
+      properties:
+        signals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Signal"
+        total:
+          type: integer
+      required:
+        - signals
+        - total
+
+    MarketDetailResponse:
+      type: object
+      properties:
+        market:
+          $ref: "#/components/schemas/Market"
+        signals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Signal"
+        relatedMarkets:
+          type: array
+          items:
+            $ref: "#/components/schemas/Market"
+      required:
+        - market
+        - signals
+        - relatedMarkets
+
+    ScoreResponse:
+      type: object
+      properties:
+        market:
+          $ref: "#/components/schemas/Market"
+        signals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Signal"
+        scoring:
+          type: object
+          properties:
+            aiProbability:
+              type: number
+            marketProbability:
+              type: number
+              nullable: true
+            edge:
+              type: number
+              nullable: true
+            direction:
+              type: string
+              enum: [bullish, bearish, neutral]
+            confidence:
+              type: number
+            reasoning:
+              type: string
+          required:
+            - aiProbability
+            - direction
+            - confidence
+            - reasoning
+      required:
+        - market
+        - signals
+        - scoring
+
+    RefreshResponse:
+      type: object
+      properties:
+        refreshed:
+          type: integer
+        message:
+          type: string
+      required:
+        - refreshed
+        - message
+
+    Trade:
+      type: object
+      properties:
+        id:
+          type: integer
+        assetId:
+          type: integer
+        assetName:
+          type: string
+        assetSymbol:
+          type: string
+        direction:
+          type: string
+          enum: [long, short]
+        entryPrice:
+          type: number
+        exitPrice:
+          type: number
+          nullable: true
+        quantity:
+          type: number
+        pnl:
+          type: number
+          nullable: true
+        pnlPercent:
+          type: number
+          nullable: true
+        status:
+          type: string
+          enum: [open, closed]
+        aiReasoning:
+          type: string
+          nullable: true
+        openedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - assetId
+        - assetName
+        - assetSymbol
+        - direction
+        - entryPrice
+        - quantity
+        - status
+        - openedAt
+
+    PortfolioResponse:
+      type: object
+      properties:
+        balance:
+          type: number
+        initialBalance:
+          type: number
+        totalPnl:
+          type: number
+        totalPnlPercent:
+          type: number
+        openTrades:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trade"
+        closedTrades:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trade"
+      required:
+        - balance
+        - initialBalance
+        - totalPnl
+        - totalPnlPercent
+        - openTrades
+        - closedTrades
+
+    PortfolioStatsResponse:
+      type: object
+      properties:
+        totalTrades:
+          type: integer
+        winRate:
+          type: number
+        avgReturn:
+          type: number
+        bestTrade:
+          type: number
+          nullable: true
+        worstTrade:
+          type: number
+          nullable: true
+        sharpeRatio:
+          type: number
+          nullable: true
+        balance:
+          type: number
+        totalPnl:
+          type: number
+      required:
+        - totalTrades
+        - winRate
+        - avgReturn
+        - balance
+        - totalPnl
+
+    OpenTradeRequest:
+      type: object
+      properties:
+        assetId:
+          type: integer
+        direction:
+          type: string
+          enum: [long, short]
+        amount:
+          type: number
+      required:
+        - assetId
+        - direction
+        - amount
+
+    TradeResponse:
+      type: object
+      properties:
+        trade:
+          $ref: "#/components/schemas/Trade"
+        balance:
+          type: number
+        message:
+          type: string
+      required:
+        - trade
+        - balance
+        - message
+
+    CoachRequest:
+      type: object
+      properties:
+        assetId:
+          type: integer
+          nullable: true
+        question:
+          type: string
+        context:
+          type: string
+          nullable: true
+      required:
+        - question
+
+    CoachResponse:
+      type: object
+      properties:
+        analysis:
+          type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        riskAssessment:
+          type: string
+          nullable: true
+        confidence:
+          type: number
+      required:
+        - analysis
+        - recommendations
+        - confidence

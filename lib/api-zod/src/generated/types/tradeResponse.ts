@@ -5,7 +5,10 @@
  * Alpha Lens Investment Intelligence API
  * OpenAPI spec version: 1.0.0
  */
+import type { Trade } from "./trade";
 
-export interface HealthStatus {
-  status: string;
+export interface TradeResponse {
+  trade: Trade;
+  balance: number;
+  message: string;
 }
