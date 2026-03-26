@@ -8,6 +8,7 @@ import {
   ScoreMarketParams,
 } from "@workspace/api-zod";
 import { scoreMarketWithAI } from "../services/scoring";
+import { refreshAllMarketData } from "../services/market-data";
 
 const router: IRouter = Router();
 
@@ -123,14 +124,15 @@ router.post("/:id/score", async (req, res) => {
   }
 });
 
-router.post("/refresh", async (_req, res) => {
+router.post("/refresh", async (req, res) => {
   try {
-    const count = await db.$count(assetsTable);
+    const updated = await refreshAllMarketData();
     res.json({
-      refreshed: count,
-      message: `Refreshed ${count} markets`,
+      refreshed: updated,
+      message: `Refreshed ${updated} markets with live data`,
     });
   } catch (e: any) {
+    req.log.error({ err: e }, "Error refreshing markets");
     res.status(500).json({ error: e.message });
   }
 });
