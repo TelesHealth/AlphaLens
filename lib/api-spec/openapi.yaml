@@ -19,6 +19,8 @@ tags:
     description: AI coach operations
   - name: recommendations
     description: AI recommendations and briefing operations
+  - name: trading
+    description: Live trading with Kalshi-priority platform routing
 
 paths:
   /healthz:
@@ -323,6 +325,154 @@ paths:
                 properties:
                   status:
                     type: string
+
+  /trading/accounts:
+    get:
+      operationId: getTradingAccounts
+      tags: [trading]
+      summary: Get platform account status and US jurisdiction info
+      responses:
+        "200":
+          description: Account status for all platforms
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradingAccountsResponse"
+
+  /trading/route/{recommendationId}:
+    get:
+      operationId: getRoutingDecision
+      tags: [trading]
+      summary: Preview which platform a recommendation routes to
+      parameters:
+        - name: recommendationId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Routing decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutingDecisionResponse"
+
+  /trading/execute:
+    post:
+      operationId: executeTrade
+      tags: [trading]
+      summary: Execute a live trade from a recommendation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExecuteTradeRequest"
+      responses:
+        "200":
+          description: Trade result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeResultResponse"
+
+  /trading/pending:
+    get:
+      operationId: getPendingOrders
+      tags: [trading]
+      summary: Get orders pending approval
+      responses:
+        "200":
+          description: Pending orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingOrdersResponse"
+
+  /trading/pending/{id}/approve:
+    post:
+      operationId: approvePendingOrder
+      tags: [trading]
+      summary: Approve a pending order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  orderId:
+                    type: integer
+
+  /trading/pending/{id}/reject:
+    post:
+      operationId: rejectPendingOrder
+      tags: [trading]
+      summary: Reject a pending order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  orderId:
+                    type: integer
+
+  /trading/history:
+    get:
+      operationId: getTradeHistory
+      tags: [trading]
+      summary: Get live trade history
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: platform
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Trade history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradeHistoryResponse"
+
+  /trading/positions:
+    get:
+      operationId: getTradingPositions
+      tags: [trading]
+      summary: Get open live trading positions
+      responses:
+        "200":
+          description: Positions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TradingPositionsResponse"
 
 components:
   schemas:
@@ -900,3 +1050,194 @@ components:
           type: string
       required:
         - assetId
+
+    PlatformAccountInfo:
+      type: object
+      properties:
+        status:
+          type: string
+        message:
+          type: string
+        priority:
+          type: string
+        legalStatus:
+          type: string
+        depositMethod:
+          type: string
+        assetTypes:
+          type: string
+
+    TradingAccountsResponse:
+      type: object
+      properties:
+        accounts:
+          type: object
+          properties:
+            usJurisdictionMode:
+              type: boolean
+            primaryPlatform:
+              type: string
+            note:
+              type: string
+            kalshi:
+              $ref: "#/components/schemas/PlatformAccountInfo"
+            alpaca:
+              $ref: "#/components/schemas/PlatformAccountInfo"
+            polymarket:
+              $ref: "#/components/schemas/PlatformAccountInfo"
+
+    RoutingDecisionResponse:
+      type: object
+      properties:
+        recommendationId:
+          type: integer
+        title:
+          type: string
+        selectedPlatform:
+          type: string
+        reason:
+          type: string
+        tradeable:
+          type: boolean
+        usJurisdictionMode:
+          type: boolean
+        requireApproval:
+          type: boolean
+
+    ExecuteTradeRequest:
+      type: object
+      properties:
+        recommendationId:
+          type: integer
+        amountUsd:
+          type: number
+        platform:
+          type: string
+        overrideApproval:
+          type: boolean
+      required:
+        - recommendationId
+        - amountUsd
+
+    TradeResultResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        platform:
+          type: string
+        message:
+          type: string
+        error:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+
+    PendingOrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        recommendationId:
+          type: integer
+          nullable: true
+        recTitle:
+          type: string
+        assetId:
+          type: string
+        direction:
+          type: string
+        amountUsd:
+          type: number
+        platform:
+          type: string
+        platformReason:
+          type: string
+        aiProbability:
+          type: number
+          nullable: true
+        edge:
+          type: number
+          nullable: true
+        confidence:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PendingOrdersResponse:
+      type: object
+      properties:
+        pending:
+          type: array
+          items:
+            $ref: "#/components/schemas/PendingOrderItem"
+
+    LiveTradeItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        recommendationId:
+          type: integer
+          nullable: true
+        platform:
+          type: string
+        assetId:
+          type: string
+        assetTitle:
+          type: string
+        direction:
+          type: string
+        amountUsd:
+          type: number
+        price:
+          type: number
+          nullable: true
+        size:
+          type: number
+          nullable: true
+        status:
+          type: string
+        paperMode:
+          type: boolean
+        aiProbability:
+          type: number
+          nullable: true
+        aiEdge:
+          type: number
+          nullable: true
+        confidence:
+          type: integer
+          nullable: true
+        orderId:
+          type: string
+          nullable: true
+        ticker:
+          type: string
+        executedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    TradeHistoryResponse:
+      type: object
+      properties:
+        trades:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveTradeItem"
+
+    TradingPositionsResponse:
+      type: object
+      properties:
+        positions:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveTradeItem"

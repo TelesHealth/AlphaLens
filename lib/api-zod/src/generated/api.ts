@@ -526,3 +526,196 @@ export const AddToWatchlistBody = zod.object({
 export const AddToWatchlistResponse = zod.object({
   status: zod.string().optional(),
 });
+
+/**
+ * @summary Get platform account status and US jurisdiction info
+ */
+export const GetTradingAccountsResponse = zod.object({
+  accounts: zod
+    .object({
+      usJurisdictionMode: zod.boolean().optional(),
+      primaryPlatform: zod.string().optional(),
+      note: zod.string().optional(),
+      kalshi: zod
+        .object({
+          status: zod.string().optional(),
+          message: zod.string().optional(),
+          priority: zod.string().optional(),
+          legalStatus: zod.string().optional(),
+          depositMethod: zod.string().optional(),
+          assetTypes: zod.string().optional(),
+        })
+        .optional(),
+      alpaca: zod
+        .object({
+          status: zod.string().optional(),
+          message: zod.string().optional(),
+          priority: zod.string().optional(),
+          legalStatus: zod.string().optional(),
+          depositMethod: zod.string().optional(),
+          assetTypes: zod.string().optional(),
+        })
+        .optional(),
+      polymarket: zod
+        .object({
+          status: zod.string().optional(),
+          message: zod.string().optional(),
+          priority: zod.string().optional(),
+          legalStatus: zod.string().optional(),
+          depositMethod: zod.string().optional(),
+          assetTypes: zod.string().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+/**
+ * @summary Preview which platform a recommendation routes to
+ */
+export const GetRoutingDecisionParams = zod.object({
+  recommendationId: zod.coerce.number(),
+});
+
+export const GetRoutingDecisionResponse = zod.object({
+  recommendationId: zod.number().optional(),
+  title: zod.string().optional(),
+  selectedPlatform: zod.string().optional(),
+  reason: zod.string().optional(),
+  tradeable: zod.boolean().optional(),
+  usJurisdictionMode: zod.boolean().optional(),
+  requireApproval: zod.boolean().optional(),
+});
+
+/**
+ * @summary Execute a live trade from a recommendation
+ */
+export const ExecuteTradeBody = zod.object({
+  recommendationId: zod.number(),
+  amountUsd: zod.number(),
+  platform: zod.string().optional(),
+  overrideApproval: zod.boolean().optional(),
+});
+
+export const ExecuteTradeResponse = zod.object({
+  success: zod.boolean().optional(),
+  platform: zod.string().optional(),
+  message: zod.string().optional(),
+  error: zod.string().optional(),
+  reason: zod.string().optional(),
+  status: zod.string().optional(),
+});
+
+/**
+ * @summary Get orders pending approval
+ */
+export const GetPendingOrdersResponse = zod.object({
+  pending: zod
+    .array(
+      zod.object({
+        id: zod.number().optional(),
+        recommendationId: zod.number().nullish(),
+        recTitle: zod.string().optional(),
+        assetId: zod.string().optional(),
+        direction: zod.string().optional(),
+        amountUsd: zod.number().optional(),
+        platform: zod.string().optional(),
+        platformReason: zod.string().optional(),
+        aiProbability: zod.number().nullish(),
+        edge: zod.number().nullish(),
+        confidence: zod.number().nullish(),
+        status: zod.string().optional(),
+        createdAt: zod.date().nullish(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Approve a pending order
+ */
+export const ApprovePendingOrderParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ApprovePendingOrderResponse = zod.object({
+  status: zod.string().optional(),
+  orderId: zod.number().optional(),
+});
+
+/**
+ * @summary Reject a pending order
+ */
+export const RejectPendingOrderParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RejectPendingOrderResponse = zod.object({
+  status: zod.string().optional(),
+  orderId: zod.number().optional(),
+});
+
+/**
+ * @summary Get live trade history
+ */
+export const getTradeHistoryQueryLimitDefault = 50;
+
+export const GetTradeHistoryQueryParams = zod.object({
+  limit: zod.coerce.number().default(getTradeHistoryQueryLimitDefault),
+  platform: zod.coerce.string().optional(),
+});
+
+export const GetTradeHistoryResponse = zod.object({
+  trades: zod
+    .array(
+      zod.object({
+        id: zod.number().optional(),
+        recommendationId: zod.number().nullish(),
+        platform: zod.string().optional(),
+        assetId: zod.string().optional(),
+        assetTitle: zod.string().optional(),
+        direction: zod.string().optional(),
+        amountUsd: zod.number().optional(),
+        price: zod.number().nullish(),
+        size: zod.number().nullish(),
+        status: zod.string().optional(),
+        paperMode: zod.boolean().optional(),
+        aiProbability: zod.number().nullish(),
+        aiEdge: zod.number().nullish(),
+        confidence: zod.number().nullish(),
+        orderId: zod.string().nullish(),
+        ticker: zod.string().optional(),
+        executedAt: zod.date().nullish(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Get open live trading positions
+ */
+export const GetTradingPositionsResponse = zod.object({
+  positions: zod
+    .array(
+      zod.object({
+        id: zod.number().optional(),
+        recommendationId: zod.number().nullish(),
+        platform: zod.string().optional(),
+        assetId: zod.string().optional(),
+        assetTitle: zod.string().optional(),
+        direction: zod.string().optional(),
+        amountUsd: zod.number().optional(),
+        price: zod.number().nullish(),
+        size: zod.number().nullish(),
+        status: zod.string().optional(),
+        paperMode: zod.boolean().optional(),
+        aiProbability: zod.number().nullish(),
+        aiEdge: zod.number().nullish(),
+        confidence: zod.number().nullish(),
+        orderId: zod.string().nullish(),
+        ticker: zod.string().optional(),
+        executedAt: zod.date().nullish(),
+      }),
+    )
+    .optional(),
+});

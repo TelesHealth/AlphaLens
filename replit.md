@@ -50,6 +50,7 @@ artifacts-monorepo/
 - **AI Coach**: Chat interface for market analysis and trading guidance
 - **Evidence Signals**: Structured evidence records with source quality and directional analysis
 - **Intelligence Briefing (E6)**: AI-powered daily briefings with trade calls, watch alerts, and global event scanning. 30-min auto-scan via cron.
+- **Live Trading (E7)**: Kalshi-priority platform router with risk gates. Supports Kalshi (CFTC-regulated, US legal), Alpaca (stocks/ETFs), and Polymarket (non-US). US jurisdiction mode auto-routes to Kalshi. Pending order approval flow.
 
 ## Database Schema
 
@@ -61,6 +62,8 @@ artifacts-monorepo/
 - `recommendations` — Individual trade/watch/avoid recommendations linked to briefings
 - `global_events` — Scanned global market events with impact levels and affected assets
 - `watchlist` — User's watched assets with alert edge thresholds
+- `live_trades` — Executed live/paper trades with platform, price, and AI metadata
+- `pending_orders` — Orders awaiting user approval with platform routing reasons
 
 ## API Routes (all under `/api`)
 
@@ -81,6 +84,14 @@ artifacts-monorepo/
 - `GET /recommendations/watchlist` — Get watchlist items
 - `POST /recommendations/watchlist` — Add asset to watchlist
 - `DELETE /recommendations/watchlist/:id` — Remove from watchlist
+- `GET /trading/accounts` — Platform status (Kalshi/Alpaca/Polymarket) with US jurisdiction info
+- `GET /trading/route/:recommendationId` — Preview platform routing decision
+- `POST /trading/execute` — Execute a live trade from recommendation
+- `GET /trading/pending` — Get pending approval orders
+- `POST /trading/pending/:id/approve` — Approve pending order
+- `POST /trading/pending/:id/reject` — Reject pending order
+- `GET /trading/history` — Live trade history
+- `GET /trading/positions` — Open live trading positions
 
 ## TypeScript & Composite Projects
 

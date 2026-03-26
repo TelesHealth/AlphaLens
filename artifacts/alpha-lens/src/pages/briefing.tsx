@@ -66,8 +66,29 @@ function ImpactBadge({ level }: { level?: string }) {
   );
 }
 
+const KALSHI_KEYWORDS = [
+  "fed", "rate cut", "rate hike", "fomc", "cpi", "inflation", "pce",
+  "unemployment", "payrolls", "jobs", "nonfarm", "gdp", "recession",
+  "election", "president", "senate", "congress", "bitcoin", "btc",
+  "ethereum", "eth", "crypto", "hurricane", "weather", "oil", "brent",
+  "sp500", "s&p", "nasdaq", "dow", "stock market", "earnings",
+];
+
+function getPlatformBadge(rec: Recommendation): { label: string; color: string } {
+  const title = (rec.title ?? "").toLowerCase();
+  const assetClass = (rec.assetClass ?? "").toLowerCase();
+  if (assetClass === "stock" || assetClass === "etf") {
+    return { label: "ALPACA", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" };
+  }
+  if (KALSHI_KEYWORDS.some(kw => title.includes(kw))) {
+    return { label: "KALSHI", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" };
+  }
+  return { label: "PAPER", color: "bg-muted text-muted-foreground border-border" };
+}
+
 function RecommendationCard({ rec }: { rec: Recommendation }) {
   const [expanded, setExpanded] = useState(false);
+  const platformBadge = getPlatformBadge(rec);
 
   const typeConfig: Record<string, { icon: typeof Zap; color: string }> = {
     trade: {
@@ -114,6 +135,9 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                     {rec.assetClass}
                   </span>
                 )}
+                <span className={cn("px-1.5 py-0.5 text-[9px] uppercase font-bold tracking-wider rounded border", platformBadge.color)}>
+                  {platformBadge.label}
+                </span>
               </div>
               <h3 className="font-semibold text-sm leading-snug">
                 {rec.title}

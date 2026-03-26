@@ -355,6 +355,102 @@ export interface WatchlistAddRequest {
   notes?: string;
 }
 
+export interface PlatformAccountInfo {
+  status?: string;
+  message?: string;
+  priority?: string;
+  legalStatus?: string;
+  depositMethod?: string;
+  assetTypes?: string;
+}
+
+export type TradingAccountsResponseAccounts = {
+  usJurisdictionMode?: boolean;
+  primaryPlatform?: string;
+  note?: string;
+  kalshi?: PlatformAccountInfo;
+  alpaca?: PlatformAccountInfo;
+  polymarket?: PlatformAccountInfo;
+};
+
+export interface TradingAccountsResponse {
+  accounts?: TradingAccountsResponseAccounts;
+}
+
+export interface RoutingDecisionResponse {
+  recommendationId?: number;
+  title?: string;
+  selectedPlatform?: string;
+  reason?: string;
+  tradeable?: boolean;
+  usJurisdictionMode?: boolean;
+  requireApproval?: boolean;
+}
+
+export interface ExecuteTradeRequest {
+  recommendationId: number;
+  amountUsd: number;
+  platform?: string;
+  overrideApproval?: boolean;
+}
+
+export interface TradeResultResponse {
+  success?: boolean;
+  platform?: string;
+  message?: string;
+  error?: string;
+  reason?: string;
+  status?: string;
+}
+
+export interface PendingOrderItem {
+  id?: number;
+  recommendationId?: number | null;
+  recTitle?: string;
+  assetId?: string;
+  direction?: string;
+  amountUsd?: number;
+  platform?: string;
+  platformReason?: string;
+  aiProbability?: number | null;
+  edge?: number | null;
+  confidence?: number | null;
+  status?: string;
+  createdAt?: string | null;
+}
+
+export interface PendingOrdersResponse {
+  pending?: PendingOrderItem[];
+}
+
+export interface LiveTradeItem {
+  id?: number;
+  recommendationId?: number | null;
+  platform?: string;
+  assetId?: string;
+  assetTitle?: string;
+  direction?: string;
+  amountUsd?: number;
+  price?: number | null;
+  size?: number | null;
+  status?: string;
+  paperMode?: boolean;
+  aiProbability?: number | null;
+  aiEdge?: number | null;
+  confidence?: number | null;
+  orderId?: string | null;
+  ticker?: string;
+  executedAt?: string | null;
+}
+
+export interface TradeHistoryResponse {
+  trades?: LiveTradeItem[];
+}
+
+export interface TradingPositionsResponse {
+  positions?: LiveTradeItem[];
+}
+
 export type ListMarketsParams = {
   sector?: ListMarketsSector;
   sort?: ListMarketsSort;
@@ -394,4 +490,19 @@ export type GetGlobalEventsParams = {
 
 export type AddToWatchlist200 = {
   status?: string;
+};
+
+export type ApprovePendingOrder200 = {
+  status?: string;
+  orderId?: number;
+};
+
+export type RejectPendingOrder200 = {
+  status?: string;
+  orderId?: number;
+};
+
+export type GetTradeHistoryParams = {
+  limit?: number;
+  platform?: string;
 };

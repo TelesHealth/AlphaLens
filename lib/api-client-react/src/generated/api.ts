@@ -18,25 +18,35 @@ import type {
 
 import type {
   AddToWatchlist200,
+  ApprovePendingOrder200,
   BriefingResponse,
   CoachRequest,
   CoachResponse,
   ErrorResponse,
   EventsResponse,
+  ExecuteTradeRequest,
   GetGlobalEventsParams,
   GetSignalsParams,
+  GetTradeHistoryParams,
   HealthStatus,
   ListMarketsParams,
   MarketDetailResponse,
   MarketListResponse,
   OpenTradeRequest,
+  PendingOrdersResponse,
   PortfolioResponse,
   PortfolioStatsResponse,
   RefreshResponse,
+  RejectPendingOrder200,
+  RoutingDecisionResponse,
   ScanResponse,
   ScoreResponse,
   SignalListResponse,
+  TradeHistoryResponse,
   TradeResponse,
+  TradeResultResponse,
+  TradingAccountsResponse,
+  TradingPositionsResponse,
   WatchlistAddRequest,
   WatchlistResponse,
 } from "./api.schemas";
@@ -1394,3 +1404,671 @@ export const useAddToWatchlist = <
 > => {
   return useMutation(getAddToWatchlistMutationOptions(options));
 };
+
+/**
+ * @summary Get platform account status and US jurisdiction info
+ */
+export const getGetTradingAccountsUrl = () => {
+  return `/api/trading/accounts`;
+};
+
+export const getTradingAccounts = async (
+  options?: RequestInit,
+): Promise<TradingAccountsResponse> => {
+  return customFetch<TradingAccountsResponse>(getGetTradingAccountsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTradingAccountsQueryKey = () => {
+  return [`/api/trading/accounts`] as const;
+};
+
+export const getGetTradingAccountsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTradingAccounts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getTradingAccounts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTradingAccountsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTradingAccounts>>
+  > = ({ signal }) => getTradingAccounts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTradingAccounts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTradingAccountsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTradingAccounts>>
+>;
+export type GetTradingAccountsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get platform account status and US jurisdiction info
+ */
+
+export function useGetTradingAccounts<
+  TData = Awaited<ReturnType<typeof getTradingAccounts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getTradingAccounts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTradingAccountsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Preview which platform a recommendation routes to
+ */
+export const getGetRoutingDecisionUrl = (recommendationId: number) => {
+  return `/api/trading/route/${recommendationId}`;
+};
+
+export const getRoutingDecision = async (
+  recommendationId: number,
+  options?: RequestInit,
+): Promise<RoutingDecisionResponse> => {
+  return customFetch<RoutingDecisionResponse>(
+    getGetRoutingDecisionUrl(recommendationId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetRoutingDecisionQueryKey = (recommendationId: number) => {
+  return [`/api/trading/route/${recommendationId}`] as const;
+};
+
+export const getGetRoutingDecisionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRoutingDecision>>,
+  TError = ErrorType<unknown>,
+>(
+  recommendationId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRoutingDecision>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRoutingDecisionQueryKey(recommendationId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRoutingDecision>>
+  > = ({ signal }) =>
+    getRoutingDecision(recommendationId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!recommendationId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRoutingDecision>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRoutingDecisionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRoutingDecision>>
+>;
+export type GetRoutingDecisionQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Preview which platform a recommendation routes to
+ */
+
+export function useGetRoutingDecision<
+  TData = Awaited<ReturnType<typeof getRoutingDecision>>,
+  TError = ErrorType<unknown>,
+>(
+  recommendationId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRoutingDecision>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRoutingDecisionQueryOptions(
+    recommendationId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Execute a live trade from a recommendation
+ */
+export const getExecuteTradeUrl = () => {
+  return `/api/trading/execute`;
+};
+
+export const executeTrade = async (
+  executeTradeRequest: ExecuteTradeRequest,
+  options?: RequestInit,
+): Promise<TradeResultResponse> => {
+  return customFetch<TradeResultResponse>(getExecuteTradeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(executeTradeRequest),
+  });
+};
+
+export const getExecuteTradeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof executeTrade>>,
+    TError,
+    { data: BodyType<ExecuteTradeRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof executeTrade>>,
+  TError,
+  { data: BodyType<ExecuteTradeRequest> },
+  TContext
+> => {
+  const mutationKey = ["executeTrade"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof executeTrade>>,
+    { data: BodyType<ExecuteTradeRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return executeTrade(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExecuteTradeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof executeTrade>>
+>;
+export type ExecuteTradeMutationBody = BodyType<ExecuteTradeRequest>;
+export type ExecuteTradeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Execute a live trade from a recommendation
+ */
+export const useExecuteTrade = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof executeTrade>>,
+    TError,
+    { data: BodyType<ExecuteTradeRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof executeTrade>>,
+  TError,
+  { data: BodyType<ExecuteTradeRequest> },
+  TContext
+> => {
+  return useMutation(getExecuteTradeMutationOptions(options));
+};
+
+/**
+ * @summary Get orders pending approval
+ */
+export const getGetPendingOrdersUrl = () => {
+  return `/api/trading/pending`;
+};
+
+export const getPendingOrders = async (
+  options?: RequestInit,
+): Promise<PendingOrdersResponse> => {
+  return customFetch<PendingOrdersResponse>(getGetPendingOrdersUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPendingOrdersQueryKey = () => {
+  return [`/api/trading/pending`] as const;
+};
+
+export const getGetPendingOrdersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPendingOrders>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPendingOrders>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPendingOrdersQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPendingOrders>>
+  > = ({ signal }) => getPendingOrders({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPendingOrders>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPendingOrdersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPendingOrders>>
+>;
+export type GetPendingOrdersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get orders pending approval
+ */
+
+export function useGetPendingOrders<
+  TData = Awaited<ReturnType<typeof getPendingOrders>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPendingOrders>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPendingOrdersQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Approve a pending order
+ */
+export const getApprovePendingOrderUrl = (id: number) => {
+  return `/api/trading/pending/${id}/approve`;
+};
+
+export const approvePendingOrder = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ApprovePendingOrder200> => {
+  return customFetch<ApprovePendingOrder200>(getApprovePendingOrderUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getApprovePendingOrderMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approvePendingOrder>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approvePendingOrder>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["approvePendingOrder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approvePendingOrder>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return approvePendingOrder(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApprovePendingOrderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approvePendingOrder>>
+>;
+
+export type ApprovePendingOrderMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Approve a pending order
+ */
+export const useApprovePendingOrder = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approvePendingOrder>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approvePendingOrder>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getApprovePendingOrderMutationOptions(options));
+};
+
+/**
+ * @summary Reject a pending order
+ */
+export const getRejectPendingOrderUrl = (id: number) => {
+  return `/api/trading/pending/${id}/reject`;
+};
+
+export const rejectPendingOrder = async (
+  id: number,
+  options?: RequestInit,
+): Promise<RejectPendingOrder200> => {
+  return customFetch<RejectPendingOrder200>(getRejectPendingOrderUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRejectPendingOrderMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectPendingOrder>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectPendingOrder>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["rejectPendingOrder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectPendingOrder>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return rejectPendingOrder(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectPendingOrderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectPendingOrder>>
+>;
+
+export type RejectPendingOrderMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Reject a pending order
+ */
+export const useRejectPendingOrder = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectPendingOrder>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof rejectPendingOrder>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getRejectPendingOrderMutationOptions(options));
+};
+
+/**
+ * @summary Get live trade history
+ */
+export const getGetTradeHistoryUrl = (params?: GetTradeHistoryParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/trading/history?${stringifiedParams}`
+    : `/api/trading/history`;
+};
+
+export const getTradeHistory = async (
+  params?: GetTradeHistoryParams,
+  options?: RequestInit,
+): Promise<TradeHistoryResponse> => {
+  return customFetch<TradeHistoryResponse>(getGetTradeHistoryUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTradeHistoryQueryKey = (params?: GetTradeHistoryParams) => {
+  return [`/api/trading/history`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetTradeHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTradeHistory>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTradeHistoryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTradeHistory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTradeHistoryQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTradeHistory>>> = ({
+    signal,
+  }) => getTradeHistory(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTradeHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTradeHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTradeHistory>>
+>;
+export type GetTradeHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get live trade history
+ */
+
+export function useGetTradeHistory<
+  TData = Awaited<ReturnType<typeof getTradeHistory>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetTradeHistoryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getTradeHistory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTradeHistoryQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get open live trading positions
+ */
+export const getGetTradingPositionsUrl = () => {
+  return `/api/trading/positions`;
+};
+
+export const getTradingPositions = async (
+  options?: RequestInit,
+): Promise<TradingPositionsResponse> => {
+  return customFetch<TradingPositionsResponse>(getGetTradingPositionsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTradingPositionsQueryKey = () => {
+  return [`/api/trading/positions`] as const;
+};
+
+export const getGetTradingPositionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTradingPositions>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getTradingPositions>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTradingPositionsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getTradingPositions>>
+  > = ({ signal }) => getTradingPositions({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTradingPositions>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTradingPositionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTradingPositions>>
+>;
+export type GetTradingPositionsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get open live trading positions
+ */
+
+export function useGetTradingPositions<
+  TData = Awaited<ReturnType<typeof getTradingPositions>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getTradingPositions>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTradingPositionsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
