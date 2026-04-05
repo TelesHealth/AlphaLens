@@ -53,7 +53,7 @@ Provide your AI probability assessment, direction, and generate evidence signals
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 1500,
       system: SCORING_PROMPT,
       messages: [{ role: "user", content: prompt }],

@@ -26,9 +26,6 @@ interface PriceUpdate {
   priceChange24h: number;
 }
 
-const cryptoCache = new Map<string, PriceUpdate>();
-const yahooCache = new Map<string, PriceUpdate>();
-
 async function fetchWithTimeout(url: string, timeoutMs = 10000): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -44,7 +41,7 @@ async function fetchWithTimeout(url: string, timeoutMs = 10000): Promise<Respons
 }
 
 async function fetchCryptoPrices(): Promise<Map<string, PriceUpdate>> {
-  
+  const results = new Map<string, PriceUpdate>();
   const ids = Object.values(CRYPTO_MAP).join(",");
 
   try {
@@ -52,14 +49,9 @@ async function fetchCryptoPrices(): Promise<Map<string, PriceUpdate>> {
       `${COINGECKO_BASE}/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
     );
 
-    if (res.status === 429) {
-      console.warn("⚠️ CoinGecko Limit! Using cached crypto prices.");
-      return cryptoCache; 
-    }
-
     if (!res.ok) {
       logger.warn({ status: res.status }, "CoinGecko API error");
-      return cryptoCache;
+      return results;
     }
 
     const data = await res.json() as Record<string, { usd: number; usd_24h_change: number }>;
@@ -67,19 +59,17 @@ async function fetchCryptoPrices(): Promise<Map<string, PriceUpdate>> {
     for (const [symbol, cgId] of Object.entries(CRYPTO_MAP)) {
       const coin = data[cgId];
       if (coin) {
-        const update = {
+        results.set(symbol, {
           currentPrice: coin.usd,
           priceChange24h: Math.round(coin.usd_24h_change * 100) / 100,
-        };
-
-        cryptoCache.set(symbol, update);
+        });
       }
     }
   } catch (e: any) {
     logger.error({ err: e.message }, "Failed to fetch crypto prices");
   }
 
-  return cryptoCache;
+  return results;
 }
 
 async function fetchYahooPrice(yahooSymbol: string): Promise<PriceUpdate | null> {
@@ -88,7 +78,6 @@ async function fetchYahooPrice(yahooSymbol: string): Promise<PriceUpdate | null>
       `${YAHOO_BASE}/${yahooSymbol}?interval=1d&range=2d`
     );
 
-  
     if (!res.ok) {
       logger.warn({ status: res.status, symbol: yahooSymbol }, "Yahoo Finance API error");
       return null;
@@ -99,27 +88,17 @@ async function fetchYahooPrice(yahooSymbol: string): Promise<PriceUpdate | null>
     if (!result) return null;
 
     const meta = result.meta;
-    const prices = result.indicators?.quote?.[0]?.close || [];
-
-    const validPrices = prices.filter((p: number | null) => p !== null);
-
-    const actualPreviousClose = validPrices.length > 0 
-      ? validPrices[validPrices.length - 1] 
-      : meta.previousClose;
-
     const currentPrice = meta.regularMarketPrice;
+    const previousClose = meta.chartPreviousClose ?? meta.previousClose;
 
-    const change = ((currentPrice - actualPreviousClose) / actualPreviousClose) * 100;
+    if (!currentPrice || !previousClose) return null;
 
-    
-    const update =  {
+    const change = ((currentPrice - previousClose) / previousClose) * 100;
+
+    return {
       currentPrice: Math.round(currentPrice * 100) / 100,
       priceChange24h: Math.round(change * 100) / 100,
     };
-
-    yahooCache.set(yahooSymbol, update);
-
-    return update;
   } catch (e: any) {
     logger.error({ err: e.message, symbol: yahooSymbol }, "Failed to fetch Yahoo price");
     return null;

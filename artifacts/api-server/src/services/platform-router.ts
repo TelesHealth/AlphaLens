@@ -67,12 +67,12 @@ export interface RoutingDecision {
 }
 
 export function getBestPlatform(rec: {
-  title?: string | null;
-  assetClass?: string | null;
-  sector?: string | null;
+  title?: string;
+  assetClass?: string;
+  sector?: string;
 }): RoutingDecision {
   const title = (rec.title ?? "").toLowerCase();
-  const assetClass = (rec.assetClass ?? "").toLowerCase() ?? undefined;
+  const assetClass = (rec.assetClass ?? "").toLowerCase();
   const sector = (rec.sector ?? "").toLowerCase();
   const platforms = getPlatformStatus();
 

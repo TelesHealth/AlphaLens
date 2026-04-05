@@ -348,8 +348,6 @@ export default function Briefing() {
     query: { refetchInterval: 60000 },
   });
 
-  
-
   const { data: eventsData } = useGetGlobalEvents(
     { limit: 10 },
     { query: { refetchInterval: 120000 } }

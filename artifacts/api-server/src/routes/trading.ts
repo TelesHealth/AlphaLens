@@ -41,10 +41,8 @@ router.get("/route/:recommendationId", async (req, res) => {
     const routing = getBestPlatform(rec);
     res.json({
       recommendationId: id,
-      title: rec.title, 
-      assetClass: rec.assetClass ,
-      urgency: rec.urgency,
-      selectedPlatform: routing.platform ,
+      title: rec.title,
+      selectedPlatform: routing.platform,
       reason: routing.reason,
       tradeable: routing.tradeable,
       usJurisdictionMode: RISK.usMode,
