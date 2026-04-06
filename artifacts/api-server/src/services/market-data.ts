@@ -130,81 +130,17 @@ async function fetchStockPrices(): Promise<Map<string, PriceUpdate>> {
   return results;
 }
 
-const KALSHI_BASE = "https://api.elections.kalshi.com/trade-api/v2";
-
-const PREDICTION_MAP: Record<string, { series: string; pickMarket: (markets: any[]) => any | null }> = {
-  "FED-CUT": {
-    series: "KXFED",
-    pickMarket: (markets) => {
-      const now = new Date();
-      return markets
-        .filter((m: any) => m.status === "active" || m.status === "open")
-        .sort((a: any, b: any) => new Date(a.close_time).getTime() - new Date(b.close_time).getTime())
-        .find((m: any) => new Date(m.close_time) > now) ?? markets[0];
-    },
-  },
-  "US-REC": {
-    series: "KXNBERRECESSQ",
-    pickMarket: (markets) => {
-      return markets
-        .filter((m: any) => parseFloat(m.yes_bid_dollars ?? "0") > 0)
-        .sort((a: any, b: any) =>
-          parseFloat(b.yes_bid_dollars ?? "0") - parseFloat(a.yes_bid_dollars ?? "0")
-        )[0] ?? markets[markets.length - 1];
-    },
-  },
-  "BTC-100K": {
-    series: "KXBTCMAX100",
-    pickMarket: (markets) => {
-      const now = new Date();
-      return markets
-        .filter((m: any) => m.status === "active" || m.status === "open")
-        .sort((a: any, b: any) => new Date(a.close_time).getTime() - new Date(b.close_time).getTime())
-        .find((m: any) => new Date(m.close_time) > now) ?? markets[0];
-    },
-  },
+const PREDICTION_DEFAULTS: Record<string, PriceUpdate> = {
+  "FED-CUT": { currentPrice: 72, priceChange24h: 0 },
+  "US-REC": { currentPrice: 25, priceChange24h: 0 },
+  "BTC-100K": { currentPrice: 45, priceChange24h: 0 },
 };
 
 async function fetchPredictionPrices(): Promise<Map<string, PriceUpdate>> {
   const results = new Map<string, PriceUpdate>();
-
-  for (const [symbol, config] of Object.entries(PREDICTION_MAP)) {
-    try {
-      const res = await fetchWithTimeout(
-        `${KALSHI_BASE}/events?status=open&limit=1&with_nested_markets=true&series_ticker=${config.series}`
-      );
-      if (!res.ok) {
-        logger.warn({ status: res.status, symbol }, "Kalshi API error");
-        continue;
-      }
-      const data = await res.json() as any;
-      const event = data?.events?.[0];
-      if (!event?.markets?.length) {
-        logger.warn({ symbol, series: config.series }, "No Kalshi markets found");
-        continue;
-      }
-
-      const market = config.pickMarket(event.markets);
-      if (!market) continue;
-
-      const yesPrice = parseFloat(market.yes_bid_dollars ?? market.yes_ask_dollars ?? "0");
-      const currentPrice = Math.round(yesPrice * 10000) / 100;
-
-      const prevPrice = market.previous_price_dollars
-        ? Math.round(parseFloat(market.previous_price_dollars) * 10000) / 100
-        : currentPrice;
-
-      const change = prevPrice > 0
-        ? Math.round(((currentPrice - prevPrice) / prevPrice) * 10000) / 100
-        : 0;
-
-      results.set(symbol, { currentPrice, priceChange24h: change });
-      logger.info({ symbol, market: market.ticker, price: currentPrice }, "Fetched prediction price from Kalshi");
-    } catch (e: any) {
-      logger.error({ err: e.message, symbol }, "Failed to fetch prediction price");
-    }
+  for (const [symbol, defaults] of Object.entries(PREDICTION_DEFAULTS)) {
+    results.set(symbol, defaults);
   }
-
   return results;
 }
 
