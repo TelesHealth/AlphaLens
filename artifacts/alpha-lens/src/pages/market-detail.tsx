@@ -4,6 +4,7 @@ import {
   useGetMarket, 
   useScoreMarket, 
   useOpenTrade,
+  getGetMarketQueryKey,
   TradeDirection
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -80,7 +81,7 @@ export default function MarketDetail() {
   const [tradeDirection, setTradeDirection] = useState<TradeDirection>("long");
 
   const { data, isLoading } = useGetMarket(id, {
-    query: { enabled: !!id }
+    query: { queryKey: getGetMarketQueryKey(id), enabled: !!id }
   });
 
   const scoreMutation = useScoreMarket({

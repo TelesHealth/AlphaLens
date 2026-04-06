@@ -4,6 +4,8 @@ import {
   useGetRadarPrices,
   useGetRadarStatus,
   useTriggerRadarScan,
+  getGetRadarAlertsQueryKey,
+  getGetRadarPricesQueryKey,
 } from "@workspace/api-client-react";
 import type {
   RadarAlert,
@@ -201,10 +203,10 @@ export default function RadarPage() {
 
   const { data: alertsData, isLoading: alertsLoading } = useGetRadarAlerts(
     { hours: 8 },
-    { query: { refetchInterval: 5 * 60 * 1000 } },
+    { query: { queryKey: getGetRadarAlertsQueryKey({ hours: 8 }), refetchInterval: 5 * 60 * 1000 } },
   );
   const { data: pricesData, isLoading: pricesLoading } = useGetRadarPrices({
-    query: { refetchInterval: 5 * 60 * 1000 },
+    query: { queryKey: getGetRadarPricesQueryKey(), refetchInterval: 5 * 60 * 1000 },
   });
   const { data: statusData } = useGetRadarStatus();
 

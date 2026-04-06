@@ -4,6 +4,9 @@ import {
   useTriggerScan,
   useGetGlobalEvents,
   useGetWatchlist,
+  getGetBriefingQueryKey,
+  getGetGlobalEventsQueryKey,
+  getGetWatchlistQueryKey,
 } from "@workspace/api-client-react";
 import type {
   Recommendation,
@@ -345,16 +348,16 @@ export default function Briefing() {
     isLoading,
     error,
   } = useGetBriefing({
-    query: { refetchInterval: 60000 },
+    query: { queryKey: getGetBriefingQueryKey(), refetchInterval: 60000 },
   });
 
   const { data: eventsData } = useGetGlobalEvents(
     { limit: 10 },
-    { query: { refetchInterval: 120000 } }
+    { query: { queryKey: getGetGlobalEventsQueryKey({ limit: 10 }), refetchInterval: 120000 } }
   );
 
   const { data: watchlistData } = useGetWatchlist({
-    query: { refetchInterval: 60000 },
+    query: { queryKey: getGetWatchlistQueryKey(), refetchInterval: 60000 },
   });
 
   const scanMutation = useTriggerScan({

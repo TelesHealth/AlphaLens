@@ -113,7 +113,7 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ## AI Integration
 
-Uses `@workspace/integrations-anthropic-ai` which provides an Anthropic client pre-configured with Replit's AI Integrations proxy. No user API key needed — billed to Replit credits. Model: `claude-sonnet-4-20250514`.
+Uses `@workspace/integrations-anthropic-ai` which provides an Anthropic client pre-configured with Replit's AI Integrations proxy. No user API key needed — billed to Replit credits. Model: `claude-sonnet-4-6`.
 
 ## Seeding
 

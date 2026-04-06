@@ -206,7 +206,7 @@ async function scanGlobalEvents(): Promise<RawEvent[]> {
     });
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 2000,
       system: EVENTS_PROMPT,
       messages: [
@@ -273,7 +273,7 @@ Identify the best trade calls and watches. Cross-reference assets with events an
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 3000,
       system: AGENT_SYSTEM_PROMPT,
       messages: [{ role: "user", content: prompt }],
@@ -308,7 +308,7 @@ async function generateBriefingSummary(
       .join("\n");
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 200,
       system: SUMMARY_PROMPT,
       messages: [
