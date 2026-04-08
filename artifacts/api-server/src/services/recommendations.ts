@@ -51,7 +51,7 @@ Return JSON array only. Each object:
   "urgencyReason": "Why this urgency level"
 }
 
-Return ONLY valid JSON array. No markdown fences.`;
+Return ONLY valid JSON array. No markdown. No preamble. No trailing commas. No single quotes. All property names must be double-quoted.`;
 
 const EVENTS_PROMPT = `You are a global market intelligence analyst.
 
@@ -69,7 +69,7 @@ Return JSON array:
   "timeContext": "Breaking or Today or This week or Developing"
 }]
 
-Only real current events. Return ONLY valid JSON array. No markdown fences.`;
+Only real current events. Return ONLY valid JSON array. No markdown. No preamble. No trailing commas. No single quotes. All property names must be double-quoted.`;
 
 const SUMMARY_PROMPT = `You are the Alpha Lens morning briefing writer.
 Write a 3-4 sentence executive summary of today's top recommendations.
@@ -103,12 +103,92 @@ interface RawEvent {
   timeContext: string;
 }
 
-function extractJSON(text: string): string {
+function safeParseJSONArray<T>(text: string): T[] {
   let cleaned = text.trim();
-  if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
-  if (cleaned.startsWith("```")) cleaned = cleaned.slice(3);
-  if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
-  return cleaned.trim();
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
+  cleaned = cleaned.trim();
+
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) return parsed as T[];
+    return [];
+  } catch {
+    // fallback
+  }
+
+  try {
+    const match = cleaned.match(/\[[\s\S]*\]/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      if (Array.isArray(parsed)) return parsed as T[];
+    }
+  } catch {
+    // fallback
+  }
+
+  const truncated = tryRecoverTruncatedArray<T>(cleaned);
+  if (truncated.length > 0) {
+    logger.info(
+      { recovered: truncated.length },
+      "Recovered items from truncated JSON array"
+    );
+    return truncated;
+  }
+
+  logger.warn(
+    { preview: cleaned.slice(0, 200) },
+    "Failed to parse JSON array from AI response, returning empty array"
+  );
+  return [];
+}
+
+function tryRecoverTruncatedArray<T>(text: string): T[] {
+  const items: T[] = [];
+  const arrayStart = text.indexOf("[");
+  if (arrayStart === -1) return items;
+
+  let content = text.slice(arrayStart + 1);
+  let depth = 0;
+  let objStart = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+
+    if (ch === "{" && depth === 0) {
+      objStart = i;
+      depth = 1;
+    } else if (ch === "{") {
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0 && objStart >= 0) {
+        const objStr = content.slice(objStart, i + 1);
+        try {
+          items.push(JSON.parse(objStr) as T);
+        } catch {
+          // skip malformed object
+        }
+        objStart = -1;
+      }
+    }
+  }
+  return items;
 }
 
 export async function scanForRecommendations() {
@@ -219,8 +299,7 @@ async function scanGlobalEvents(): Promise<RawEvent[]> {
 
     for (const block of response.content) {
       if (block.type === "text" && block.text.trim()) {
-        const parsed = JSON.parse(extractJSON(block.text)) as RawEvent[];
-        return parsed;
+        return safeParseJSONArray<RawEvent>(block.text);
       }
     }
   } catch (e: any) {
@@ -274,15 +353,14 @@ Identify the best trade calls and watches. Cross-reference assets with events an
   try {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 3000,
+      max_tokens: 8000,
       system: AGENT_SYSTEM_PROMPT,
       messages: [{ role: "user", content: prompt }],
     });
 
     for (const block of response.content) {
       if (block.type === "text" && block.text.trim()) {
-        const parsed = JSON.parse(extractJSON(block.text)) as RawRecommendation[];
-        return parsed;
+        return safeParseJSONArray<RawRecommendation>(block.text);
       }
     }
   } catch (e: any) {

@@ -167,10 +167,18 @@ async function fetchCryptoPrices(): Promise<Record<string, number>> {
 
 async function fetchYahooPrice(symbol: string): Promise<number | null> {
   try {
-    const res = await fetchWithTimeout(`${YAHOO_BASE}/${symbol}?interval=1d&range=2d`);
+    const res = await fetchWithTimeout(`${YAHOO_BASE}/${symbol}?interval=1d&range=5d`);
     if (!res.ok) return null;
     const data = await res.json() as any;
-    const meta = data?.chart?.result?.[0]?.meta;
+    const result = data?.chart?.result?.[0];
+    if (!result) return null;
+
+    const closes: number[] = result.indicators?.quote?.[0]?.close?.filter(
+      (c: number | null) => c != null && c > 0
+    ) ?? [];
+    if (closes.length > 0) return closes[closes.length - 1];
+
+    const meta = result.meta;
     return meta?.regularMarketPrice ?? null;
   } catch {
     return null;
@@ -456,6 +464,9 @@ export async function runRadarScan(): Promise<RadarAlertData[]> {
   logger.info("E8: Market Radar scan starting...");
   const newAlerts: RadarAlertData[] = [];
   const prices = await fetchAllPrices();
+
+  const nonNullCount = Object.values(prices).filter((p) => p > 0).length;
+  console.log(`Radar price fetch: ${nonNullCount} assets returned non-null price`);
 
   for (const [assetId, currentPrice] of Object.entries(prices)) {
     if (currentPrice <= 0) continue;
