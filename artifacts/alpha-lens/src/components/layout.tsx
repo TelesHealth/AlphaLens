@@ -6,6 +6,7 @@ import {
   MessageSquare, 
   Zap,
   Radio,
+  Fish,
   Menu,
   X
 } from "lucide-react";
@@ -27,6 +28,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { href: "/radar", label: "Radar", icon: Radio },
     { href: "/portfolio", label: "Portfolio", icon: Briefcase },
     { href: "/coach", label: "AI Coach", icon: MessageSquare },
+    { href: "/whales", label: "Whales", icon: Fish },
   ];
 
   const SidebarContent = () => (

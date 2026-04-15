@@ -23,6 +23,8 @@ tags:
     description: Live trading with Kalshi-priority platform routing
   - name: radar
     description: Market radar — price spikes, volume anomalies, chain reactions
+  - name: whales
+    description: Unusual Whales — options flow, dark pool, market sentiment
 
 paths:
   /healthz:
@@ -632,6 +634,118 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RadarStatusResponse"
+
+  /whales/status:
+    get:
+      operationId: getWhalesStatus
+      tags: [whales]
+      summary: Check if Unusual Whales is configured
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  configured:
+                    type: boolean
+                required: [configured]
+
+  /whales/flow-alerts:
+    get:
+      operationId: getWhalesFlowAlerts
+      tags: [whales]
+      summary: Get live options flow alerts
+      responses:
+        "200":
+          description: Flow alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WhaleFlowAlert"
+                required: [alerts]
+
+  /whales/flow-summary:
+    get:
+      operationId: getWhalesFlowSummary
+      tags: [whales]
+      summary: Aggregated flow summary with top tickers
+      responses:
+        "200":
+          description: Flow summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhaleFlowSummary"
+
+  /whales/darkpool:
+    get:
+      operationId: getWhalesDarkPool
+      tags: [whales]
+      summary: Recent dark pool prints
+      responses:
+        "200":
+          description: Dark pool prints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prints:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WhaleDarkPoolPrint"
+                required: [prints]
+
+  /whales/darkpool/{ticker}:
+    get:
+      operationId: getWhalesDarkPoolTicker
+      tags: [whales]
+      summary: Dark pool prints for a specific ticker
+      parameters:
+        - name: ticker
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dark pool prints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prints:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WhaleDarkPoolPrint"
+                required: [prints]
+
+  /whales/market-tide:
+    get:
+      operationId: getWhalesMarketTide
+      tags: [whales]
+      summary: Market Tide — net premium flow over time
+      responses:
+        "200":
+          description: Market tide ticks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WhaleMarketTideTick"
+                required: [ticks]
 
 components:
   schemas:
@@ -1632,3 +1746,117 @@ components:
           type: integer
         totalSources:
           type: integer
+
+    WhaleFlowAlert:
+      type: object
+      properties:
+        id:
+          type: string
+        ticker:
+          type: string
+        strike:
+          type: string
+        expiry:
+          type: string
+        type:
+          type: string
+        total_premium:
+          type: string
+        volume:
+          type: integer
+        open_interest:
+          type: integer
+        underlying_price:
+          type: string
+        alert_rule:
+          type: string
+        has_sweep:
+          type: boolean
+        has_floor:
+          type: boolean
+        total_size:
+          type: integer
+        trade_count:
+          type: integer
+        created_at:
+          type: string
+        iv_start:
+          type: string
+        volume_oi_ratio:
+          type: string
+        total_ask_side_prem:
+          type: string
+        total_bid_side_prem:
+          type: string
+        sector:
+          type: string
+          nullable: true
+      required: [id, ticker, strike, expiry, type, total_premium, volume]
+
+    WhaleDarkPoolPrint:
+      type: object
+      properties:
+        ticker:
+          type: string
+        size:
+          type: integer
+        price:
+          type: string
+        volume:
+          type: integer
+        premium:
+          type: string
+        executed_at:
+          type: string
+        nbbo_ask:
+          type: string
+        nbbo_bid:
+          type: string
+        market_center:
+          type: string
+      required: [ticker, size, price, executed_at]
+
+    WhaleMarketTideTick:
+      type: object
+      properties:
+        timestamp:
+          type: string
+        date:
+          type: string
+        net_call_premium:
+          type: string
+        net_put_premium:
+          type: string
+        net_volume:
+          type: integer
+      required: [timestamp, net_call_premium, net_put_premium, net_volume]
+
+    WhaleFlowSummary:
+      type: object
+      properties:
+        totalAlerts:
+          type: integer
+        totalPremium:
+          type: number
+        callPremium:
+          type: number
+        putPremium:
+          type: number
+        sweepCount:
+          type: integer
+        topTickers:
+          type: array
+          items:
+            type: object
+            properties:
+              ticker:
+                type: string
+              premium:
+                type: number
+              count:
+                type: integer
+            required: [ticker, premium, count]
+        biggestTrade:
+          $ref: "#/components/schemas/WhaleFlowAlert"
+          nullable: true
+      required: [totalAlerts, totalPremium, callPremium, putPremium, topTickers, sweepCount]

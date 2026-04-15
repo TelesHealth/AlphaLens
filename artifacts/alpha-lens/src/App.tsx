@@ -11,6 +11,7 @@ import Portfolio from "@/pages/portfolio";
 import Coach from "@/pages/coach";
 import Briefing from "@/pages/briefing";
 import Radar from "@/pages/radar";
+import Whales from "@/pages/whales";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,7 @@ function Router() {
         <Route path="/coach" component={Coach} />
         <Route path="/briefing" component={Briefing} />
         <Route path="/radar" component={Radar} />
+        <Route path="/whales" component={Whales} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

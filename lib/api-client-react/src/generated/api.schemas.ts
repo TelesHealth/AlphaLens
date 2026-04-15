@@ -574,6 +574,65 @@ export interface RadarStatusResponse {
   totalSources?: number;
 }
 
+export interface WhaleFlowAlert {
+  id: string;
+  ticker: string;
+  strike: string;
+  expiry: string;
+  type: string;
+  total_premium: string;
+  volume: number;
+  open_interest?: number;
+  underlying_price?: string;
+  alert_rule?: string;
+  has_sweep?: boolean;
+  has_floor?: boolean;
+  total_size?: number;
+  trade_count?: number;
+  created_at?: string;
+  iv_start?: string;
+  volume_oi_ratio?: string;
+  total_ask_side_prem?: string;
+  total_bid_side_prem?: string;
+  sector?: string | null;
+}
+
+export interface WhaleDarkPoolPrint {
+  ticker: string;
+  size: number;
+  price: string;
+  volume?: number;
+  premium?: string;
+  executed_at: string;
+  nbbo_ask?: string;
+  nbbo_bid?: string;
+  market_center?: string;
+}
+
+export interface WhaleMarketTideTick {
+  timestamp: string;
+  date?: string;
+  net_call_premium: string;
+  net_put_premium: string;
+  net_volume: number;
+}
+
+export type WhaleFlowSummaryTopTickersItem = {
+  ticker: string;
+  premium: number;
+  count: number;
+};
+
+export interface WhaleFlowSummary {
+  totalAlerts: number;
+  totalPremium: number;
+  callPremium: number;
+  putPremium: number;
+  sweepCount: number;
+  topTickers: WhaleFlowSummaryTopTickersItem[];
+  biggestTrade?: WhaleFlowAlert | null;
+}
+
 export type ListMarketsParams = {
   sector?: ListMarketsSector;
   sort?: ListMarketsSort;
@@ -643,4 +702,24 @@ export type GetRadarAlertsParams = {
 export type GetRadarHistoryParams = {
   days?: number;
   limit?: number;
+};
+
+export type GetWhalesStatus200 = {
+  configured: boolean;
+};
+
+export type GetWhalesFlowAlerts200 = {
+  alerts: WhaleFlowAlert[];
+};
+
+export type GetWhalesDarkPool200 = {
+  prints: WhaleDarkPoolPrint[];
+};
+
+export type GetWhalesDarkPoolTicker200 = {
+  prints: WhaleDarkPoolPrint[];
+};
+
+export type GetWhalesMarketTide200 = {
+  ticks: WhaleMarketTideTick[];
 };

@@ -58,7 +58,8 @@ artifacts-monorepo/
 - **CoinGecko** — crypto prices (BTC, ETH, SOL)
 - **Yahoo Finance** — stocks, ETFs, commodities, FX (SPY, QQQ, GLD, USO, UNG, EURUSD). Price change uses indicator close data (5-day range) for accuracy.
 - **Prediction markets** — FED-CUT, US-REC, BTC-100K use static placeholder values. Replace `PREDICTION_DEFAULTS` in `services/market-data.ts` with a live API when ready.
-- **Optional paid sources** (add keys to Secrets): `UNUSUAL_WHALES_KEY`, `ALPHA_VANTAGE_KEY`, `FINNHUB_KEY`
+- **Unusual Whales** — live options flow alerts, dark pool prints, Market Tide sentiment (requires `UNUSUAL_WHALES_KEY`)
+- **Optional paid sources** (add keys to Secrets): `ALPHA_VANTAGE_KEY`, `FINNHUB_KEY`
 
 ## Database Schema
 
@@ -109,6 +110,12 @@ artifacts-monorepo/
 - `GET /radar/thresholds` — Spike detection thresholds for all monitored assets
 - `GET /radar/history` — Historical radar alerts (capped at 30 days, 500 limit)
 - `GET /radar/status` — Radar engine status and data source availability
+- `GET /whales/status` — Check if Unusual Whales is configured
+- `GET /whales/flow-alerts` — Live options flow alerts
+- `GET /whales/flow-summary` — Aggregated flow summary with top tickers
+- `GET /whales/darkpool` — Recent dark pool prints
+- `GET /whales/darkpool/:ticker` — Dark pool prints for a specific ticker
+- `GET /whales/market-tide` — Market Tide net premium flow over time
 
 ## TypeScript & Composite Projects
 
@@ -181,6 +188,7 @@ Generated Zod schemas. Note: `GetSignalsParams` is exported as `GetSignalsParams
 - Neutral direction badge: gray/muted style (not yellow)
 - Scan completion toasts with result counts
 - Kalshi API key migration TODO documented
+- Unusual Whales integration: live options flow, dark pool, Market Tide sentiment chart
 
 ## Scheduler
 

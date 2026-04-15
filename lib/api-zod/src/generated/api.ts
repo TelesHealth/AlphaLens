@@ -938,3 +938,139 @@ export const GetRadarStatusResponse = zod.object({
   activeSources: zod.number().optional(),
   totalSources: zod.number().optional(),
 });
+
+/**
+ * @summary Check if Unusual Whales is configured
+ */
+export const GetWhalesStatusResponse = zod.object({
+  configured: zod.boolean(),
+});
+
+/**
+ * @summary Get live options flow alerts
+ */
+export const GetWhalesFlowAlertsResponse = zod.object({
+  alerts: zod.array(
+    zod.object({
+      id: zod.string(),
+      ticker: zod.string(),
+      strike: zod.string(),
+      expiry: zod.string(),
+      type: zod.string(),
+      total_premium: zod.string(),
+      volume: zod.number(),
+      open_interest: zod.number().optional(),
+      underlying_price: zod.string().optional(),
+      alert_rule: zod.string().optional(),
+      has_sweep: zod.boolean().optional(),
+      has_floor: zod.boolean().optional(),
+      total_size: zod.number().optional(),
+      trade_count: zod.number().optional(),
+      created_at: zod.string().optional(),
+      iv_start: zod.string().optional(),
+      volume_oi_ratio: zod.string().optional(),
+      total_ask_side_prem: zod.string().optional(),
+      total_bid_side_prem: zod.string().optional(),
+      sector: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary Aggregated flow summary with top tickers
+ */
+export const GetWhalesFlowSummaryResponse = zod.object({
+  totalAlerts: zod.number(),
+  totalPremium: zod.number(),
+  callPremium: zod.number(),
+  putPremium: zod.number(),
+  sweepCount: zod.number(),
+  topTickers: zod.array(
+    zod.object({
+      ticker: zod.string(),
+      premium: zod.number(),
+      count: zod.number(),
+    }),
+  ),
+  biggestTrade: zod
+    .object({
+      id: zod.string(),
+      ticker: zod.string(),
+      strike: zod.string(),
+      expiry: zod.string(),
+      type: zod.string(),
+      total_premium: zod.string(),
+      volume: zod.number(),
+      open_interest: zod.number().optional(),
+      underlying_price: zod.string().optional(),
+      alert_rule: zod.string().optional(),
+      has_sweep: zod.boolean().optional(),
+      has_floor: zod.boolean().optional(),
+      total_size: zod.number().optional(),
+      trade_count: zod.number().optional(),
+      created_at: zod.string().optional(),
+      iv_start: zod.string().optional(),
+      volume_oi_ratio: zod.string().optional(),
+      total_ask_side_prem: zod.string().optional(),
+      total_bid_side_prem: zod.string().optional(),
+      sector: zod.string().nullish(),
+    })
+    .nullish(),
+});
+
+/**
+ * @summary Recent dark pool prints
+ */
+export const GetWhalesDarkPoolResponse = zod.object({
+  prints: zod.array(
+    zod.object({
+      ticker: zod.string(),
+      size: zod.number(),
+      price: zod.string(),
+      volume: zod.number().optional(),
+      premium: zod.string().optional(),
+      executed_at: zod.string(),
+      nbbo_ask: zod.string().optional(),
+      nbbo_bid: zod.string().optional(),
+      market_center: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Dark pool prints for a specific ticker
+ */
+export const GetWhalesDarkPoolTickerParams = zod.object({
+  ticker: zod.coerce.string(),
+});
+
+export const GetWhalesDarkPoolTickerResponse = zod.object({
+  prints: zod.array(
+    zod.object({
+      ticker: zod.string(),
+      size: zod.number(),
+      price: zod.string(),
+      volume: zod.number().optional(),
+      premium: zod.string().optional(),
+      executed_at: zod.string(),
+      nbbo_ask: zod.string().optional(),
+      nbbo_bid: zod.string().optional(),
+      market_center: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Market Tide — net premium flow over time
+ */
+export const GetWhalesMarketTideResponse = zod.object({
+  ticks: zod.array(
+    zod.object({
+      timestamp: zod.string(),
+      date: zod.string().optional(),
+      net_call_premium: zod.string(),
+      net_put_premium: zod.string(),
+      net_volume: zod.number(),
+    }),
+  ),
+});

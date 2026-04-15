@@ -30,6 +30,11 @@ import type {
   GetRadarHistoryParams,
   GetSignalsParams,
   GetTradeHistoryParams,
+  GetWhalesDarkPool200,
+  GetWhalesDarkPoolTicker200,
+  GetWhalesFlowAlerts200,
+  GetWhalesMarketTide200,
+  GetWhalesStatus200,
   HealthStatus,
   ListMarketsParams,
   MarketDetailResponse,
@@ -60,6 +65,7 @@ import type {
   TradingPositionsResponse,
   WatchlistAddRequest,
   WatchlistResponse,
+  WhaleFlowSummary,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -2816,6 +2822,473 @@ export function useGetRadarStatus<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetRadarStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Check if Unusual Whales is configured
+ */
+export const getGetWhalesStatusUrl = () => {
+  return `/api/whales/status`;
+};
+
+export const getWhalesStatus = async (
+  options?: RequestInit,
+): Promise<GetWhalesStatus200> => {
+  return customFetch<GetWhalesStatus200>(getGetWhalesStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWhalesStatusQueryKey = () => {
+  return [`/api/whales/status`] as const;
+};
+
+export const getGetWhalesStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWhalesStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWhalesStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getWhalesStatus>>> = ({
+    signal,
+  }) => getWhalesStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWhalesStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWhalesStatus>>
+>;
+export type GetWhalesStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Check if Unusual Whales is configured
+ */
+
+export function useGetWhalesStatus<
+  TData = Awaited<ReturnType<typeof getWhalesStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWhalesStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get live options flow alerts
+ */
+export const getGetWhalesFlowAlertsUrl = () => {
+  return `/api/whales/flow-alerts`;
+};
+
+export const getWhalesFlowAlerts = async (
+  options?: RequestInit,
+): Promise<GetWhalesFlowAlerts200> => {
+  return customFetch<GetWhalesFlowAlerts200>(getGetWhalesFlowAlertsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWhalesFlowAlertsQueryKey = () => {
+  return [`/api/whales/flow-alerts`] as const;
+};
+
+export const getGetWhalesFlowAlertsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWhalesFlowAlerts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesFlowAlerts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWhalesFlowAlertsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWhalesFlowAlerts>>
+  > = ({ signal }) => getWhalesFlowAlerts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesFlowAlerts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWhalesFlowAlertsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWhalesFlowAlerts>>
+>;
+export type GetWhalesFlowAlertsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get live options flow alerts
+ */
+
+export function useGetWhalesFlowAlerts<
+  TData = Awaited<ReturnType<typeof getWhalesFlowAlerts>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesFlowAlerts>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWhalesFlowAlertsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Aggregated flow summary with top tickers
+ */
+export const getGetWhalesFlowSummaryUrl = () => {
+  return `/api/whales/flow-summary`;
+};
+
+export const getWhalesFlowSummary = async (
+  options?: RequestInit,
+): Promise<WhaleFlowSummary> => {
+  return customFetch<WhaleFlowSummary>(getGetWhalesFlowSummaryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWhalesFlowSummaryQueryKey = () => {
+  return [`/api/whales/flow-summary`] as const;
+};
+
+export const getGetWhalesFlowSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWhalesFlowSummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesFlowSummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWhalesFlowSummaryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWhalesFlowSummary>>
+  > = ({ signal }) => getWhalesFlowSummary({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesFlowSummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWhalesFlowSummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWhalesFlowSummary>>
+>;
+export type GetWhalesFlowSummaryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Aggregated flow summary with top tickers
+ */
+
+export function useGetWhalesFlowSummary<
+  TData = Awaited<ReturnType<typeof getWhalesFlowSummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesFlowSummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWhalesFlowSummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Recent dark pool prints
+ */
+export const getGetWhalesDarkPoolUrl = () => {
+  return `/api/whales/darkpool`;
+};
+
+export const getWhalesDarkPool = async (
+  options?: RequestInit,
+): Promise<GetWhalesDarkPool200> => {
+  return customFetch<GetWhalesDarkPool200>(getGetWhalesDarkPoolUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWhalesDarkPoolQueryKey = () => {
+  return [`/api/whales/darkpool`] as const;
+};
+
+export const getGetWhalesDarkPoolQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWhalesDarkPool>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesDarkPool>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWhalesDarkPoolQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWhalesDarkPool>>
+  > = ({ signal }) => getWhalesDarkPool({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesDarkPool>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWhalesDarkPoolQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWhalesDarkPool>>
+>;
+export type GetWhalesDarkPoolQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Recent dark pool prints
+ */
+
+export function useGetWhalesDarkPool<
+  TData = Awaited<ReturnType<typeof getWhalesDarkPool>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesDarkPool>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWhalesDarkPoolQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Dark pool prints for a specific ticker
+ */
+export const getGetWhalesDarkPoolTickerUrl = (ticker: string) => {
+  return `/api/whales/darkpool/${ticker}`;
+};
+
+export const getWhalesDarkPoolTicker = async (
+  ticker: string,
+  options?: RequestInit,
+): Promise<GetWhalesDarkPoolTicker200> => {
+  return customFetch<GetWhalesDarkPoolTicker200>(
+    getGetWhalesDarkPoolTickerUrl(ticker),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetWhalesDarkPoolTickerQueryKey = (ticker: string) => {
+  return [`/api/whales/darkpool/${ticker}`] as const;
+};
+
+export const getGetWhalesDarkPoolTickerQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWhalesDarkPoolTicker>>,
+  TError = ErrorType<unknown>,
+>(
+  ticker: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getWhalesDarkPoolTicker>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetWhalesDarkPoolTickerQueryKey(ticker);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWhalesDarkPoolTicker>>
+  > = ({ signal }) =>
+    getWhalesDarkPoolTicker(ticker, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!ticker,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesDarkPoolTicker>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWhalesDarkPoolTickerQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWhalesDarkPoolTicker>>
+>;
+export type GetWhalesDarkPoolTickerQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Dark pool prints for a specific ticker
+ */
+
+export function useGetWhalesDarkPoolTicker<
+  TData = Awaited<ReturnType<typeof getWhalesDarkPoolTicker>>,
+  TError = ErrorType<unknown>,
+>(
+  ticker: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getWhalesDarkPoolTicker>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWhalesDarkPoolTickerQueryOptions(ticker, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Market Tide — net premium flow over time
+ */
+export const getGetWhalesMarketTideUrl = () => {
+  return `/api/whales/market-tide`;
+};
+
+export const getWhalesMarketTide = async (
+  options?: RequestInit,
+): Promise<GetWhalesMarketTide200> => {
+  return customFetch<GetWhalesMarketTide200>(getGetWhalesMarketTideUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWhalesMarketTideQueryKey = () => {
+  return [`/api/whales/market-tide`] as const;
+};
+
+export const getGetWhalesMarketTideQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWhalesMarketTide>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesMarketTide>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWhalesMarketTideQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWhalesMarketTide>>
+  > = ({ signal }) => getWhalesMarketTide({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesMarketTide>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWhalesMarketTideQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWhalesMarketTide>>
+>;
+export type GetWhalesMarketTideQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Market Tide — net premium flow over time
+ */
+
+export function useGetWhalesMarketTide<
+  TData = Awaited<ReturnType<typeof getWhalesMarketTide>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesMarketTide>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWhalesMarketTideQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

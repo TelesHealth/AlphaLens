@@ -7,6 +7,7 @@ import coachRouter from "./coach";
 import recommendationsRouter from "./recommendations";
 import tradingRouter from "./trading";
 import radarRouter from "./radar";
+import uwRouter from "./unusual-whales";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use("/coach", coachRouter);
 router.use("/recommendations", recommendationsRouter);
 router.use("/trading", tradingRouter);
 router.use("/radar", radarRouter);
+router.use("/whales", uwRouter);
 
 export default router;
