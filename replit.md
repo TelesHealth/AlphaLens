@@ -84,7 +84,7 @@ artifacts-monorepo/
 - `GET /signals/feed/latest` — Latest signals across all assets
 - `GET /portfolio` — Portfolio with open/closed trades
 - `POST /portfolio/trade` — Open a paper trade
-- `POST /portfolio/close/:id` — Close a paper trade
+- `POST /portfolio/trade/:id/close` — Close a paper trade
 - `GET /portfolio/stats` — Performance statistics
 - `POST /coach/analyze` — AI coaching analysis (calls Claude)
 - `GET /recommendations/briefing` — Latest AI intelligence briefing
@@ -162,6 +162,25 @@ Generated Zod schemas. Note: `GetSignalsParams` is exported as `GetSignalsParams
 - **Alpaca** — `ALPACA_API_KEY` + `ALPACA_SECRET_KEY` (stocks/ETFs)
 - **Polymarket** — `POLYMARKET_PRIVATE_KEY` (non-US only)
 - All default to `not_configured`; trades fall back to paper mode.
+
+## Phase 2 Bug Fixes Applied
+
+- CoinGecko 30s TTL in-memory cache with 429 rate-limit handling
+- Concurrent scan locks (recommendations + radar) prevent duplicate scans
+- Close trade route fixed: `/portfolio/trade/:id/close`
+- Coach AI prompt structured for RECOMMENDATIONS/RISK/CONFIDENCE extraction
+- Radar pctChange computed from price history for all assets
+- Radar byType pre-initialized with all 3 alert types (price_spike, volume_anomaly, chain_reaction)
+- Edge badge threshold: `> 0` (not `> 5`)
+- Signal cards click-expandable with chevron toggle
+- Watchlist: add from scanner (+/check icon), remove from briefing (trash icon)
+- Chain Reactions tab on radar page
+- Cache invalidation after AI scoring (markets list refreshed)
+- Mobile overflow-x fix (html/body overflow-x hidden + table overflow-x-auto)
+- AI Coach markdown rendering via react-markdown
+- Neutral direction badge: gray/muted style (not yellow)
+- Scan completion toasts with result counts
+- Kalshi API key migration TODO documented
 
 ## Scheduler
 

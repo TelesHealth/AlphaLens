@@ -109,7 +109,7 @@ router.post("/trade", async (req, res) => {
   }
 });
 
-router.post("/close/:id", async (req, res) => {
+router.post("/trade/:id/close", async (req, res) => {
   try {
     const { id } = CloseTradeParams.parse(req.params);
 

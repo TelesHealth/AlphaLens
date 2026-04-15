@@ -143,13 +143,23 @@ async function fetchWithTimeout(url: string, timeoutMs = 10000): Promise<Respons
   }
 }
 
+let cryptoCache: { prices: Record<string, number>; ts: number } = { prices: {}, ts: 0 };
+const CRYPTO_CACHE_TTL = 30_000;
+
 async function fetchCryptoPrices(): Promise<Record<string, number>> {
+  if (Date.now() - cryptoCache.ts < CRYPTO_CACHE_TTL && Object.keys(cryptoCache.prices).length > 0) {
+    return { ...cryptoCache.prices };
+  }
   const prices: Record<string, number> = {};
   try {
     const res = await fetchWithTimeout(
       `${COINGECKO_BASE}/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd`
     );
-    if (!res.ok) return prices;
+    if (res.status === 429) {
+      logger.warn("CoinGecko rate limited, using cached prices");
+      return { ...cryptoCache.prices };
+    }
+    if (!res.ok) return { ...cryptoCache.prices };
     const data = await res.json() as Record<string, { usd: number }>;
     const mapping: Record<string, string> = {
       bitcoin: "crypto_btc",
@@ -159,8 +169,10 @@ async function fetchCryptoPrices(): Promise<Record<string, number>> {
     for (const [coinId, assetId] of Object.entries(mapping)) {
       if (data[coinId]) prices[assetId] = data[coinId].usd;
     }
+    cryptoCache = { prices: { ...prices }, ts: Date.now() };
   } catch (e: any) {
     logger.warn({ err: e.message }, "E8 crypto prices fetch failed");
+    return { ...cryptoCache.prices };
   }
   return prices;
 }
@@ -233,6 +245,7 @@ function updatePriceHistory(assetId: string, price: number): void {
   const cutoff = new Date(now.getTime() - 2 * 60 * 60 * 1000);
   const filtered = history.filter((p) => p.ts > cutoff);
   priceHistory.set(assetId, filtered);
+
 }
 
 function checkSpike(assetId: string, currentPrice: number): SpikeResult | null {
@@ -521,8 +534,8 @@ export async function getAlertHistory(days = 7, limit = 100) {
     .orderBy(desc(radarAlertsTable.createdAt))
     .limit(limit);
 
-  const byType: Record<string, number> = {};
-  const bySeverity: Record<string, number> = {};
+  const byType: Record<string, number> = { price_spike: 0, volume_anomaly: 0, chain_reaction: 0 };
+  const bySeverity: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
   for (const a of alerts) {
     byType[a.type] = (byType[a.type] || 0) + 1;
     bySeverity[a.severity || "unknown"] = (bySeverity[a.severity || "unknown"] || 0) + 1;
@@ -547,12 +560,24 @@ export async function getPriceMonitor() {
   for (const [assetId, price] of Object.entries(prices)) {
     const spike = assetId in SPIKE_THRESHOLDS ? checkSpike(assetId, price) : null;
     const config = SPIKE_THRESHOLDS[assetId];
+
+    let pctChange: number | null = spike ? spike.pctChange : null;
+    if (pctChange == null) {
+      const history = priceHistory.get(assetId);
+      if (history && history.length >= 2) {
+        const oldest = history[0].price;
+        if (oldest > 0) {
+          pctChange = Math.round(((price - oldest) / oldest) * 10000) / 100;
+        }
+      }
+    }
+
     results.push({
       assetId,
       assetLabel: formatAssetLabel(assetId),
       price,
       spikeDetected: spike !== null,
-      pctChange: spike ? spike.pctChange : null,
+      pctChange,
       severity: spike ? spike.severity : "normal",
       threshold: config ? `${config.pct}% / ${config.window}min` : "—",
       updatedAt: new Date().toISOString(),

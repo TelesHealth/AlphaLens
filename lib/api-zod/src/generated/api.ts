@@ -528,6 +528,17 @@ export const AddToWatchlistResponse = zod.object({
 });
 
 /**
+ * @summary Remove asset from watchlist
+ */
+export const RemoveFromWatchlistParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RemoveFromWatchlistResponse = zod.object({
+  status: zod.string().optional(),
+});
+
+/**
  * @summary Get platform account status and US jurisdiction info
  */
 export const GetTradingAccountsResponse = zod.object({

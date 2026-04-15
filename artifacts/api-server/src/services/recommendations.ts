@@ -191,7 +191,22 @@ function tryRecoverTruncatedArray<T>(text: string): T[] {
   return items;
 }
 
+let scanLock = false;
+
 export async function scanForRecommendations() {
+  if (scanLock) {
+    logger.warn("E6: Scan already in progress, skipping");
+    return { id: null, summary: "Scan already running", tradeCount: 0, watchCount: 0, recommendations: [], events: [] };
+  }
+  scanLock = true;
+  try {
+    return await _doScan();
+  } finally {
+    scanLock = false;
+  }
+}
+
+async function _doScan() {
   logger.info("E6: Starting recommendations scan...");
 
   const assets = await db
@@ -200,14 +215,20 @@ export async function scanForRecommendations() {
     .orderBy(desc(assetsTable.currentPrice))
     .limit(30);
 
+  
+
   const signals = await db
     .select()
     .from(signalsTable)
     .orderBy(desc(signalsTable.createdAt))
     .limit(50);
 
+
+
   const events = await scanGlobalEvents();
+  console.log("EVENTS: ", events)
   const recs = await generateRecommendations(assets, signals, events);
+  console.log("RECS: ", recs)
   const summary = await generateBriefingSummary(recs);
 
   const [lastBriefing] = await db
@@ -227,6 +248,8 @@ export async function scanForRecommendations() {
       scanNumber: nextScanNumber,
     })
     .returning();
+
+  console.log("BRIEFING: ", briefing)
 
   for (const rec of recs) {
     await db.insert(recommendationsTable).values({
@@ -377,6 +400,7 @@ async function generateBriefingSummary(
   }
 
   try {
+    
     const recText = recs
       .slice(0, 5)
       .map(
@@ -393,6 +417,7 @@ async function generateBriefingSummary(
         { role: "user", content: `Today's recommendations:\n${recText}` },
       ],
     });
+    
 
     for (const block of response.content) {
       if (block.type === "text") return block.text.trim();

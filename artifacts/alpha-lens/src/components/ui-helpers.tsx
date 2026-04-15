@@ -48,7 +48,7 @@ export function DirectionBadge({ direction }: { direction: MarketDirection }) {
   const styles = {
     bullish: "bg-success/10 text-success border-success/20 shadow-[0_0_10px_rgba(34,197,94,0.15)]",
     bearish: "bg-destructive/10 text-destructive border-destructive/20 shadow-[0_0_10px_rgba(239,68,68,0.15)]",
-    neutral: "bg-warning/10 text-warning border-warning/20",
+    neutral: "bg-muted text-muted-foreground border-border",
   };
 
   return (

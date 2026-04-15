@@ -4,8 +4,10 @@ import {
   useGetRadarPrices,
   useGetRadarStatus,
   useTriggerRadarScan,
+  useGetRadarAllChains,
   getGetRadarAlertsQueryKey,
   getGetRadarPricesQueryKey,
+  getGetRadarAllChainsQueryKey,
 } from "@workspace/api-client-react";
 import type {
   RadarAlert,
@@ -30,7 +32,7 @@ import {
 import { cn, formatCurrency } from "@/components/ui-helpers";
 import { useToast } from "@/hooks/use-toast";
 
-type TabId = "alerts" | "prices" | "sources";
+type TabId = "alerts" | "prices" | "chains" | "sources";
 
 const SEV_STYLES: Record<string, { card: string; badge: string; border: string; glow: string }> = {
   critical: {
@@ -209,15 +211,21 @@ export default function RadarPage() {
     query: { queryKey: getGetRadarPricesQueryKey(), refetchInterval: 5 * 60 * 1000 },
   });
   const { data: statusData } = useGetRadarStatus();
+  const { data: chainsData, isLoading: chainsLoading } = useGetRadarAllChains({
+    query: { queryKey: getGetRadarAllChainsQueryKey() },
+  });
 
   const scanMutation = useTriggerRadarScan({
     mutation: {
       onSuccess: () => {
         setScanning(true);
         toast({ title: "Radar scan triggered", description: "Results will appear in ~30 seconds." });
-        setTimeout(() => {
-          queryClient.invalidateQueries({ predicate: (q) => (q.queryKey[0] as string)?.startsWith?.("/api/radar") });
+        setTimeout(async () => {
+          await queryClient.invalidateQueries({ predicate: (q) => (q.queryKey[0] as string)?.startsWith?.("/api/radar") });
           setScanning(false);
+          const cached = queryClient.getQueryData<{ alerts?: unknown[] }>(getGetRadarAlertsQueryKey());
+          const count = cached?.alerts?.length ?? 0;
+          toast({ title: "Radar Scan Complete", description: `${count} alerts generated.` });
         }, 35000);
       },
     },
@@ -242,6 +250,7 @@ export default function RadarPage() {
   const tabs: { id: TabId; label: string; icon: typeof Radio }[] = [
     { id: "alerts", label: "Live Alerts", icon: Radio },
     { id: "prices", label: "Price Monitor", icon: Activity },
+    { id: "chains", label: "Chain Reactions", icon: Link2 },
     { id: "sources", label: "Data Sources", icon: Server },
   ];
 
@@ -419,6 +428,51 @@ export default function RadarPage() {
                   )}
                 </div>
                 <div className="text-[10px] text-muted-foreground text-right font-mono">{p.threshold}</div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {tab === "chains" && (
+        <div className="space-y-4">
+          {chainsLoading ? (
+            <div className="text-center py-20 text-muted-foreground text-sm">Loading chain reaction maps...</div>
+          ) : !chainsData?.chains || Object.keys(chainsData.chains).length === 0 ? (
+            <div className="text-center py-20">
+              <Link2 className="w-8 h-8 text-muted-foreground/50 mx-auto mb-3" />
+              <div className="text-sm text-muted-foreground">No chain reaction data available</div>
+            </div>
+          ) : (
+            Object.entries(chainsData.chains as Record<string, Array<{ asset: string; direction: string; confidence: number; reason: string }>>).map(([trigger, reactions]) => (
+              <div key={trigger} className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="px-4 py-3 bg-muted/50 border-b border-border flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-warning" />
+                  <span className="text-sm font-bold">{trigger.replace(/_/g, " ").toUpperCase()}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground ml-auto">{reactions.length} downstream</span>
+                </div>
+                <div className="divide-y divide-border/50">
+                  {reactions.map((r) => (
+                    <div key={r.asset} className="px-4 py-3 flex items-center gap-3 hover:bg-muted/30 transition-colors">
+                      <div className={cn("w-2 h-2 rounded-full", r.direction === "bull" ? "bg-success" : r.direction === "bear" ? "bg-destructive" : "bg-warning")} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium">{r.asset.replace(/_/g, " ").toUpperCase()}</div>
+                        <div className="text-xs text-muted-foreground">{r.reason}</div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={cn(
+                          "text-[10px] font-bold uppercase px-2 py-0.5 rounded border",
+                          r.direction === "bull" ? "bg-success/10 text-success border-success/30" :
+                          r.direction === "bear" ? "bg-destructive/10 text-destructive border-destructive/30" :
+                          "bg-warning/10 text-warning border-warning/30"
+                        )}>
+                          {r.direction}
+                        </span>
+                        <span className="text-xs font-mono text-muted-foreground">{r.confidence}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))
           )}

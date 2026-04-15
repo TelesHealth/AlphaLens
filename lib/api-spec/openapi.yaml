@@ -328,6 +328,28 @@ paths:
                   status:
                     type: string
 
+  /recommendations/watchlist/{id}:
+    delete:
+      operationId: removeFromWatchlist
+      tags: [recommendations]
+      summary: Remove asset from watchlist
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Removed from watchlist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+
   /trading/accounts:
     get:
       operationId: getTradingAccounts

@@ -23,7 +23,15 @@ router.get("/alerts", async (req, res) => {
     const hours = clamp(parseInt(req.query.hours as string) || 4, 1, 24);
     const alertType = (req.query.type as string) || undefined;
     const severity = (req.query.severity as string) || undefined;
-    const alerts = await getActiveAlerts(hours, alertType, severity);
+    const rawAlerts = await getActiveAlerts(hours, alertType, severity);
+    const alerts = rawAlerts.map((a) => ({
+      ...a,
+      chainAssets: a.chainAssets ?? [],
+      confidence: a.confidence ?? null,
+      reason: a.reason ?? null,
+      pctChange: a.pctChange ?? null,
+      direction: a.direction ?? null,
+    }));
     res.json({ alerts, total: alerts.length, generatedAt: new Date().toISOString() });
   } catch (e: any) {
     logger.error({ err: e.message }, "GET /radar/alerts failed");

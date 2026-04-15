@@ -4,6 +4,7 @@ import {
   useTriggerScan,
   useGetGlobalEvents,
   useGetWatchlist,
+  useRemoveFromWatchlist,
   getGetBriefingQueryKey,
   getGetGlobalEventsQueryKey,
   getGetWatchlistQueryKey,
@@ -27,6 +28,7 @@ import {
   Target,
   ShieldAlert,
   Crosshair,
+  Trash2,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/components/ui-helpers";
 import { useToast } from "@/hooks/use-toast";
@@ -360,6 +362,18 @@ export default function Briefing() {
     query: { queryKey: getGetWatchlistQueryKey(), refetchInterval: 60000 },
   });
 
+  const removeWatchlistMutation = useRemoveFromWatchlist({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetWatchlistQueryKey() });
+        toast({ title: "Removed", description: "Asset removed from watchlist." });
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Could not remove from watchlist.", variant: "destructive" });
+      },
+    },
+  });
+
   const scanMutation = useTriggerScan({
     mutation: {
       onSuccess: () => {
@@ -368,13 +382,16 @@ export default function Briefing() {
           description:
             "AI is scanning global markets. Results will appear shortly.",
         });
-        setTimeout(() => {
-          queryClient.invalidateQueries({
+        setTimeout(async () => {
+          await queryClient.invalidateQueries({
             predicate: (query) =>
               (query.queryKey[0] as string)?.startsWith?.(
                 "/api/recommendations"
               ) ?? false,
           });
+          const cached = queryClient.getQueryData<{ recommendations?: unknown[] }>(getGetBriefingQueryKey());
+          const count = cached?.recommendations?.length ?? 0;
+          toast({ title: "Scan Complete", description: `${count} recommendations generated.` });
         }, 15000);
       },
       onError: () => {
@@ -598,11 +615,21 @@ export default function Briefing() {
                           </div>
                         )}
                       </div>
-                      {item.alertEdgeThreshold != null && (
-                        <span className="text-[10px] font-mono text-muted-foreground">
-                          Edge ≥{item.alertEdgeThreshold}%
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {item.alertEdgeThreshold != null && (
+                          <span className="text-[10px] font-mono text-muted-foreground">
+                            Edge ≥{item.alertEdgeThreshold}%
+                          </span>
+                        )}
+                        <button
+                          onClick={() => removeWatchlistMutation.mutate({ id: item.id })}
+                          disabled={removeWatchlistMutation.isPending}
+                          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                          title="Remove from watchlist"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                     {item.notes && (
                       <p className="text-xs text-muted-foreground mt-1">

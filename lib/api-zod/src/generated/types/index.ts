@@ -61,6 +61,7 @@ export * from "./recommendationType";
 export * from "./recommendationUrgency";
 export * from "./refreshResponse";
 export * from "./rejectPendingOrder200";
+export * from "./removeFromWatchlist200";
 export * from "./routingDecisionResponse";
 export * from "./scanResponse";
 export * from "./scoreResponse";

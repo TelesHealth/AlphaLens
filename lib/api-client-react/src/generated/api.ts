@@ -48,6 +48,7 @@ import type {
   RadarThresholdsResponse,
   RefreshResponse,
   RejectPendingOrder200,
+  RemoveFromWatchlist200,
   RoutingDecisionResponse,
   ScanResponse,
   ScoreResponse,
@@ -1413,6 +1414,90 @@ export const useAddToWatchlist = <
   TContext
 > => {
   return useMutation(getAddToWatchlistMutationOptions(options));
+};
+
+/**
+ * @summary Remove asset from watchlist
+ */
+export const getRemoveFromWatchlistUrl = (id: number) => {
+  return `/api/recommendations/watchlist/${id}`;
+};
+
+export const removeFromWatchlist = async (
+  id: number,
+  options?: RequestInit,
+): Promise<RemoveFromWatchlist200> => {
+  return customFetch<RemoveFromWatchlist200>(getRemoveFromWatchlistUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getRemoveFromWatchlistMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeFromWatchlist>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeFromWatchlist>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["removeFromWatchlist"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeFromWatchlist>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return removeFromWatchlist(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RemoveFromWatchlistMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeFromWatchlist>>
+>;
+
+export type RemoveFromWatchlistMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove asset from watchlist
+ */
+export const useRemoveFromWatchlist = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeFromWatchlist>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof removeFromWatchlist>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getRemoveFromWatchlistMutationOptions(options));
 };
 
 /**

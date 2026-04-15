@@ -5,6 +5,7 @@ import {
   useScoreMarket, 
   useOpenTrade,
   getGetMarketQueryKey,
+  getListMarketsQueryKey,
   TradeDirection
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,7 +18,9 @@ import {
   Clock, 
   Newspaper,
   AlertTriangle,
-  Zap
+  Zap,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -79,6 +82,7 @@ export default function MarketDetail() {
   const [isTradeModalOpen, setIsTradeModalOpen] = useState(false);
   const [tradeAmount, setTradeAmount] = useState(1000);
   const [tradeDirection, setTradeDirection] = useState<TradeDirection>("long");
+  const [expandedSignalId, setExpandedSignalId] = useState<number | null>(null);
 
   const { data, isLoading } = useGetMarket(id, {
     query: { queryKey: getGetMarketQueryKey(id), enabled: !!id }
@@ -88,6 +92,7 @@ export default function MarketDetail() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: [`/api/markets/${id}`] });
+        queryClient.invalidateQueries({ queryKey: getListMarketsQueryKey() });
         toast({ title: "AI Analysis Complete", description: "Scores and probabilities updated." });
       },
       onError: () => toast({ title: "Analysis Failed", variant: "destructive" })
@@ -215,12 +220,17 @@ export default function MarketDetail() {
             <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
               {signals.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No recent signals analyzed.</p>
-              ) : signals.map((signal, idx) => (
+              ) : signals.map((signal) => {
+                const isExpanded = expandedSignalId === signal.id;
+                return (
                 <div key={signal.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                   <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-card bg-secondary text-primary shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
                     <Clock className="w-4 h-4" />
                   </div>
-                  <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-border bg-background hover:border-primary/30 transition-colors shadow-sm">
+                  <div
+                    className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-border bg-background hover:border-primary/30 transition-colors shadow-sm cursor-pointer"
+                    onClick={() => setExpandedSignalId(isExpanded ? null : signal.id)}
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-mono font-bold uppercase text-muted-foreground bg-secondary px-2 py-1 rounded">
@@ -228,12 +238,15 @@ export default function MarketDetail() {
                         </span>
                         <ImpactBadge impact={signal.impact} />
                       </div>
-                      <span className="text-xs text-muted-foreground font-mono">
-                        {format(new Date(signal.createdAt), "MMM d, HH:mm")}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {format(new Date(signal.createdAt), "MMM d, HH:mm")}
+                        </span>
+                        {signal.detail && (isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />)}
+                      </div>
                     </div>
                     <h4 className="text-sm font-semibold mb-1">{signal.headline}</h4>
-                    {signal.detail && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{signal.detail}</p>}
+                    {signal.detail && <p className={cn("text-xs text-muted-foreground mt-2", !isExpanded && "line-clamp-2")}>{signal.detail}</p>}
                     <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
                       <DirectionBadge direction={signal.direction} />
                       <span className="text-xs font-mono text-muted-foreground flex items-center gap-1">
@@ -242,7 +255,8 @@ export default function MarketDetail() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

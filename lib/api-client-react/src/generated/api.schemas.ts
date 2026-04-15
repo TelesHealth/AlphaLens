@@ -615,6 +615,10 @@ export type AddToWatchlist200 = {
   status?: string;
 };
 
+export type RemoveFromWatchlist200 = {
+  status?: string;
+};
+
 export type ApprovePendingOrder200 = {
   status?: string;
   orderId?: number;

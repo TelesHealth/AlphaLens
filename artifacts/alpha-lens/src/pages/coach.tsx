@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useCoachAnalyze, useListMarkets } from "@workspace/api-client-react";
 import { Send, Bot, User, BrainCircuit, AlertTriangle, ChevronRight, Zap } from "lucide-react";
 import { cn } from "@/components/ui-helpers";
+import ReactMarkdown from "react-markdown";
 
 type Message = {
   id: string;
@@ -112,7 +113,11 @@ export default function Coach() {
                   <div className={cn("p-4 md:p-5 rounded-2xl text-[15px] leading-relaxed", 
                     msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-sm shadow-[0_4px_20px_rgba(59,130,246,0.15)]" : "bg-background border border-border rounded-tl-sm shadow-md"
                   )}>
-                    {msg.content}
+                    {msg.role === "coach" ? (
+                      <div className="prose prose-sm prose-invert max-w-none [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    ) : msg.content}
                   </div>
 
                   {msg.role === "coach" && msg.recommendations && msg.recommendations.length > 0 && (

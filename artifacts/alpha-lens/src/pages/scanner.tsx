@@ -3,11 +3,14 @@ import { Link } from "wouter";
 import { 
   useListMarkets, 
   useRefreshMarkets,
+  useAddToWatchlist,
+  useGetWatchlist,
+  getGetWatchlistQueryKey,
   MarketSector,
   ListMarketsSort 
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Search, SlidersHorizontal, ArrowUpDown } from "lucide-react";
+import { RefreshCw, Search, SlidersHorizontal, ArrowUpDown, Plus, Check } from "lucide-react";
 import { 
   formatCurrency, 
   formatPercent, 
@@ -28,6 +31,23 @@ export default function Scanner() {
     sector: sector === "all" ? undefined : sector,
     sort,
     limit: 100
+  });
+
+  const { data: watchlistData } = useGetWatchlist({
+    query: { queryKey: getGetWatchlistQueryKey() },
+  });
+  const watchedAssetIds = new Set((watchlistData?.items ?? []).map((w: { assetId: number }) => w.assetId));
+
+  const addWatchlistMutation = useAddToWatchlist({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetWatchlistQueryKey() });
+        toast({ title: "Added to Watchlist", description: "Asset added to your watchlist." });
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Could not add to watchlist.", variant: "destructive" });
+      },
+    },
   });
 
   const refreshMutation = useRefreshMarkets({
@@ -111,6 +131,7 @@ export default function Scanner() {
           ) : error ? (
             <div className="p-12 text-center text-destructive">Failed to load markets.</div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs font-mono text-muted-foreground uppercase bg-secondary/30 border-b border-border">
                 <tr>
@@ -120,12 +141,13 @@ export default function Scanner() {
                   <th className="px-6 py-4 font-semibold tracking-wider text-center">AI Prob</th>
                   <th className="px-6 py-4 font-semibold tracking-wider text-center">Edge</th>
                   <th className="px-6 py-4 font-semibold tracking-wider">Direction</th>
+                  <th className="px-6 py-4 font-semibold tracking-wider text-right">Watch</th>
                 </tr>
               </thead>
               <tbody>
                 {data?.markets.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                       No markets found for this sector.
                     </td>
                   </tr>
@@ -134,7 +156,7 @@ export default function Scanner() {
                   const isPositive = (market.priceChange24h || 0) > 0;
                   const isNegative = (market.priceChange24h || 0) < 0;
                   const edgeValue = market.edge || 0;
-                  const hasTradeableEdge = edgeValue > 5;
+                  const hasTradeableEdge = edgeValue > 0;
 
                   return (
                     <tr key={market.id} className="data-grid-row group">
@@ -186,11 +208,37 @@ export default function Scanner() {
                       <td className="px-6 py-4">
                         <DirectionBadge direction={market.direction!} />
                       </td>
+                      <td className="px-6 py-4 text-right">
+                        {watchedAssetIds.has(market.id) ? (
+                          <span className="p-1.5 inline-flex rounded-lg border border-success/30 bg-success/10 text-success" title="On watchlist">
+                            <Check className="w-3.5 h-3.5" />
+                          </span>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              addWatchlistMutation.mutate({
+                                data: {
+                                  assetId: market.id,
+                                  assetTitle: market.name,
+                                  assetClass: market.sector,
+                                },
+                              });
+                            }}
+                            disabled={addWatchlistMutation.isPending}
+                            className="p-1.5 rounded-lg border border-border hover:border-primary/50 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                            title="Add to watchlist"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

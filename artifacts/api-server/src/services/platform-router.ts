@@ -54,6 +54,7 @@ interface PlatformConfig {
 
 function getPlatformStatus(): Record<string, PlatformConfig> {
   return {
+    // TODO: Migrate to API key auth when Kalshi developer program supports it (KALSHI_API_KEY)
     kalshi: { isConfigured: !!(process.env.KALSHI_EMAIL && process.env.KALSHI_PASSWORD) },
     alpaca: { isConfigured: !!(process.env.ALPACA_API_KEY && process.env.ALPACA_SECRET_KEY) },
     polymarket: { isConfigured: !!process.env.POLYMARKET_PRIVATE_KEY },
@@ -188,6 +189,7 @@ export async function logLiveTrade(
   size?: number,
   orderId?: string
 ) {
+  const ticker = rec.assetTitle ?? rec.title ?? "";
   await db.insert(liveTradesTable).values({
     recommendationId: rec.id,
     platform,
@@ -203,6 +205,7 @@ export async function logLiveTrade(
     aiEdge: rec.edge,
     confidence: rec.confidence,
     orderId,
+    ticker,
   });
 }
 
