@@ -23,12 +23,12 @@ export function Layout({ children }: { children: ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
-    { href: "/", label: "Scanner", icon: Activity },
     { href: "/briefing", label: "Briefing", icon: Zap },
-    { href: "/radar", label: "Radar", icon: Radio },
-    { href: "/portfolio", label: "Portfolio", icon: Briefcase },
+    { href: "/", label: "Scanner", icon: Activity },
     { href: "/coach", label: "AI Coach", icon: MessageSquare },
-    { href: "/whales", label: "Whales", icon: Fish },
+    { href: "/portfolio", label: "Portfolio", icon: Briefcase },
+    { href: "/radar", label: "Radar", icon: Radio },
+    { href: "/whales", label: "Smart Money", icon: Fish },
   ];
 
   const SidebarContent = () => (
@@ -37,19 +37,20 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
           <img 
             src={`${import.meta.env.BASE_URL}images/logo-mark.png`} 
-            alt="Alpha Lens Logo" 
+            alt="Arclion Logo" 
             className="w-6 h-6 object-contain"
           />
         </div>
         <span className="font-display font-bold text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
-          ALPHA LENS
+          ARCLION
         </span>
       </div>
 
       <nav className="flex-1 px-4 space-y-2">
-        <div className="text-xs font-mono text-muted-foreground mb-4 px-2 tracking-wider">MODULES</div>
         {navItems.map((item) => {
-          const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+          const isActive = item.href === "/"
+            ? (location === "/" || location.startsWith("/market"))
+            : (location === item.href || (item.href !== "/" && location.startsWith(item.href)));
           const Icon = item.icon;
           return (
             <Link
@@ -104,7 +105,7 @@ export function Layout({ children }: { children: ReactNode }) {
               className="w-5 h-5 object-contain"
             />
           </div>
-          <span className="font-display font-bold text-lg">ALPHA LENS</span>
+          <span className="font-display font-bold text-lg">ARCLION</span>
         </div>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
