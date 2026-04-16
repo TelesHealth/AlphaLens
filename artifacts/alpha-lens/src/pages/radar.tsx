@@ -5,13 +5,22 @@ import {
   useGetRadarStatus,
   useTriggerRadarScan,
   useGetRadarAllChains,
+  useGetRadarOptionsFlow,
+  useGetRadarDarkPool,
+  useGetRadarCongress,
+  useGetRadarCryptoWhales,
   getGetRadarAlertsQueryKey,
   getGetRadarPricesQueryKey,
   getGetRadarAllChainsQueryKey,
+  getGetRadarOptionsFlowQueryKey,
+  getGetRadarDarkPoolQueryKey,
+  getGetRadarCongressQueryKey,
+  getGetRadarCryptoWhalesQueryKey,
 } from "@workspace/api-client-react";
 import type {
   RadarAlert,
   RadarPriceRow,
+  SmartMoneyAlert,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -28,11 +37,15 @@ import {
   Server,
   ChevronDown,
   ChevronUp,
+  DollarSign,
+  Shield,
+  Landmark,
+  Waves,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/components/ui-helpers";
 import { useToast } from "@/hooks/use-toast";
 
-type TabId = "alerts" | "prices" | "chains" | "sources";
+type TabId = "alerts" | "prices" | "chains" | "smartmoney" | "sources";
 
 const SEV_STYLES: Record<string, { card: string; badge: string; border: string; glow: string }> = {
   critical: {
@@ -215,6 +228,25 @@ export default function RadarPage() {
     query: { queryKey: getGetRadarAllChainsQueryKey() },
   });
 
+  const { data: optionsFlowData, isLoading: optionsLoading, isError: optionsError } = useGetRadarOptionsFlow(
+    { limit: 50 },
+    { query: { queryKey: getGetRadarOptionsFlowQueryKey({ limit: 50 }), enabled: tab === "smartmoney", retry: false } },
+  );
+  const { data: darkPoolData, isLoading: darkPoolLoading, isError: darkPoolError } = useGetRadarDarkPool(
+    { limit: 50 },
+    { query: { queryKey: getGetRadarDarkPoolQueryKey({ limit: 50 }), enabled: tab === "smartmoney", retry: false } },
+  );
+  const { data: congressData, isLoading: congressLoading, isError: congressError } = useGetRadarCongress(
+    { limit: 50 },
+    { query: { queryKey: getGetRadarCongressQueryKey({ limit: 50 }), enabled: tab === "smartmoney", retry: false } },
+  );
+  const { data: cryptoWhalesData, isLoading: cryptoLoading, isError: cryptoError } = useGetRadarCryptoWhales(
+    { limit: 50 },
+    { query: { queryKey: getGetRadarCryptoWhalesQueryKey({ limit: 50 }), enabled: tab === "smartmoney", retry: false } },
+  );
+
+  const uwNotConfigured = optionsError || darkPoolError || congressError || cryptoError;
+
   const scanMutation = useTriggerRadarScan({
     mutation: {
       onSuccess: () => {
@@ -251,6 +283,7 @@ export default function RadarPage() {
     { id: "alerts", label: "Live Alerts", icon: Radio },
     { id: "prices", label: "Price Monitor", icon: Activity },
     { id: "chains", label: "Chain Reactions", icon: Link2 },
+    { id: "smartmoney", label: "Smart Money", icon: DollarSign },
     { id: "sources", label: "Data Sources", icon: Server },
   ];
 
@@ -476,6 +509,166 @@ export default function RadarPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {tab === "smartmoney" && (
+        <div className="space-y-6">
+          {uwNotConfigured ? (
+            <div className="rounded-xl bg-warning/10 border border-warning/30 p-6 text-center">
+              <AlertTriangle className="w-8 h-8 text-warning mx-auto mb-3" />
+              <h3 className="text-sm font-bold text-warning mb-2">Smart Money Signals Not Available</h3>
+              <p className="text-xs text-muted-foreground">
+                Smart Money signals require an Unusual Whales API subscription.
+                Add <code className="bg-warning/10 px-1 rounded text-warning">UNUSUAL_WHALES_KEY</code> to Replit Secrets to activate options flow, dark pool, congressional trades, and crypto whale tracking.
+              </p>
+            </div>
+          ) : (
+          <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 flex items-center gap-3">
+            <Shield className="w-5 h-5 text-primary shrink-0" />
+            <div className="text-sm text-primary">
+              <strong>Powered by Unusual Whales</strong> — institutional-grade smart money signals including options flow, dark pool, congressional trades, and crypto whale activity.
+            </div>
+          </div>
+          )}
+
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <DollarSign className="w-4 h-4 text-warning" />
+              <h3 className="text-sm font-bold tracking-wide">OPTIONS FLOW</h3>
+              <span className="text-[10px] font-mono text-muted-foreground ml-auto">{optionsFlowData?.total ?? 0} alerts</span>
+            </div>
+            {optionsLoading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading options flow...</div>
+            ) : !optionsFlowData?.alerts || optionsFlowData.alerts.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No significant options flow detected</div>
+            ) : (
+              <div className="space-y-2">
+                {(optionsFlowData.alerts as SmartMoneyAlert[]).map((a) => (
+                  <div key={a.id} className={cn(
+                    "rounded-xl border border-l-4 p-4",
+                    a.severity === "high" ? "bg-warning/5 border-warning/30 border-l-warning" : "bg-primary/5 border-primary/20 border-l-primary",
+                  )}>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-sm font-bold">{a.assetLabel}</span>
+                      {a.direction && (
+                        <span className={cn(
+                          "text-[10px] font-bold uppercase px-2 py-0.5 rounded border",
+                          a.direction === "bull" ? "bg-success/10 text-success border-success/30" : "bg-destructive/10 text-destructive border-destructive/30",
+                        )}>
+                          {a.direction === "bull" ? "↑ CALL" : "↓ PUT"}
+                        </span>
+                      )}
+                      <span className={cn(
+                        "px-2 py-0.5 text-[10px] uppercase font-bold rounded border",
+                        a.severity === "high" ? "bg-warning/15 text-warning border-warning/30" : "bg-primary/15 text-primary border-primary/20",
+                      )}>
+                        {a.severity}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground">{a.title}</p>
+                    {a.note && <p className="text-xs text-muted-foreground mt-1">{a.note}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Eye className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-bold tracking-wide">DARK POOL</h3>
+              <span className="text-[10px] font-mono text-muted-foreground ml-auto">{darkPoolData?.total ?? 0} trades</span>
+            </div>
+            {darkPoolLoading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading dark pool...</div>
+            ) : !darkPoolData?.trades || darkPoolData.trades.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No significant dark pool activity</div>
+            ) : (
+              <div className="space-y-2">
+                {(darkPoolData.trades as SmartMoneyAlert[]).map((a) => (
+                  <div key={a.id} className="rounded-xl border border-l-4 border-border border-l-muted-foreground/30 p-4 bg-muted/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-bold">{a.assetLabel}</span>
+                      <span className="text-[10px] bg-muted px-2 py-0.5 rounded border border-border text-muted-foreground">Off-exchange block trade</span>
+                    </div>
+                    <p className="text-sm text-foreground">{a.title}</p>
+                    {a.note && <p className="text-xs text-muted-foreground mt-1">{a.note}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Landmark className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-bold tracking-wide">CONGRESS TRADES</h3>
+              <span className="text-[10px] font-mono text-muted-foreground ml-auto">{congressData?.total ?? 0} trades</span>
+            </div>
+            {congressLoading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading congressional trades...</div>
+            ) : !congressData?.trades || congressData.trades.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No recent congressional trades</div>
+            ) : (
+              <div className="space-y-2">
+                {(congressData.trades as SmartMoneyAlert[]).map((a) => (
+                  <div key={a.id} className={cn(
+                    "rounded-xl border border-l-4 p-4",
+                    a.direction === "bull" ? "bg-success/5 border-success/20 border-l-success" : "bg-destructive/5 border-destructive/20 border-l-destructive",
+                  )}>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-sm font-bold">{a.assetLabel}</span>
+                      {a.direction && (
+                        <span className={cn(
+                          "text-[10px] font-bold uppercase px-2 py-0.5 rounded border",
+                          a.direction === "bull" ? "bg-success/10 text-success border-success/30" : "bg-destructive/10 text-destructive border-destructive/30",
+                        )}>
+                          {a.direction === "bull" ? "Purchase" : "Sale"}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-foreground">{a.title}</p>
+                    {a.note && <p className="text-xs text-muted-foreground mt-1">{a.note}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Waves className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-bold tracking-wide">CRYPTO WHALES</h3>
+              <span className="text-[10px] font-mono text-muted-foreground ml-auto">{cryptoWhalesData?.total ?? 0} transactions</span>
+            </div>
+            {cryptoLoading ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading crypto whales...</div>
+            ) : !cryptoWhalesData?.transactions || cryptoWhalesData.transactions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">No large crypto whale transactions detected</div>
+            ) : (
+              <div className="space-y-2">
+                {(cryptoWhalesData.transactions as SmartMoneyAlert[]).map((a) => (
+                  <div key={a.id} className={cn(
+                    "rounded-xl border border-l-4 p-4",
+                    a.severity === "high" ? "bg-warning/5 border-warning/30 border-l-warning" : "bg-primary/5 border-primary/20 border-l-primary",
+                  )}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-bold">{a.assetLabel}</span>
+                      <span className={cn(
+                        "px-2 py-0.5 text-[10px] uppercase font-bold rounded border",
+                        a.severity === "high" ? "bg-warning/15 text-warning border-warning/30" : "bg-primary/15 text-primary border-primary/20",
+                      )}>
+                        {a.severity}
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground">{a.title}</p>
+                    {a.note && <p className="text-xs text-muted-foreground mt-1">{a.note}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

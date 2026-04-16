@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+
 const UW_BASE = "https://api.unusualwhales.com/api";
 const UW_CACHE_TTL = 60_000;
 
@@ -18,6 +20,10 @@ function setCache<T>(key: string, data: T): void {
   cache.set(key, { data, ts: Date.now() });
 }
 
+function md5Short(input: string): string {
+  return createHash("md5").update(input).digest("hex").slice(0, 16);
+}
+
 async function uwFetch<T>(path: string): Promise<T> {
   const key = process.env.UNUSUAL_WHALES_KEY;
   if (!key) throw new Error("UNUSUAL_WHALES_KEY not configured");
@@ -35,8 +41,8 @@ async function uwFetch<T>(path: string): Promise<T> {
     throw new Error(`UW API ${res.status}: ${text.substring(0, 200)}`);
   }
 
-  const json = await res.json();
-  const data = (json.data ?? json) as T;
+  const json = (await res.json()) as Record<string, unknown>;
+  const data = ((json as any).data ?? json) as T;
   setCache(path, data);
   return data;
 }
@@ -84,27 +90,243 @@ export interface MarketTideTick {
   net_volume: number;
 }
 
+export interface CongressTrade {
+  name: string;
+  ticker: string | null;
+  issuer: string;
+  is_active: boolean;
+  transaction_date: string;
+  politician_id: string;
+  reporter: string;
+  txn_type: string;
+  amounts: string;
+  notes: string;
+  filed_at_date: string;
+  member_type: string;
+}
+
+export interface CryptoWhale {
+  pair: string;
+  amount: number;
+  usd_value: number;
+  from_address: string;
+  to_address: string;
+  chain: string;
+  timestamp: string;
+  transaction_hash: string;
+}
+
+export interface RadarAlertCompat {
+  id: string;
+  type: string;
+  severity: string;
+  assetId: string;
+  assetLabel: string;
+  title: string;
+  pctChange?: number;
+  direction?: string;
+  priceStart?: number;
+  priceNow?: number;
+  windowMinutes?: number;
+  thresholdPct?: number;
+  volumeMultiplier?: number;
+  volumeType?: string;
+  confidence?: number;
+  reason?: string;
+  triggerAsset?: string;
+  triggerPct?: number;
+  chainAssets: string[];
+  historicalNote?: string;
+  aiScanning?: string;
+  note?: string;
+  dataSource?: string;
+  createdAt: string;
+}
+
 export function isConfigured(): boolean {
   return !!process.env.UNUSUAL_WHALES_KEY;
 }
 
 export async function getFlowAlerts(): Promise<FlowAlert[]> {
   const alerts = await uwFetch<FlowAlert[]>("/option-trades/flow-alerts");
-  return alerts.slice(0, 50);
+  return Array.isArray(alerts) ? alerts.slice(0, 50) : [];
 }
 
 export async function getDarkPoolRecent(): Promise<DarkPoolPrint[]> {
   const prints = await uwFetch<DarkPoolPrint[]>("/darkpool/recent");
-  return prints.slice(0, 50);
+  return Array.isArray(prints) ? prints.slice(0, 50) : [];
 }
 
 export async function getDarkPoolTicker(ticker: string): Promise<DarkPoolPrint[]> {
   const prints = await uwFetch<DarkPoolPrint[]>(`/darkpool/${encodeURIComponent(ticker.toUpperCase())}`);
-  return prints.slice(0, 50);
+  return Array.isArray(prints) ? prints.slice(0, 50) : [];
 }
 
 export async function getMarketTide(): Promise<MarketTideTick[]> {
   return uwFetch<MarketTideTick[]>("/market/market-tide");
+}
+
+export async function getCongressTrades(): Promise<CongressTrade[]> {
+  const trades = await uwFetch<CongressTrade[]>("/congress/recent-trades");
+  return Array.isArray(trades) ? trades.slice(0, 50) : [];
+}
+
+export async function getCryptoWhales(): Promise<CryptoWhale[]> {
+  const txns = await uwFetch<CryptoWhale[]>("/crypto/whales/recent");
+  return Array.isArray(txns) ? txns.slice(0, 50) : [];
+}
+
+export async function fetchOptionsFlowAlerts(): Promise<RadarAlertCompat[]> {
+  if (!process.env.UNUSUAL_WHALES_KEY) {
+    console.warn("UNUSUAL_WHALES_KEY not set — skipping options flow");
+    return [];
+  }
+  try {
+    const alerts = await getFlowAlerts();
+    return alerts
+      .filter((a) => (parseFloat(a.total_premium) || 0) >= 500_000)
+      .map((a) => {
+        const premium = parseFloat(a.total_premium) || 0;
+        const premStr = `$${(premium / 1_000_000).toFixed(1)}M`;
+        return {
+          id: md5Short(`uw_flow_${a.id || a.ticker + a.strike + a.expiry}`),
+          type: "volume_anomaly",
+          severity: premium >= 1_000_000 ? "high" : "medium",
+          assetId: a.ticker.toLowerCase(),
+          assetLabel: a.ticker.toUpperCase(),
+          title: `Unusual options flow: ${premStr} in ${a.ticker} ${a.strike} ${a.type}`,
+          direction: a.type === "call" ? "bull" : "bear",
+          volumeType: "options_flow",
+          note: `${a.ticker} ${a.strike} ${a.type} expiring ${a.expiry} — ${premStr} premium, ${a.volume} contracts, ${a.has_sweep ? "SWEEP" : "block"}. Vol/OI ratio: ${a.volume_oi_ratio}.`,
+          dataSource: "Unusual Whales",
+          chainAssets: [],
+          createdAt: a.created_at || new Date().toISOString(),
+        };
+      });
+  } catch (e: any) {
+    if (e.message?.includes("429")) {
+      console.warn("Unusual Whales rate limited on options flow");
+    } else {
+      console.error("UW options flow error:", e.message);
+    }
+    return [];
+  }
+}
+
+export async function fetchDarkPoolAlerts(): Promise<RadarAlertCompat[]> {
+  if (!process.env.UNUSUAL_WHALES_KEY) {
+    console.warn("UNUSUAL_WHALES_KEY not set — skipping dark pool");
+    return [];
+  }
+  try {
+    const prints = await getDarkPoolRecent();
+    return prints
+      .filter((p) => {
+        const notional = p.size * (parseFloat(p.price) || 0);
+        return notional >= 1_000_000;
+      })
+      .map((p) => {
+        const price = parseFloat(p.price) || 0;
+        const notional = p.size * price;
+        const notionalStr = notional >= 1_000_000
+          ? `$${(notional / 1_000_000).toFixed(1)}M`
+          : `$${(notional / 1_000).toFixed(0)}K`;
+        return {
+          id: md5Short(`uw_dp_${p.ticker}${p.executed_at}${p.size}`),
+          type: "volume_anomaly",
+          severity: "medium",
+          assetId: p.ticker.toLowerCase(),
+          assetLabel: p.ticker.toUpperCase(),
+          title: `Dark pool block trade: ${p.size.toLocaleString()} shares of ${p.ticker} off-exchange`,
+          volumeType: "dark_pool",
+          note: `${p.ticker} dark pool print: ${p.size.toLocaleString()} shares at $${price.toFixed(2)} (${notionalStr} notional). NBBO: $${p.nbbo_bid}–$${p.nbbo_ask}. Venue: ${p.market_center}.`,
+          dataSource: "Unusual Whales Dark Pool",
+          chainAssets: [],
+          createdAt: p.executed_at || new Date().toISOString(),
+        };
+      });
+  } catch (e: any) {
+    if (e.message?.includes("429")) {
+      console.warn("Unusual Whales rate limited on dark pool");
+    } else {
+      console.error("UW dark pool error:", e.message);
+    }
+    return [];
+  }
+}
+
+export async function fetchCongressionalTrades(): Promise<RadarAlertCompat[]> {
+  if (!process.env.UNUSUAL_WHALES_KEY) {
+    console.warn("UNUSUAL_WHALES_KEY not set — skipping congress trades");
+    return [];
+  }
+  try {
+    const trades = await getCongressTrades();
+    return trades
+      .filter((t) => t.ticker)
+      .map((t) => {
+        const isBuy = (t.txn_type || "").toLowerCase().includes("buy") || (t.txn_type || "").toLowerCase().includes("purchase");
+        return {
+          id: md5Short(`uw_congress_${t.reporter}${t.ticker}${t.filed_at_date}`),
+          type: "news_catalyst",
+          severity: "medium",
+          assetId: (t.ticker || "unknown").toLowerCase(),
+          assetLabel: (t.ticker || "UNKNOWN").toUpperCase(),
+          title: `Congressional trade: ${t.reporter} ${t.txn_type} ${t.ticker}`,
+          direction: isBuy ? "bull" : "bear",
+          note: `${t.reporter} (${t.member_type}) — ${t.txn_type} ${t.ticker}. ${t.notes ? t.notes.slice(0, 120) : ""}. Amount: ${t.amounts}. Filed: ${t.filed_at_date}. Traded: ${t.transaction_date}.`,
+          dataSource: "Unusual Whales Congress",
+          chainAssets: [],
+          createdAt: t.filed_at_date || new Date().toISOString(),
+        };
+      });
+  } catch (e: any) {
+    if (e.message?.includes("429")) {
+      console.warn("Unusual Whales rate limited on congress trades");
+    } else {
+      console.error("UW congress error:", e.message);
+    }
+    return [];
+  }
+}
+
+export async function fetchCryptoWhaleAlerts(): Promise<RadarAlertCompat[]> {
+  if (!process.env.UNUSUAL_WHALES_KEY) {
+    console.warn("UNUSUAL_WHALES_KEY not set — skipping crypto whales");
+    return [];
+  }
+  try {
+    const txns = await getCryptoWhales();
+    return txns
+      .filter((w) => (w.usd_value || 0) >= 1_000_000)
+      .map((w) => {
+        const amtStr = w.usd_value >= 10_000_000
+          ? `$${(w.usd_value / 1_000_000).toFixed(1)}M`
+          : `$${(w.usd_value / 1_000_000).toFixed(2)}M`;
+        const fromAddr = (w.from_address || "").slice(0, 10) + "…";
+        const toAddr = (w.to_address || "").slice(0, 10) + "…";
+        return {
+          id: md5Short(`uw_whale_${w.transaction_hash || w.pair + w.timestamp}`),
+          type: "volume_anomaly",
+          severity: w.usd_value >= 10_000_000 ? "high" : "medium",
+          assetId: "crypto_" + (w.pair || "unknown").toLowerCase(),
+          assetLabel: (w.pair || "UNKNOWN").toUpperCase(),
+          title: `Crypto whale: ${amtStr} ${w.pair} on-chain transaction`,
+          volumeType: "crypto_whale",
+          note: `${w.pair} on-chain transfer: ${amtStr} from ${fromAddr} to ${toAddr}. Chain: ${w.chain}. ${w.amount} units.`,
+          dataSource: "Unusual Whales Crypto",
+          chainAssets: [],
+          createdAt: w.timestamp || new Date().toISOString(),
+        };
+      });
+  } catch (e: any) {
+    if (e.message?.includes("429")) {
+      console.warn("Unusual Whales rate limited on crypto whales");
+    } else {
+      console.error("UW crypto whales error:", e.message);
+    }
+    return [];
+  }
 }
 
 export async function getFlowSummary(): Promise<{

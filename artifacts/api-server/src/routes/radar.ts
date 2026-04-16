@@ -8,6 +8,12 @@ import {
   CHAIN_REACTIONS,
   SPIKE_THRESHOLDS,
 } from "../services/market-radar";
+import {
+  fetchOptionsFlowAlerts,
+  fetchDarkPoolAlerts,
+  fetchCongressionalTrades,
+  fetchCryptoWhaleAlerts,
+} from "../services/unusual-whales";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -102,6 +108,66 @@ router.get("/history", async (req, res) => {
 
 router.get("/status", (_req, res) => {
   res.json(getRadarStatus());
+});
+
+router.get("/options-flow", async (req, res) => {
+  if (!process.env.UNUSUAL_WHALES_KEY) {
+    res.status(503).json({ error: "Unusual Whales not configured — add UNUSUAL_WHALES_KEY to Secrets" });
+    return;
+  }
+  try {
+    const limit = clamp(parseInt(req.query.limit as string) || 20, 1, 100);
+    const alerts = await fetchOptionsFlowAlerts();
+    res.json({ alerts: alerts.slice(0, limit), total: alerts.length, source: "Unusual Whales" });
+  } catch (e: any) {
+    logger.error({ err: e.message }, "GET /radar/options-flow failed");
+    res.status(500).json({ error: "Failed to fetch options flow" });
+  }
+});
+
+router.get("/dark-pool", async (req, res) => {
+  if (!process.env.UNUSUAL_WHALES_KEY) {
+    res.status(503).json({ error: "Unusual Whales not configured — add UNUSUAL_WHALES_KEY to Secrets" });
+    return;
+  }
+  try {
+    const limit = clamp(parseInt(req.query.limit as string) || 20, 1, 100);
+    const trades = await fetchDarkPoolAlerts();
+    res.json({ trades: trades.slice(0, limit), total: trades.length, source: "Unusual Whales Dark Pool" });
+  } catch (e: any) {
+    logger.error({ err: e.message }, "GET /radar/dark-pool failed");
+    res.status(500).json({ error: "Failed to fetch dark pool data" });
+  }
+});
+
+router.get("/congress", async (req, res) => {
+  if (!process.env.UNUSUAL_WHALES_KEY) {
+    res.status(503).json({ error: "Unusual Whales not configured — add UNUSUAL_WHALES_KEY to Secrets" });
+    return;
+  }
+  try {
+    const limit = clamp(parseInt(req.query.limit as string) || 20, 1, 100);
+    const trades = await fetchCongressionalTrades();
+    res.json({ trades: trades.slice(0, limit), total: trades.length, source: "Unusual Whales Congress" });
+  } catch (e: any) {
+    logger.error({ err: e.message }, "GET /radar/congress failed");
+    res.status(500).json({ error: "Failed to fetch congressional trades" });
+  }
+});
+
+router.get("/crypto-whales", async (req, res) => {
+  if (!process.env.UNUSUAL_WHALES_KEY) {
+    res.status(503).json({ error: "Unusual Whales not configured — add UNUSUAL_WHALES_KEY to Secrets" });
+    return;
+  }
+  try {
+    const limit = clamp(parseInt(req.query.limit as string) || 20, 1, 100);
+    const transactions = await fetchCryptoWhaleAlerts();
+    res.json({ transactions: transactions.slice(0, limit), total: transactions.length, source: "Unusual Whales Crypto" });
+  } catch (e: any) {
+    logger.error({ err: e.message }, "GET /radar/crypto-whales failed");
+    res.status(500).json({ error: "Failed to fetch crypto whale data" });
+  }
 });
 
 export default router;

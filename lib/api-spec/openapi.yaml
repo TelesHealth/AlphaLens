@@ -635,6 +635,90 @@ paths:
               schema:
                 $ref: "#/components/schemas/RadarStatusResponse"
 
+  /radar/options-flow:
+    get:
+      operationId: getRadarOptionsFlow
+      tags: [radar]
+      summary: Get options flow alerts from Unusual Whales
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Options flow alerts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmartMoneyResponse"
+        "503":
+          description: Unusual Whales not configured
+
+  /radar/dark-pool:
+    get:
+      operationId: getRadarDarkPool
+      tags: [radar]
+      summary: Get dark pool trades from Unusual Whales
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Dark pool trades
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmartMoneyResponse"
+        "503":
+          description: Unusual Whales not configured
+
+  /radar/congress:
+    get:
+      operationId: getRadarCongress
+      tags: [radar]
+      summary: Get congressional trades from Unusual Whales
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Congressional trades
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmartMoneyResponse"
+        "503":
+          description: Unusual Whales not configured
+
+  /radar/crypto-whales:
+    get:
+      operationId: getRadarCryptoWhales
+      tags: [radar]
+      summary: Get crypto whale transactions from Unusual Whales
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Crypto whale transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SmartMoneyResponse"
+        "503":
+          description: Unusual Whales not configured
+
   /whales/status:
     get:
       operationId: getWhalesStatus
@@ -727,6 +811,55 @@ paths:
                     items:
                       $ref: "#/components/schemas/WhaleDarkPoolPrint"
                 required: [prints]
+
+  /whales/congress:
+    get:
+      operationId: getWhalesCongress
+      tags: [whales]
+      summary: Recent congressional trades
+      responses:
+        "200":
+          description: Congressional trades
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trades:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WhaleCongressTrade"
+                required: [trades]
+
+  /whales/crypto-whales:
+    get:
+      operationId: getWhalesCryptoWhales
+      tags: [whales]
+      summary: Large on-chain crypto whale transactions
+      responses:
+        "200":
+          description: Crypto whale transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pair:
+                          type: string
+                        amount:
+                          type: number
+                        usd_value:
+                          type: number
+                        chain:
+                          type: string
+                        timestamp:
+                          type: string
+                required: [transactions]
 
   /whales/market-tide:
     get:
@@ -1816,6 +1949,30 @@ components:
           type: string
       required: [ticker, size, price, executed_at]
 
+    WhaleCongressTrade:
+      type: object
+      properties:
+        name:
+          type: string
+        ticker:
+          type: string
+          nullable: true
+        reporter:
+          type: string
+        txn_type:
+          type: string
+        amounts:
+          type: string
+        notes:
+          type: string
+        filed_at_date:
+          type: string
+        transaction_date:
+          type: string
+        member_type:
+          type: string
+      required: [name, reporter, txn_type, amounts, filed_at_date]
+
     WhaleMarketTideTick:
       type: object
       properties:
@@ -1860,3 +2017,55 @@ components:
           $ref: "#/components/schemas/WhaleFlowAlert"
           nullable: true
       required: [totalAlerts, totalPremium, callPremium, putPremium, topTickers, sweepCount]
+
+    SmartMoneyAlert:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        severity:
+          type: string
+        assetId:
+          type: string
+        assetLabel:
+          type: string
+        title:
+          type: string
+        direction:
+          type: string
+        volumeType:
+          type: string
+        note:
+          type: string
+        dataSource:
+          type: string
+        chainAssets:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+      required: [id, type, severity, assetId, assetLabel, title]
+
+    SmartMoneyResponse:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SmartMoneyAlert"
+        trades:
+          type: array
+          items:
+            $ref: "#/components/schemas/SmartMoneyAlert"
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SmartMoneyAlert"
+        total:
+          type: integer
+        source:
+          type: string
+      required: [total, source]

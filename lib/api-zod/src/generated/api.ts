@@ -940,6 +940,278 @@ export const GetRadarStatusResponse = zod.object({
 });
 
 /**
+ * @summary Get options flow alerts from Unusual Whales
+ */
+export const getRadarOptionsFlowQueryLimitDefault = 20;
+
+export const GetRadarOptionsFlowQueryParams = zod.object({
+  limit: zod.coerce.number().default(getRadarOptionsFlowQueryLimitDefault),
+});
+
+export const GetRadarOptionsFlowResponse = zod.object({
+  alerts: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  trades: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  transactions: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  total: zod.number(),
+  source: zod.string(),
+});
+
+/**
+ * @summary Get dark pool trades from Unusual Whales
+ */
+export const getRadarDarkPoolQueryLimitDefault = 20;
+
+export const GetRadarDarkPoolQueryParams = zod.object({
+  limit: zod.coerce.number().default(getRadarDarkPoolQueryLimitDefault),
+});
+
+export const GetRadarDarkPoolResponse = zod.object({
+  alerts: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  trades: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  transactions: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  total: zod.number(),
+  source: zod.string(),
+});
+
+/**
+ * @summary Get congressional trades from Unusual Whales
+ */
+export const getRadarCongressQueryLimitDefault = 20;
+
+export const GetRadarCongressQueryParams = zod.object({
+  limit: zod.coerce.number().default(getRadarCongressQueryLimitDefault),
+});
+
+export const GetRadarCongressResponse = zod.object({
+  alerts: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  trades: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  transactions: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  total: zod.number(),
+  source: zod.string(),
+});
+
+/**
+ * @summary Get crypto whale transactions from Unusual Whales
+ */
+export const getRadarCryptoWhalesQueryLimitDefault = 20;
+
+export const GetRadarCryptoWhalesQueryParams = zod.object({
+  limit: zod.coerce.number().default(getRadarCryptoWhalesQueryLimitDefault),
+});
+
+export const GetRadarCryptoWhalesResponse = zod.object({
+  alerts: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  trades: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  transactions: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        type: zod.string(),
+        severity: zod.string(),
+        assetId: zod.string(),
+        assetLabel: zod.string(),
+        title: zod.string(),
+        direction: zod.string().optional(),
+        volumeType: zod.string().optional(),
+        note: zod.string().optional(),
+        dataSource: zod.string().optional(),
+        chainAssets: zod.array(zod.string()).optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  total: zod.number(),
+  source: zod.string(),
+});
+
+/**
  * @summary Check if Unusual Whales is configured
  */
 export const GetWhalesStatusResponse = zod.object({
@@ -1056,6 +1328,40 @@ export const GetWhalesDarkPoolTickerResponse = zod.object({
       nbbo_ask: zod.string().optional(),
       nbbo_bid: zod.string().optional(),
       market_center: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Recent congressional trades
+ */
+export const GetWhalesCongressResponse = zod.object({
+  trades: zod.array(
+    zod.object({
+      name: zod.string(),
+      ticker: zod.string().nullish(),
+      reporter: zod.string(),
+      txn_type: zod.string(),
+      amounts: zod.string(),
+      notes: zod.string().optional(),
+      filed_at_date: zod.string(),
+      transaction_date: zod.string().optional(),
+      member_type: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Large on-chain crypto whale transactions
+ */
+export const GetWhalesCryptoWhalesResponse = zod.object({
+  transactions: zod.array(
+    zod.object({
+      pair: zod.string().optional(),
+      amount: zod.number().optional(),
+      usd_value: zod.number().optional(),
+      chain: zod.string().optional(),
+      timestamp: zod.string().optional(),
     }),
   ),
 });

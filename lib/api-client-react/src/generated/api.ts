@@ -27,9 +27,15 @@ import type {
   ExecuteTradeRequest,
   GetGlobalEventsParams,
   GetRadarAlertsParams,
+  GetRadarCongressParams,
+  GetRadarCryptoWhalesParams,
+  GetRadarDarkPoolParams,
   GetRadarHistoryParams,
+  GetRadarOptionsFlowParams,
   GetSignalsParams,
   GetTradeHistoryParams,
+  GetWhalesCongress200,
+  GetWhalesCryptoWhales200,
   GetWhalesDarkPool200,
   GetWhalesDarkPoolTicker200,
   GetWhalesFlowAlerts200,
@@ -58,6 +64,7 @@ import type {
   ScanResponse,
   ScoreResponse,
   SignalListResponse,
+  SmartMoneyResponse,
   TradeHistoryResponse,
   TradeResponse,
   TradeResultResponse,
@@ -2831,6 +2838,400 @@ export function useGetRadarStatus<
 }
 
 /**
+ * @summary Get options flow alerts from Unusual Whales
+ */
+export const getGetRadarOptionsFlowUrl = (
+  params?: GetRadarOptionsFlowParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/radar/options-flow?${stringifiedParams}`
+    : `/api/radar/options-flow`;
+};
+
+export const getRadarOptionsFlow = async (
+  params?: GetRadarOptionsFlowParams,
+  options?: RequestInit,
+): Promise<SmartMoneyResponse> => {
+  return customFetch<SmartMoneyResponse>(getGetRadarOptionsFlowUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarOptionsFlowQueryKey = (
+  params?: GetRadarOptionsFlowParams,
+) => {
+  return [`/api/radar/options-flow`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRadarOptionsFlowQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarOptionsFlow>>,
+  TError = ErrorType<void>,
+>(
+  params?: GetRadarOptionsFlowParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarOptionsFlow>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRadarOptionsFlowQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRadarOptionsFlow>>
+  > = ({ signal }) =>
+    getRadarOptionsFlow(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarOptionsFlow>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarOptionsFlowQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarOptionsFlow>>
+>;
+export type GetRadarOptionsFlowQueryError = ErrorType<void>;
+
+/**
+ * @summary Get options flow alerts from Unusual Whales
+ */
+
+export function useGetRadarOptionsFlow<
+  TData = Awaited<ReturnType<typeof getRadarOptionsFlow>>,
+  TError = ErrorType<void>,
+>(
+  params?: GetRadarOptionsFlowParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarOptionsFlow>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarOptionsFlowQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get dark pool trades from Unusual Whales
+ */
+export const getGetRadarDarkPoolUrl = (params?: GetRadarDarkPoolParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/radar/dark-pool?${stringifiedParams}`
+    : `/api/radar/dark-pool`;
+};
+
+export const getRadarDarkPool = async (
+  params?: GetRadarDarkPoolParams,
+  options?: RequestInit,
+): Promise<SmartMoneyResponse> => {
+  return customFetch<SmartMoneyResponse>(getGetRadarDarkPoolUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarDarkPoolQueryKey = (
+  params?: GetRadarDarkPoolParams,
+) => {
+  return [`/api/radar/dark-pool`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRadarDarkPoolQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarDarkPool>>,
+  TError = ErrorType<void>,
+>(
+  params?: GetRadarDarkPoolParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarDarkPool>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRadarDarkPoolQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRadarDarkPool>>
+  > = ({ signal }) => getRadarDarkPool(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarDarkPool>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarDarkPoolQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarDarkPool>>
+>;
+export type GetRadarDarkPoolQueryError = ErrorType<void>;
+
+/**
+ * @summary Get dark pool trades from Unusual Whales
+ */
+
+export function useGetRadarDarkPool<
+  TData = Awaited<ReturnType<typeof getRadarDarkPool>>,
+  TError = ErrorType<void>,
+>(
+  params?: GetRadarDarkPoolParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarDarkPool>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarDarkPoolQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get congressional trades from Unusual Whales
+ */
+export const getGetRadarCongressUrl = (params?: GetRadarCongressParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/radar/congress?${stringifiedParams}`
+    : `/api/radar/congress`;
+};
+
+export const getRadarCongress = async (
+  params?: GetRadarCongressParams,
+  options?: RequestInit,
+): Promise<SmartMoneyResponse> => {
+  return customFetch<SmartMoneyResponse>(getGetRadarCongressUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarCongressQueryKey = (
+  params?: GetRadarCongressParams,
+) => {
+  return [`/api/radar/congress`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRadarCongressQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarCongress>>,
+  TError = ErrorType<void>,
+>(
+  params?: GetRadarCongressParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarCongress>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRadarCongressQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRadarCongress>>
+  > = ({ signal }) => getRadarCongress(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarCongress>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarCongressQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarCongress>>
+>;
+export type GetRadarCongressQueryError = ErrorType<void>;
+
+/**
+ * @summary Get congressional trades from Unusual Whales
+ */
+
+export function useGetRadarCongress<
+  TData = Awaited<ReturnType<typeof getRadarCongress>>,
+  TError = ErrorType<void>,
+>(
+  params?: GetRadarCongressParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarCongress>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarCongressQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get crypto whale transactions from Unusual Whales
+ */
+export const getGetRadarCryptoWhalesUrl = (
+  params?: GetRadarCryptoWhalesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/radar/crypto-whales?${stringifiedParams}`
+    : `/api/radar/crypto-whales`;
+};
+
+export const getRadarCryptoWhales = async (
+  params?: GetRadarCryptoWhalesParams,
+  options?: RequestInit,
+): Promise<SmartMoneyResponse> => {
+  return customFetch<SmartMoneyResponse>(getGetRadarCryptoWhalesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRadarCryptoWhalesQueryKey = (
+  params?: GetRadarCryptoWhalesParams,
+) => {
+  return [`/api/radar/crypto-whales`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRadarCryptoWhalesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRadarCryptoWhales>>,
+  TError = ErrorType<void>,
+>(
+  params?: GetRadarCryptoWhalesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarCryptoWhales>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRadarCryptoWhalesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRadarCryptoWhales>>
+  > = ({ signal }) =>
+    getRadarCryptoWhales(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRadarCryptoWhales>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRadarCryptoWhalesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRadarCryptoWhales>>
+>;
+export type GetRadarCryptoWhalesQueryError = ErrorType<void>;
+
+/**
+ * @summary Get crypto whale transactions from Unusual Whales
+ */
+
+export function useGetRadarCryptoWhales<
+  TData = Awaited<ReturnType<typeof getRadarCryptoWhales>>,
+  TError = ErrorType<void>,
+>(
+  params?: GetRadarCryptoWhalesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRadarCryptoWhales>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRadarCryptoWhalesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Check if Unusual Whales is configured
  */
 export const getGetWhalesStatusUrl = () => {
@@ -3214,6 +3615,156 @@ export function useGetWhalesDarkPoolTicker<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetWhalesDarkPoolTickerQueryOptions(ticker, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Recent congressional trades
+ */
+export const getGetWhalesCongressUrl = () => {
+  return `/api/whales/congress`;
+};
+
+export const getWhalesCongress = async (
+  options?: RequestInit,
+): Promise<GetWhalesCongress200> => {
+  return customFetch<GetWhalesCongress200>(getGetWhalesCongressUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWhalesCongressQueryKey = () => {
+  return [`/api/whales/congress`] as const;
+};
+
+export const getGetWhalesCongressQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWhalesCongress>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesCongress>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWhalesCongressQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWhalesCongress>>
+  > = ({ signal }) => getWhalesCongress({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesCongress>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWhalesCongressQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWhalesCongress>>
+>;
+export type GetWhalesCongressQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Recent congressional trades
+ */
+
+export function useGetWhalesCongress<
+  TData = Awaited<ReturnType<typeof getWhalesCongress>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesCongress>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWhalesCongressQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Large on-chain crypto whale transactions
+ */
+export const getGetWhalesCryptoWhalesUrl = () => {
+  return `/api/whales/crypto-whales`;
+};
+
+export const getWhalesCryptoWhales = async (
+  options?: RequestInit,
+): Promise<GetWhalesCryptoWhales200> => {
+  return customFetch<GetWhalesCryptoWhales200>(getGetWhalesCryptoWhalesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWhalesCryptoWhalesQueryKey = () => {
+  return [`/api/whales/crypto-whales`] as const;
+};
+
+export const getGetWhalesCryptoWhalesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWhalesCryptoWhales>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesCryptoWhales>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWhalesCryptoWhalesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWhalesCryptoWhales>>
+  > = ({ signal }) => getWhalesCryptoWhales({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesCryptoWhales>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWhalesCryptoWhalesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWhalesCryptoWhales>>
+>;
+export type GetWhalesCryptoWhalesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Large on-chain crypto whale transactions
+ */
+
+export function useGetWhalesCryptoWhales<
+  TData = Awaited<ReturnType<typeof getWhalesCryptoWhales>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWhalesCryptoWhales>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWhalesCryptoWhalesQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

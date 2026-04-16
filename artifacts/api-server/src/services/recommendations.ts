@@ -9,6 +9,11 @@ import {
 import { desc, eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import {
+  fetchOptionsFlowAlerts,
+  fetchDarkPoolAlerts,
+  fetchCongressionalTrades,
+} from "./unusual-whales";
 
 const AGENT_SYSTEM_PROMPT = `You are the Alpha Lens proactive trading intelligence agent.
 
@@ -32,6 +37,7 @@ RULES:
 - Max 8 WATCHES per briefing
 - Always cite specific historical analog with year
 - Never force a recommendation if no strong opportunity exists
+- When smart money signals are provided, cross-reference them with asset data. A large options bet on an asset where AI also shows edge is a high-conviction signal.
 
 Return JSON array only. Each object:
 {
@@ -227,7 +233,38 @@ async function _doScan() {
 
   const events = await scanGlobalEvents();
   console.log("EVENTS: ", events)
-  const recs = await generateRecommendations(assets, signals, events);
+
+  let smartMoneySummary = "";
+  if (process.env.UNUSUAL_WHALES_KEY) {
+    try {
+      const [optionsFlow, darkPool, congressTrades] = await Promise.allSettled([
+        fetchOptionsFlowAlerts(),
+        fetchDarkPoolAlerts(),
+        fetchCongressionalTrades(),
+      ]);
+
+      const flowLines = optionsFlow.status === "fulfilled"
+        ? optionsFlow.value.slice(0, 5).map((a) => `  - ${a.title} (${a.note?.split(".")[0] || ""})`)
+        : [];
+      const dpLines = darkPool.status === "fulfilled"
+        ? darkPool.value.slice(0, 3).map((a) => `  - ${a.title}`)
+        : [];
+      const congressLines = congressTrades.status === "fulfilled"
+        ? congressTrades.value.slice(0, 3).map((a) => `  - ${a.title}`)
+        : [];
+
+      if (flowLines.length > 0 || dpLines.length > 0 || congressLines.length > 0) {
+        smartMoneySummary = `\n\nSMART MONEY SIGNALS (Unusual Whales):
+Options Flow:\n${flowLines.join("\n") || "  - None detected"}
+Dark Pool:\n${dpLines.join("\n") || "  - None detected"}
+Congress:\n${congressLines.join("\n") || "  - None detected"}`;
+      }
+    } catch (e: any) {
+      logger.warn({ err: e.message }, "E6: Failed to fetch smart money for recommendations");
+    }
+  }
+
+  const recs = await generateRecommendations(assets, signals, events, smartMoneySummary);
   console.log("RECS: ", recs)
   const summary = await generateBriefingSummary(recs);
 
@@ -334,7 +371,8 @@ async function scanGlobalEvents(): Promise<RawEvent[]> {
 async function generateRecommendations(
   assets: (typeof assetsTable.$inferSelect)[],
   signals: (typeof signalsTable.$inferSelect)[],
-  events: RawEvent[]
+  events: RawEvent[],
+  smartMoneySummary: string = ""
 ): Promise<RawRecommendation[]> {
   if (assets.length === 0) return [];
 
@@ -369,9 +407,9 @@ RECENT SIGNALS:
 ${signalSummary || "None available yet"}
 
 GLOBAL EVENTS:
-${eventSummary || "None available yet"}
+${eventSummary || "None available yet"}${smartMoneySummary}
 
-Identify the best trade calls and watches. Cross-reference assets with events and signals.`;
+Identify the best trade calls and watches. Cross-reference assets with events and signals.${smartMoneySummary ? " Pay close attention to smart money signals — large institutional options bets and congressional trades often foreshadow major moves." : ""}`;
 
   try {
     const response = await anthropic.messages.create({

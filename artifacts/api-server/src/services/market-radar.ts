@@ -3,6 +3,12 @@ import { radarAlertsTable } from "@workspace/db/schema";
 import { desc, gte, eq, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { createHash } from "crypto";
+import {
+  fetchOptionsFlowAlerts,
+  fetchDarkPoolAlerts,
+  fetchCongressionalTrades,
+  fetchCryptoWhaleAlerts,
+} from "./unusual-whales";
 
 const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
 const YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart";
@@ -499,9 +505,29 @@ export async function runRadarScan(): Promise<RadarAlertData[]> {
   const volumeAlerts = await checkVolumeAnomalies();
   newAlerts.push(...volumeAlerts);
 
+  let uwCount = 0;
+  if (process.env.UNUSUAL_WHALES_KEY) {
+    const [optionsAlerts, darkPoolAlerts, congressAlerts, cryptoWhales] =
+      await Promise.allSettled([
+        fetchOptionsFlowAlerts(),
+        fetchDarkPoolAlerts(),
+        fetchCongressionalTrades(),
+        fetchCryptoWhaleAlerts(),
+      ]);
+
+    for (const result of [optionsAlerts, darkPoolAlerts, congressAlerts, cryptoWhales]) {
+      if (result.status === "fulfilled") {
+        newAlerts.push(...result.value);
+        uwCount += result.value.length;
+      }
+    }
+  }
+
+  const existingCount = newAlerts.length - uwCount;
   if (newAlerts.length > 0) {
     const stored = await storeAlerts(newAlerts);
-    logger.info({ generated: newAlerts.length, stored }, "E8: Radar scan complete");
+    logger.info({ generated: newAlerts.length, stored, priceVolume: existingCount, smartMoney: uwCount }, "E8: Radar scan complete");
+    console.log(`Radar scan complete: ${newAlerts.length} alerts (${existingCount} price/volume, ${uwCount} smart money)`);
   } else {
     logger.info("E8: No anomalies detected this scan");
   }
@@ -602,8 +628,8 @@ export function getRadarStatus() {
     },
     unusual_whales: {
       status: process.env.UNUSUAL_WHALES_KEY ? "active" : "not_configured",
-      tier: "paid (~$50-200/mo)",
-      note: "Options flow anomalies — add UNUSUAL_WHALES_KEY to Secrets",
+      tier: "paid",
+      note: "Options flow, dark pool, congress, crypto whales",
     },
     alpha_vantage: {
       status: process.env.ALPHA_VANTAGE_KEY ? "active" : "not_configured",

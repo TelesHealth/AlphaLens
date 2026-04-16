@@ -58,7 +58,7 @@ artifacts-monorepo/
 - **CoinGecko** — crypto prices (BTC, ETH, SOL)
 - **Yahoo Finance** — stocks, ETFs, commodities, FX (SPY, QQQ, GLD, USO, UNG, EURUSD). Price change uses indicator close data (5-day range) for accuracy.
 - **Prediction markets** — FED-CUT, US-REC, BTC-100K use static placeholder values. Replace `PREDICTION_DEFAULTS` in `services/market-data.ts` with a live API when ready.
-- **Unusual Whales** — live options flow alerts, dark pool prints, Market Tide sentiment (requires `UNUSUAL_WHALES_KEY`)
+- **Unusual Whales** — live options flow alerts, dark pool prints, Market Tide sentiment, congressional trades, crypto whale transactions (requires `UNUSUAL_WHALES_KEY`). Data feeds into Market Radar engine (E8) and AI recommendations (E6).
 - **Optional paid sources** (add keys to Secrets): `ALPHA_VANTAGE_KEY`, `FINNHUB_KEY`
 
 ## Database Schema
@@ -116,6 +116,12 @@ artifacts-monorepo/
 - `GET /whales/darkpool` — Recent dark pool prints
 - `GET /whales/darkpool/:ticker` — Dark pool prints for a specific ticker
 - `GET /whales/market-tide` — Market Tide net premium flow over time
+- `GET /whales/congress` — Recent congressional trades
+- `GET /whales/crypto-whales` — Large on-chain crypto transactions
+- `GET /radar/options-flow` — Options flow alerts as radar-compatible smart money signals
+- `GET /radar/dark-pool` — Dark pool trades as radar-compatible smart money signals
+- `GET /radar/congress` — Congressional trades as radar-compatible smart money signals
+- `GET /radar/crypto-whales` — Crypto whale transactions as radar-compatible smart money signals
 
 ## TypeScript & Composite Projects
 
@@ -188,7 +194,10 @@ Generated Zod schemas. Note: `GetSignalsParams` is exported as `GetSignalsParams
 - Neutral direction badge: gray/muted style (not yellow)
 - Scan completion toasts with result counts
 - Kalshi API key migration TODO documented
-- Unusual Whales integration: live options flow, dark pool, Market Tide sentiment chart
+- Unusual Whales integration: live options flow, dark pool, Market Tide sentiment chart, congressional trades, crypto whales
+- Smart Money tab on Market Radar (/radar) showing options flow, dark pool, congress, crypto whales
+- Radar scan includes UW smart money signals alongside price/volume detection
+- AI recommendations (E6) cross-reference smart money signals when generating trade calls
 
 ## Scheduler
 

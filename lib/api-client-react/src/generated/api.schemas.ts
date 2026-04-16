@@ -609,6 +609,18 @@ export interface WhaleDarkPoolPrint {
   market_center?: string;
 }
 
+export interface WhaleCongressTrade {
+  name: string;
+  ticker?: string | null;
+  reporter: string;
+  txn_type: string;
+  amounts: string;
+  notes?: string;
+  filed_at_date: string;
+  transaction_date?: string;
+  member_type?: string;
+}
+
 export interface WhaleMarketTideTick {
   timestamp: string;
   date?: string;
@@ -631,6 +643,29 @@ export interface WhaleFlowSummary {
   sweepCount: number;
   topTickers: WhaleFlowSummaryTopTickersItem[];
   biggestTrade?: WhaleFlowAlert | null;
+}
+
+export interface SmartMoneyAlert {
+  id: string;
+  type: string;
+  severity: string;
+  assetId: string;
+  assetLabel: string;
+  title: string;
+  direction?: string;
+  volumeType?: string;
+  note?: string;
+  dataSource?: string;
+  chainAssets?: string[];
+  createdAt?: string;
+}
+
+export interface SmartMoneyResponse {
+  alerts?: SmartMoneyAlert[];
+  trades?: SmartMoneyAlert[];
+  transactions?: SmartMoneyAlert[];
+  total: number;
+  source: string;
 }
 
 export type ListMarketsParams = {
@@ -704,6 +739,22 @@ export type GetRadarHistoryParams = {
   limit?: number;
 };
 
+export type GetRadarOptionsFlowParams = {
+  limit?: number;
+};
+
+export type GetRadarDarkPoolParams = {
+  limit?: number;
+};
+
+export type GetRadarCongressParams = {
+  limit?: number;
+};
+
+export type GetRadarCryptoWhalesParams = {
+  limit?: number;
+};
+
 export type GetWhalesStatus200 = {
   configured: boolean;
 };
@@ -718,6 +769,22 @@ export type GetWhalesDarkPool200 = {
 
 export type GetWhalesDarkPoolTicker200 = {
   prints: WhaleDarkPoolPrint[];
+};
+
+export type GetWhalesCongress200 = {
+  trades: WhaleCongressTrade[];
+};
+
+export type GetWhalesCryptoWhales200TransactionsItem = {
+  pair?: string;
+  amount?: number;
+  usd_value?: number;
+  chain?: string;
+  timestamp?: string;
+};
+
+export type GetWhalesCryptoWhales200 = {
+  transactions: GetWhalesCryptoWhales200TransactionsItem[];
 };
 
 export type GetWhalesMarketTide200 = {

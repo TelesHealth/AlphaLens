@@ -36,7 +36,7 @@ export default function Scanner() {
   const { data: watchlistData } = useGetWatchlist({
     query: { queryKey: getGetWatchlistQueryKey() },
   });
-  const watchedAssetIds = new Set((watchlistData?.items ?? []).map((w: { assetId: number }) => w.assetId));
+  const watchedAssetIds = new Set((watchlistData?.watchlist ?? []).map((w) => w.assetId).filter((id): id is number => id != null));
 
   const addWatchlistMutation = useAddToWatchlist({
     mutation: {
