@@ -289,6 +289,15 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
   console.log("BRIEFING: ", briefing)
 
   for (const rec of recs) {
+    const recTitle = (rec.assetTitle ?? "").toLowerCase();
+    const matchedAsset = assets.find(
+      (a) =>
+        a.name.toLowerCase() === recTitle ||
+        a.symbol.toLowerCase() === recTitle ||
+        recTitle.includes(a.name.toLowerCase()) ||
+        recTitle.includes(a.symbol.toLowerCase())
+    );
+
     await db.insert(recommendationsTable).values({
       briefingId: briefing.id,
       type: rec.type,
@@ -306,6 +315,9 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
       confidence: rec.confidence,
       window: rec.window,
       urgencyReason: rec.urgencyReason,
+      edge: matchedAsset?.edge ?? matchedAsset?.alphaScore ?? 0,
+      aiProbability: matchedAsset?.aiProbability ?? 0,
+      marketPrice: matchedAsset?.marketProbability ?? matchedAsset?.currentPrice ?? 0,
     });
   }
 
