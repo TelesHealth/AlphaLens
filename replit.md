@@ -25,8 +25,8 @@ artifacts-monorepo/
 ├── artifacts/
 │   ├── api-server/         # Express API server (port 8080)
 │   │   └── src/
-│   │       ├── routes/     # markets, signals, portfolio, coach, recommendations, trading, radar, health
-│   │       └── services/   # scoring (AI), coach (AI), recommendations (AI), market-data, market-radar, platform-router, scheduler
+│   │       ├── routes/     # markets, signals, portfolio, coach, recommendations, trading, radar, unusual-whales, health
+│   │       └── services/   # scoring (AI), coach (AI), recommendations (AI), market-data, market-radar, unusual-whales, platform-router, scheduler
 │   ├── alpha-lens/         # React + Vite frontend (previewPath: /)
 │   └── mockup-sandbox/     # Design preview server
 ├── lib/
@@ -49,9 +49,10 @@ artifacts-monorepo/
 - **Paper Trading**: $10,000 virtual balance, open/close positions, P&L tracking
 - **AI Coach**: Chat interface for market analysis and trading guidance
 - **Evidence Signals**: Structured evidence records with source quality and directional analysis
-- **Intelligence Briefing (E6)**: AI-powered daily briefings with trade calls, watch alerts, and global event scanning. 30-min auto-scan via cron.
+- **Intelligence Briefing (E6)**: AI-powered daily briefings with trade calls, watch alerts, and global event scanning. 30-min auto-scan via cron. Cross-references smart money signals (options flow, dark pool, congress) when generating trade calls.
 - **Live Trading (E7)**: Kalshi-priority platform router with risk gates. Supports Kalshi (CFTC-regulated, US legal), Alpaca (stocks/ETFs), and Polymarket (non-US). US jurisdiction mode auto-routes to Kalshi. Pending order approval flow.
-- **Market Radar (E8)**: Real-time price spike detection (per-asset thresholds), volume anomaly monitoring (30-day avg comparison), cross-asset chain reaction triggers. 5-min auto-scan via cron. 18 monitored assets, 8 chain reaction maps across energy, crypto, equities, metals, agriculture, FX.
+- **Market Radar (E8)**: Real-time price spike detection (per-asset thresholds), volume anomaly monitoring (30-day avg comparison), cross-asset chain reaction triggers, smart money signal detection. 5-min auto-scan via cron. 18 monitored assets, 8 chain reaction maps across energy, crypto, equities, metals, agriculture, FX.
+- **Unusual Whales Integration**: Live options flow alerts ($500K+ premium filter), dark pool prints ($1M+ notional), congressional trade disclosures, crypto whale transactions ($1M+ on-chain). Standalone `/whales` page with Options Flow / Dark Pool / Market Tide tabs. Smart Money tab on Market Radar. Data feeds into AI recommendations for higher-conviction trade calls.
 
 ## Data Sources
 
@@ -176,28 +177,18 @@ Generated Zod schemas. Note: `GetSignalsParams` is exported as `GetSignalsParams
 - **Polymarket** — `POLYMARKET_PRIVATE_KEY` (non-US only)
 - All default to `not_configured`; trades fall back to paper mode.
 
-## Phase 2 Bug Fixes Applied
+## Implementation Notes
 
 - CoinGecko 30s TTL in-memory cache with 429 rate-limit handling
 - Concurrent scan locks (recommendations + radar) prevent duplicate scans
-- Close trade route fixed: `/portfolio/trade/:id/close`
-- Coach AI prompt structured for RECOMMENDATIONS/RISK/CONFIDENCE extraction
-- Radar pctChange computed from price history for all assets
-- Radar byType pre-initialized with all 3 alert types (price_spike, volume_anomaly, chain_reaction)
-- Edge badge threshold: `> 0` (not `> 5`)
-- Signal cards click-expandable with chevron toggle
-- Watchlist: add from scanner (+/check icon), remove from briefing (trash icon)
-- Chain Reactions tab on radar page
-- Cache invalidation after AI scoring (markets list refreshed)
+- Close trade route: `POST /portfolio/trade/:id/close`
+- Radar byType pre-initialized with all 4 alert types (price_spike, volume_anomaly, chain_reaction, smart_money)
+- Edge badge threshold: `> 0`
 - Mobile overflow-x fix (html/body overflow-x hidden + table overflow-x-auto)
 - AI Coach markdown rendering via react-markdown
-- Neutral direction badge: gray/muted style (not yellow)
-- Scan completion toasts with result counts
-- Kalshi API key migration TODO documented
-- Unusual Whales integration: live options flow, dark pool, Market Tide sentiment chart, congressional trades, crypto whales
-- Smart Money tab on Market Radar (/radar) showing options flow, dark pool, congress, crypto whales
-- Radar scan includes UW smart money signals alongside price/volume detection
-- AI recommendations (E6) cross-reference smart money signals when generating trade calls
+- Unusual Whales API fields: congress uses `reporter`, `txn_type`, `amounts`, `filed_at_date`, `transaction_date`, `member_type` (not politician/party/chamber)
+- Unusual Whales radar-compatible fetchers use `Array.isArray` guards; endpoints return 503 if `UNUSUAL_WHALES_KEY` not configured
+- Smart money data injected into Claude prompt context: top 5 options flow, top 3 dark pool, top 3 congress trades
 
 ## Scheduler
 
