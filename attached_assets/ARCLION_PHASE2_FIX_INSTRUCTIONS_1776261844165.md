@@ -19,31 +19,31 @@ This is a pnpm workspace monorepo. Before making any fixes:
 
 ## Bug Summary — 23 Total
 
-| # | Severity | Title | Status |
-|---|----------|-------|--------|
-| 7  | P1 | BTC/ETH/SOL prices not fresh | Not fixed |
-| 8  | P1 | 404 error on closing trade on frontend | Not fixed |
-| 11 | P1 | Edge, AI Probability, Market Price NULL in recommendations | Not fixed |
-| 14 | P1 | pctChange field in radar prices is null | Not fixed |
-| 6  | P2 | CoinGecko API 429 rate limit error | Monitoring |
-| 23 | P2 | Most fields in radar alerts are null | Not fixed |
-| 2  | P3 | Incorrect edge badge color | Not fixed |
-| 5  | P3 | Signals not clickable or expandable | Not fixed |
-| 9  | P3 | Coach recommendations array empty, riskAssessment null | Not fixed |
-| 13 | P3 | byType in radar history missing volume_anomaly | Not fixed |
-| 16 | P3 | Market refresh lock missing | Not fixed |
-| 17 | P3 | Radar scan lock missing | Not fixed |
-| 18 | P3 | Recommendations scan lock missing | Not fixed |
-| 19 | P3 | No manual add/remove in watchlist | Not fixed |
-| 21 | P3 | Missing chain map visualization on /radar | Not fixed |
-| 1  | P4 | Homepage table stale after deep analysis | Not fixed |
-| 3  | P4 | Horizontal scroll on mobile | Not fixed |
-| 10 | P4 | AI coach markdown not rendered | Not fixed |
-| 12 | P4 | Radar scan not returning "scan already running" | Not fixed |
-| 4  | Enh | Neutral evidence card is yellow not gray | Not fixed |
-| 15 | Enh | Kalshi should use API key not email/password | Not fixed |
-| 20 | Enh | No popup/modal when scan completes | Not fixed |
-| 22 | Enh | White screen on page refresh | Not fixed |
+| # | Severity | Title | Status | Resolved |
+|---|----------|-------|--------|----------|
+| 7  | P1 | BTC/ETH/SOL prices not fresh | Resolved | Prior — CoinGecko 30s TTL cache + 429 handling |
+| 8  | P1 | 404 error on closing trade on frontend | Resolved | Prior — Route fixed to POST /portfolio/trade/:id/close |
+| 11 | P1 | Edge, AI Probability, Market Price NULL in recommendations | Resolved | 2026-04-16 — Asset matching added to recommendations.ts — edge, aiProbability, marketPrice now populated from fetched assets list. |
+| 14 | P1 | pctChange field in radar prices is null | Resolved | Prior — pctChange computed from price history |
+| 6  | P2 | CoinGecko API 429 rate limit error | Resolved | Prior — 30s TTL in-memory cache + retry on 429 |
+| 23 | P2 | Most fields in radar alerts are null | Not fixed | |
+| 2  | P3 | Incorrect edge badge color | Resolved | Prior — Threshold changed to edge > 0 |
+| 5  | P3 | Signals not clickable or expandable | Resolved | Prior — Click-expandable with chevron toggle |
+| 9  | P3 | Coach recommendations array empty, riskAssessment null | Resolved | Prior — Coach prompt structured for extraction |
+| 13 | P3 | byType in radar history missing volume_anomaly | Resolved | Prior — byType pre-initialized with all alert types |
+| 16 | P3 | Market refresh lock missing | Resolved | Prior — Concurrent lock added |
+| 17 | P3 | Radar scan lock missing | Resolved | Prior — Idempotent scan lock added |
+| 18 | P3 | Recommendations scan lock missing | Resolved | Prior — scanLock added to recommendations.ts |
+| 19 | P3 | No manual add/remove in watchlist | Resolved | Prior — Add from scanner, remove from briefing |
+| 21 | P3 | Missing chain map visualization on /radar | Resolved | Prior — Chain Reactions tab on radar page |
+| 1  | P4 | Homepage table stale after deep analysis | Resolved | Prior — Cache invalidation after AI scoring |
+| 3  | P4 | Horizontal scroll on mobile | Resolved | Prior — overflow-x hidden + table overflow-x-auto |
+| 10 | P4 | AI coach markdown not rendered | Resolved | Prior — react-markdown rendering |
+| 12 | P4 | Radar scan not returning "scan already running" | Resolved | Prior — Lock returns scan_already_running |
+| 4  | Enh | Neutral evidence card is yellow not gray | Resolved | Prior — Gray/muted style for neutral |
+| 15 | Enh | Kalshi should use API key not email/password | Not fixed | |
+| 20 | Enh | No popup/modal when scan completes | Resolved | Prior — Scan completion toasts |
+| 22 | Enh | White screen on page refresh | Not fixed | |
 
 ---
 
