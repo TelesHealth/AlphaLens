@@ -221,7 +221,7 @@ async function _doScan() {
     .orderBy(desc(assetsTable.currentPrice))
     .limit(30);
 
-  
+
 
   const signals = await db
     .select()
@@ -231,8 +231,8 @@ async function _doScan() {
 
 
 
+
   const events = await scanGlobalEvents();
-  console.log("EVENTS: ", events)
 
   let smartMoneySummary = "";
   if (process.env.UNUSUAL_WHALES_KEY) {
@@ -265,9 +265,11 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
   }
 
   const recs = await generateRecommendations(assets, signals, events, smartMoneySummary);
-  console.log("RECS: ", recs)
+
+
   const summary = await generateBriefingSummary(recs);
 
+  
   const [lastBriefing] = await db
     .select({ scanNumber: dailyBriefingsTable.scanNumber })
     .from(dailyBriefingsTable)
@@ -286,7 +288,7 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
     })
     .returning();
 
-  console.log("BRIEFING: ", briefing)
+
 
   for (const rec of recs) {
     const recTitle = (rec.assetTitle ?? "").toLowerCase();

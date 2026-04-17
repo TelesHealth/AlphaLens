@@ -349,7 +349,7 @@ function createSpikeAlert(assetId: string, spike: SpikeResult): RadarAlertData |
     chainAssets: chains.slice(0, 6),
     historicalNote: HISTORICAL_PATTERNS[assetId] || "Monitoring for catalyst — no historical pattern data available for this asset yet.",
     aiScanning: `Scanning Reuters, AP, Bloomberg for ${label} catalyst...`,
-    dataSource: "Yahoo Finance / CoinGecko",
+    dataSource: assetId.startsWith("crypto_") ? "CoinGecko" : "Yahoo Finance",
     createdAt: new Date().toISOString(),
   };
 }
