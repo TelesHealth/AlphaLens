@@ -14,6 +14,7 @@ import {
   fetchCongressionalTrades,
   fetchCryptoWhaleAlerts,
 } from "../services/unusual-whales";
+import { fetchMacroSnapshot } from "../services/fred-macro";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -108,6 +109,29 @@ router.get("/history", async (req, res) => {
 
 router.get("/status", (_req, res) => {
   res.json(getRadarStatus());
+});
+
+router.get("/macro", async (_req, res) => {
+  if (!process.env.FRED_API_KEY) {
+    res.status(503).json({ error: "FRED macro data not configured — add FRED_API_KEY to Secrets" });
+    return;
+  }
+  try {
+    const snap = await fetchMacroSnapshot();
+    res.json({
+      fedFundsRate: snap.fedFundsRate,
+      cpi: snap.cpi,
+      unemployment: snap.unemployment,
+      gdp: snap.gdp,
+      yieldCurve: snap.yieldCurve,
+      summary: snap.summary,
+      source: snap.source,
+      updatedAt: snap.updatedAt,
+    });
+  } catch (e: any) {
+    logger.error({ err: e.message }, "GET /radar/macro failed");
+    res.status(500).json({ error: "Failed to fetch FRED macro data" });
+  }
 });
 
 router.get("/options-flow", async (req, res) => {

@@ -1,0 +1,97 @@
+Add FRED (Federal Reserve Economic Data) as a new macro data 
+source to the AlphaLens platform. FRED is free — no cost, 
+just an API key stored as FRED_API_KEY in Replit Secrets.
+
+FRED base URL: https://api.stlouisfed.org/fred
+API key parameter: api_key=FRED_API_KEY&file_type=json
+
+STEP 1 — Create new service file:
+artifacts/api-server/src/services/fred-macro.ts
+
+Implement these functions:
+
+1. fetchFedFundsRate()
+   Endpoint: GET /fred/series/observations?series_id=FEDFUNDS&limit=2&sort_order=desc
+   Returns the most recent federal funds rate and previous month.
+   Output: { current: number, previous: number, change: number, date: string }
+
+2. fetchCPI()
+   Endpoint: GET /fred/series/observations?series_id=CPIAUCSL&limit=2&sort_order=desc
+   Returns most recent CPI reading and previous.
+   Output: { current: number, previous: number, change: number, date: string }
+
+3. fetchUnemploymentRate()
+   Endpoint: GET /fred/series/observations?series_id=UNRATE&limit=2&sort_order=desc
+   Returns most recent unemployment rate and previous.
+   Output: { current: number, previous: number, change: number, date: string }
+
+4. fetchGDPGrowth()
+   Endpoint: GET /fred/series/observations?series_id=GDP&limit=2&sort_order=desc
+   Returns most recent GDP value and previous.
+   Output: { current: number, previous: number, change: number, date: string }
+
+5. fetchYieldCurve()
+   Endpoint: GET /fred/series/observations?series_id=T10Y2Y&limit=1&sort_order=desc
+   Returns the 10-year minus 2-year treasury spread (yield curve).
+   Negative value = inverted yield curve = recession signal.
+   Output: { spread: number, inverted: boolean, date: string }
+
+6. fetchMacroContext()
+   Calls all 5 functions above in parallel using Promise.allSettled.
+   Returns a formatted summary string for Claude to use as context:
+   
+   "MACRO CONTEXT (FRED):
+   Fed Funds Rate: X% (prev: X%, change: +/-X%)
+   CPI Inflation: X% (prev: X%, change: +/-X%)
+   Unemployment: X% (prev: X%, change: +/-X%)
+   GDP: $X trillion (prev: $X trillion)
+   Yield Curve (10Y-2Y): X% [INVERTED - recession signal / NORMAL]
+   Data from Federal Reserve Economic Data (FRED)"
+
+Error handling: if FRED_API_KEY is not set, return a 
+fallback string: "FRED macro data unavailable — add 
+FRED_API_KEY to Secrets". Never throw — always return 
+a string.
+
+STEP 2 — Wire into recommendations engine:
+In artifacts/api-server/src/services/recommendations.ts,
+import fetchMacroContext from ./fred-macro.
+
+At the start of the scan, call:
+const macroContext = await fetchMacroContext();
+
+Add macroContext to the context string passed to Claude 
+when generating recommendations. Place it after the 
+smart money signals section and before the final 
+instruction to generate recommendations.
+
+STEP 3 — Wire into radar status:
+In artifacts/api-server/src/routes/radar.ts, 
+add fred to the sources object in GET /api/radar/status:
+
+fred: {
+  status: process.env.FRED_API_KEY ? "active" : "not_configured",
+  tier: "free",
+  note: "Federal Reserve macro data — Fed funds rate, CPI, unemployment, GDP, yield curve"
+}
+
+STEP 4 — Add a dedicated endpoint:
+In artifacts/api-server/src/routes/radar.ts, add:
+
+GET /api/radar/macro
+Calls fetchMacroContext() and returns:
+{
+  fedFundsRate: {...},
+  cpi: {...},
+  unemployment: {...},
+  gdp: {...},
+  yieldCurve: {...},
+  summary: "formatted string",
+  source: "Federal Reserve Economic Data (FRED)",
+  updatedAt: ISO timestamp
+}
+
+If FRED_API_KEY not set, return 503 with message:
+"FRED macro data not configured — add FRED_API_KEY to Secrets"
+
+Run pnpm run typecheck after all changes. Zero errors required.
