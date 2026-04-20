@@ -641,11 +641,6 @@ export function getRadarStatus() {
       tier: "freemium",
       note: "News catalyst detection — add FINNHUB_KEY to Secrets",
     },
-    fred: {
-      status: process.env.FRED_API_KEY ? "active" : "not_configured",
-      tier: "free",
-      note: "Federal Reserve macro data — Fed funds rate, CPI, unemployment, GDP, yield curve",
-    },
     benzinga: {
       status: "planned",
       tier: "paid",

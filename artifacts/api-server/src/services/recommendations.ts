@@ -14,7 +14,6 @@ import {
   fetchDarkPoolAlerts,
   fetchCongressionalTrades,
 } from "./unusual-whales";
-import { fetchMacroContext } from "./fred-macro";
 
 const AGENT_SYSTEM_PROMPT = `You are the Alpha Lens proactive trading intelligence agent.
 
@@ -235,8 +234,6 @@ async function _doScan() {
 
   const events = await scanGlobalEvents();
 
-  const macroContext = await fetchMacroContext();
-
   let smartMoneySummary = "";
   if (process.env.UNUSUAL_WHALES_KEY) {
     try {
@@ -267,7 +264,7 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
     }
   }
 
-  const recs = await generateRecommendations(assets, signals, events, smartMoneySummary, macroContext);
+  const recs = await generateRecommendations(assets, signals, events, smartMoneySummary);
 
 
   const summary = await generateBriefingSummary(recs);
@@ -389,8 +386,7 @@ async function generateRecommendations(
   assets: (typeof assetsTable.$inferSelect)[],
   signals: (typeof signalsTable.$inferSelect)[],
   events: RawEvent[],
-  smartMoneySummary: string = "",
-  macroContext: string = ""
+  smartMoneySummary: string = ""
 ): Promise<RawRecommendation[]> {
   if (assets.length === 0) return [];
 
@@ -425,9 +421,9 @@ RECENT SIGNALS:
 ${signalSummary || "None available yet"}
 
 GLOBAL EVENTS:
-${eventSummary || "None available yet"}${smartMoneySummary}${macroContext ? `\n\n${macroContext}` : ""}
+${eventSummary || "None available yet"}${smartMoneySummary}
 
-Identify the best trade calls and watches. Cross-reference assets with events and signals.${smartMoneySummary ? " Pay close attention to smart money signals — large institutional options bets and congressional trades often foreshadow major moves." : ""}${macroContext ? " Factor the macro context (rates, inflation, unemployment, yield curve) into directional conviction." : ""}`;
+Identify the best trade calls and watches. Cross-reference assets with events and signals.${smartMoneySummary ? " Pay close attention to smart money signals — large institutional options bets and congressional trades often foreshadow major moves." : ""}`;
 
   try {
     const response = await anthropic.messages.create({
