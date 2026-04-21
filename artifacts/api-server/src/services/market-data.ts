@@ -29,6 +29,7 @@ interface PriceUpdate {
 async function fetchWithTimeout(url: string, timeoutMs = 10000): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const res = await fetch(url, {
       signal: controller.signal,
@@ -65,7 +66,14 @@ async function fetchCryptoPrices(): Promise<Map<string, PriceUpdate>> {
         });
       }
     }
+    const btc = results.get("BTC")?.currentPrice;
+    const eth = results.get("ETH")?.currentPrice;
+    const sol = results.get("SOL")?.currentPrice;
+    console.log(
+      `CoinGecko: fresh prices fetched for BTC=$${btc ?? "n/a"}, ETH=$${eth ?? "n/a"}, SOL=$${sol ?? "n/a"}`
+    );
   } catch (e: any) {
+    console.warn("CoinGecko: using cached prices (rate limited or fetch failed)");
     logger.error({ err: e.message }, "Failed to fetch crypto prices");
   }
 
@@ -144,10 +152,13 @@ async function fetchPredictionPrices(): Promise<Map<string, PriceUpdate>> {
   return results;
 }
 
+
+
 export async function refreshAllMarketData(): Promise<number> {
   logger.info("Starting market data refresh...");
   let updated = 0;
 
+  
   const [cryptoPrices, stockPrices, predictionPrices] = await Promise.all([
     fetchCryptoPrices(),
     fetchStockPrices(),
@@ -176,9 +187,11 @@ export async function refreshAllMarketData(): Promise<number> {
         { symbol: asset.symbol, price: priceUpdate.currentPrice, change: priceUpdate.priceChange24h },
         "Updated price"
       );
+    
     }
   }
 
   logger.info({ updated, total: allAssets.length }, "Market data refresh complete");
+  
   return updated;
 }

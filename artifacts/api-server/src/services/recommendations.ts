@@ -15,7 +15,7 @@ import {
   fetchCongressionalTrades,
 } from "./unusual-whales";
 
-const AGENT_SYSTEM_PROMPT = `You are the Alpha Lens proactive trading intelligence agent.
+const AGENT_SYSTEM_PROMPT = `You are the Arclion proactive trading intelligence agent.
 
 Scan a list of scored assets and identify the BEST opportunities:
 1. TRADE CALL - clear edge, strong evidence, act now
@@ -46,6 +46,7 @@ Return JSON array only. Each object:
   "title": "Short punchy headline",
   "assetTitle": "Name of the asset",
   "sector": "sector name",
+  "region": "Middle East or Asia-Pacific or Europe or Americas or Africa or Global",
   "direction": "LONG or SHORT or YES or NO or WATCH",
   "headline": "2-3 sentence explanation",
   "why": ["signal 1", "signal 2", "signal 3"],
@@ -77,7 +78,7 @@ Return JSON array:
 
 Only real current events. Return ONLY valid JSON array. No markdown. No preamble. No trailing commas. No single quotes. All property names must be double-quoted.`;
 
-const SUMMARY_PROMPT = `You are the Alpha Lens morning briefing writer.
+const SUMMARY_PROMPT = `You are the Arclion morning briefing writer.
 Write a 3-4 sentence executive summary of today's top recommendations.
 Sound like a sharp trading desk morning note. Be specific about assets and edge sizes.
 Return plain text only. 3-4 sentences max.`;
@@ -88,6 +89,7 @@ interface RawRecommendation {
   title: string;
   assetTitle?: string;
   sector?: string;
+  region?: string;
   direction: string;
   headline: string;
   why: string[];
@@ -205,6 +207,7 @@ export async function scanForRecommendations() {
     return { id: null, summary: "Scan already running", tradeCount: 0, watchCount: 0, recommendations: [], events: [] };
   }
   scanLock = true;
+  
   try {
     return await _doScan();
   } finally {
@@ -305,9 +308,11 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
       type: rec.type,
       urgency: rec.urgency,
       title: rec.title,
+      assetId: matchedAsset?.id ?? null,
       assetTitle: rec.assetTitle ?? "",
       assetClass: rec.sector ?? "",
       sector: rec.sector ?? "",
+      region: rec.region ?? matchedAsset?.region ?? "Global",
       direction: rec.direction,
       headline: rec.headline,
       why: rec.why,

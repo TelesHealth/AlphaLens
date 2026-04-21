@@ -18,7 +18,7 @@ export default function Coach() {
   const [messages, setMessages] = useState<Message[]>([{
     id: "welcome",
     role: "coach",
-    content: "I'm Alpha Lens, your AI investment coach. I analyze global market data, evidence signals, and structural shifts. How can I assist your portfolio today?"
+    content: "I'm Arclion, your AI investment coach. I analyze global market data, evidence signals, and structural shifts. How can I assist your portfolio today?"
   }]);
   const [selectedAssetId, setSelectedAssetId] = useState<number | "">("");
 

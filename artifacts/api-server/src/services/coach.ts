@@ -1,6 +1,9 @@
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { db } from "@workspace/db";
+import { assetsTable, signalsTable } from "@workspace/db/schema";
+import { eq, desc } from "drizzle-orm";
 
-const COACH_PROMPT = `You are an elite AI trading coach for Alpha Lens, an investment intelligence platform.
+const COACH_PROMPT = `You are Arclion's elite AI trading coach, an investment intelligence platform.
 
 You provide personalized, actionable coaching to traders analyzing markets. Your tone is:
 - Direct and confident, like a seasoned trading desk mentor
@@ -27,8 +30,55 @@ interface CoachInput {
   context?: string | null;
 }
 
+async function buildAssetContext(assetId: number): Promise<string> {
+  try {
+    const [asset] = await db
+      .select()
+      .from(assetsTable)
+      .where(eq(assetsTable.id, assetId))
+      .limit(1);
+    if (!asset) return "";
+    const lines: string[] = [];
+    lines.push(`The user is asking about ${asset.name} (${asset.symbol}).`);
+    if (asset.currentPrice != null) lines.push(`Current price: $${asset.currentPrice}`);
+    if (asset.aiProbability != null) lines.push(`AI probability: ${(asset.aiProbability * 100).toFixed(1)}%`);
+    if (asset.marketProbability != null) lines.push(`Market probability: ${(asset.marketProbability * 100).toFixed(1)}%`);
+    if (asset.edge != null) lines.push(`Edge: ${asset.edge.toFixed(1)} pts`);
+    if (asset.direction) lines.push(`Direction: ${asset.direction}`);
+    if (asset.sector) lines.push(`Sector: ${asset.sector}`);
+    if (asset.region) lines.push(`Region: ${asset.region}`);
+    if (asset.aiSummary) lines.push(`AI summary: ${asset.aiSummary}`);
+
+    try {
+      const recentSignals = await db
+        .select()
+        .from(signalsTable)
+        .where(eq(signalsTable.assetId, assetId))
+        .orderBy(desc(signalsTable.createdAt))
+        .limit(5);
+      if (recentSignals.length > 0) {
+        lines.push("\nRecent signals:");
+        for (const s of recentSignals) {
+          lines.push(`- ${(s as any).headline ?? (s as any).title ?? "signal"}`);
+        }
+      }
+    } catch {
+      // signals optional
+    }
+
+    return lines.join("\n");
+  } catch {
+    return "";
+  }
+}
+
 export async function getCoachAnalysis(input: CoachInput) {
-  const prompt = `${input.question}${input.context ? `\n\nAdditional context:\n${input.context}` : ""}`;
+  let assetContext = "";
+  if (input.assetId != null) {
+    assetContext = await buildAssetContext(input.assetId);
+  }
+  const contextParts = [assetContext, input.context].filter(Boolean).join("\n\n");
+  const prompt = `${input.question}${contextParts ? `\n\nAdditional context:\n${contextParts}` : ""}`;
 
   try {
     const response = await anthropic.messages.create({

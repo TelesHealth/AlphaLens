@@ -48,7 +48,10 @@ router.get("/alerts", async (req, res) => {
 router.get("/prices", async (_req, res) => {
   try {
     const prices = await getPriceMonitor();
-    res.json({ prices, total: prices.length, updatedAt: new Date().toISOString() });
+    const sorted = [...prices].sort(
+      (a, b) => Math.abs(b.pctChange ?? 0) - Math.abs(a.pctChange ?? 0)
+    );
+    res.json({ prices: sorted, total: sorted.length, updatedAt: new Date().toISOString() });
   } catch (e: any) {
     logger.error({ err: e.message }, "GET /radar/prices failed");
     res.status(500).json({ error: "Failed to fetch radar prices" });

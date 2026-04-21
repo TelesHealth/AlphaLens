@@ -9,6 +9,18 @@ import {
 
 const router: IRouter = Router();
 
+function buildTradeReasoning(asset: typeof assetsTable.$inferSelect, direction: string, entryPrice: number): string {
+  const parts: string[] = [];
+  parts.push(`Manual ${direction.toUpperCase()} entry on ${asset.name} (${asset.symbol}) @ $${entryPrice.toFixed(2)}.`);
+  if (asset.aiProbability != null && asset.marketProbability != null && asset.edge != null) {
+    parts.push(
+      `AI prob ${(asset.aiProbability * 100).toFixed(1)}% vs market ${(asset.marketProbability * 100).toFixed(1)}% (edge ${asset.edge >= 0 ? "+" : ""}${asset.edge.toFixed(1)} pts).`
+    );
+  }
+  if (asset.aiSummary) parts.push(asset.aiSummary);
+  return parts.join(" ");
+}
+
 async function getOrCreatePortfolio() {
   const [existing] = await db.select().from(portfolioTable).limit(1);
   if (existing) return existing;
@@ -89,6 +101,7 @@ router.post("/trade", async (req, res) => {
         entryPrice,
         quantity,
         status: "open",
+        aiReasoning: buildTradeReasoning(asset, body.direction, entryPrice),
       })
       .returning();
 

@@ -79,6 +79,7 @@ Provide your AI probability assessment, direction, and generate evidence signals
     const direction = scored.direction || "neutral";
     const alphaScore = Math.abs(edge) * (scored.confidence || 0.5) * 10;
 
+    console.log("Confidence: ", scored.confidence);
     const [updatedMarket] = await db
       .update(assetsTable)
       .set({

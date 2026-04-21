@@ -5,6 +5,8 @@ import {
   useGetWhalesFlowSummary,
   useGetWhalesDarkPool,
   useGetWhalesMarketTide,
+  useGetWhalesCongress,
+  useGetWhalesCryptoWhales,
 } from "@workspace/api-client-react";
 import {
   Fish,
@@ -15,6 +17,8 @@ import {
   BarChart3,
   Eye,
   AlertTriangle,
+  Landmark,
+  Bitcoin,
 } from "lucide-react";
 import { cn } from "@/components/ui-helpers";
 import {
@@ -27,7 +31,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-type TabId = "flow" | "darkpool" | "tide";
+type TabId = "flow" | "darkpool" | "tide" | "congress" | "crypto";
 
 function formatPremium(val: number): string {
   if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
@@ -51,6 +55,8 @@ export default function Whales() {
   const { data: flowData, isLoading: flowLoading } = useGetWhalesFlowAlerts();
   const { data: dpData, isLoading: dpLoading } = useGetWhalesDarkPool();
   const { data: tideData, isLoading: tideLoading } = useGetWhalesMarketTide();
+  const { data: congressData, isLoading: congressLoading } = useGetWhalesCongress();
+  const { data: cryptoData, isLoading: cryptoLoading } = useGetWhalesCryptoWhales();
 
   const configured = statusData?.configured ?? false;
 
@@ -72,6 +78,8 @@ export default function Whales() {
     { id: "flow", label: "Options Flow", icon: Zap },
     { id: "darkpool", label: "Dark Pool", icon: Eye },
     { id: "tide", label: "Market Tide", icon: BarChart3 },
+    { id: "congress", label: "Congress", icon: Landmark },
+    { id: "crypto", label: "Crypto Whales", icon: Bitcoin },
   ];
 
   const tideChartData = (tideData?.ticks ?? []).map((t) => ({
@@ -286,6 +294,98 @@ export default function Whales() {
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "congress" && (
+        <div className="space-y-3">
+          {congressLoading ? (
+            <div className="text-center py-20 text-muted-foreground text-sm">Loading congressional trades...</div>
+          ) : (congressData?.trades ?? []).length === 0 ? (
+            <div className="text-center py-20 text-muted-foreground text-sm">No congressional trades reported</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs font-mono text-muted-foreground uppercase bg-secondary/30 border-b border-border">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Member</th>
+                    <th className="px-4 py-3 text-left">Chamber</th>
+                    <th className="px-4 py-3 text-left">Ticker</th>
+                    <th className="px-4 py-3 text-left">Type</th>
+                    <th className="px-4 py-3 text-right">Amount</th>
+                    <th className="px-4 py-3 text-left">Reporter</th>
+                    <th className="px-4 py-3 text-left">Tx Date</th>
+                    <th className="px-4 py-3 text-left">Filed</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {(congressData?.trades ?? []).map((t, i) => {
+                    const isBuy = (t.txn_type ?? "").toLowerCase().includes("buy") || (t.txn_type ?? "").toLowerCase().includes("purchase");
+                    return (
+                      <tr key={`${t.name}-${i}`} className="hover:bg-secondary/20 transition-colors">
+                        <td className="px-4 py-3 font-medium">{t.name}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{t.member_type ?? "—"}</td>
+                        <td className="px-4 py-3 font-bold">{t.ticker ?? "—"}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded text-[10px] font-bold uppercase border",
+                            isBuy
+                              ? "bg-success/10 text-success border-success/30"
+                              : "bg-destructive/10 text-destructive border-destructive/30"
+                          )}>
+                            {t.txn_type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono">{t.amounts}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{t.reporter}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{t.transaction_date ?? "—"}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{t.filed_at_date}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "crypto" && (
+        <div className="space-y-3">
+          {cryptoLoading ? (
+            <div className="text-center py-20 text-muted-foreground text-sm">Loading crypto whale transactions...</div>
+          ) : (cryptoData?.transactions ?? []).length === 0 ? (
+            <div className="text-center py-20 text-muted-foreground text-sm">No large crypto whale transactions detected</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs font-mono text-muted-foreground uppercase bg-secondary/30 border-b border-border">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Pair</th>
+                    <th className="px-4 py-3 text-left">Chain</th>
+                    <th className="px-4 py-3 text-right">Amount</th>
+                    <th className="px-4 py-3 text-right">USD Value</th>
+                    <th className="px-4 py-3 text-left">Time</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {(cryptoData?.transactions ?? []).map((t, i) => (
+                    <tr key={i} className="hover:bg-secondary/20 transition-colors">
+                      <td className="px-4 py-3 font-bold">{t.pair ?? "—"}</td>
+                      <td className="px-4 py-3 text-xs uppercase text-muted-foreground">{t.chain ?? "—"}</td>
+                      <td className="px-4 py-3 text-right font-mono">{t.amount?.toLocaleString() ?? "—"}</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-primary">
+                        {t.usd_value != null ? formatPremium(t.usd_value) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {t.timestamp ? formatTime(t.timestamp) : "—"}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

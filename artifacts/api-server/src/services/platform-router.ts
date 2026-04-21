@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
-import { liveTradesTable, pendingOrdersTable, recommendationsTable } from "@workspace/db/schema";
-import { desc, eq, gte, sql } from "drizzle-orm";
+import { liveTradesTable, pendingOrdersTable, recommendationsTable, tradesTable, assetsTable } from "@workspace/db/schema";
+import { desc, eq, gte, sql, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
 export type Platform = "kalshi" | "polymarket" | "alpaca" | "paper";
@@ -77,7 +77,13 @@ export function getBestPlatform(rec: {
   const sector = (rec.sector ?? "").toLowerCase();
   const platforms = getPlatformStatus();
 
-  if (assetClass === "stock" || assetClass === "etf" || sector === "equity" || sector === "stock") {
+  const isEquity =
+    assetClass === "stock" || assetClass === "stocks" ||
+    assetClass === "etf" || assetClass === "etfs" ||
+    assetClass === "equity" || assetClass === "equities" ||
+    sector === "stock" || sector === "stocks" ||
+    sector === "equity" || sector === "equities";
+  if (isEquity) {
     if (platforms.alpaca.isConfigured) {
       return { platform: "alpaca", reason: "Stock/ETF market → Alpaca", tradeable: true };
     }
@@ -145,10 +151,30 @@ export function checkRiskGate(
   return { passed: true, reason: "All risk checks passed" };
 }
 
+export async function getDailyPnl(): Promise<number> {
+  try {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const result = await db
+      .select({ totalPnl: sql<number>`coalesce(sum(${tradesTable.pnl}), 0)` })
+      .from(tradesTable)
+      .where(
+        and(
+          eq(tradesTable.status, "closed"),
+          gte(tradesTable.closedAt, today)
+        )
+      );
+    return Number(result[0]?.totalPnl ?? 0);
+  } catch (e: any) {
+    logger.warn({ err: e?.message }, "getDailyPnl failed, defaulting to 0");
+    return 0;
+  }
+}
+
 export async function getDailyTradeCount(): Promise<number> {
   try {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
     const result = await db
       .select({ count: sql<number>`count(*)` })
       .from(liveTradesTable)
@@ -159,16 +185,37 @@ export async function getDailyTradeCount(): Promise<number> {
   }
 }
 
+async function resolveAssetIdString(rec: typeof recommendationsTable.$inferSelect): Promise<string> {
+  if (rec.assetId != null) return String(rec.assetId);
+  const title = (rec.assetTitle ?? "").trim();
+  if (!title) return "";
+  try {
+    const candidates = await db.select().from(assetsTable);
+    const lc = title.toLowerCase();
+    const match = candidates.find(
+      (a) =>
+        a.name.toLowerCase() === lc ||
+        a.symbol.toLowerCase() === lc ||
+        lc.includes(a.name.toLowerCase()) ||
+        lc.includes(a.symbol.toLowerCase())
+    );
+    return match ? String(match.id) : "";
+  } catch {
+    return "";
+  }
+}
+
 export async function storePendingOrder(
   rec: typeof recommendationsTable.$inferSelect,
   amountUsd: number,
   platformOverride?: Platform
 ) {
   const routing = getBestPlatform(rec);
+  const assetIdStr = await resolveAssetIdString(rec);
   await db.insert(pendingOrdersTable).values({
     recommendationId: rec.id,
     recTitle: rec.title,
-    assetId: String(rec.assetId ?? ""),
+    assetId: assetIdStr,
     direction: rec.direction ?? "YES",
     amountUsd,
     platform: platformOverride ?? routing.platform,
@@ -190,10 +237,11 @@ export async function logLiveTrade(
   orderId?: string
 ) {
   const ticker = rec.assetTitle ?? rec.title ?? "";
+  const assetIdStr = await resolveAssetIdString(rec);
   await db.insert(liveTradesTable).values({
     recommendationId: rec.id,
     platform,
-    assetId: String(rec.assetId ?? ""),
+    assetId: assetIdStr,
     assetTitle: rec.assetTitle ?? rec.title,
     direction,
     amountUsd,

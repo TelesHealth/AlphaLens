@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Link } from "wouter";
+import ReactMarkdown from "react-markdown";
 import {
   useGetBriefing,
   useTriggerScan,
@@ -120,9 +122,12 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
         config.color
       )}
     >
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded(!expanded)}
-        className="w-full text-left p-4 hover:bg-secondary/30 transition-colors"
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }}
+        className="w-full text-left p-4 hover:bg-secondary/30 transition-colors cursor-pointer"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -144,13 +149,23 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   {platformBadge.label}
                 </span>
               </div>
-              <h3 className="font-semibold text-sm leading-snug">
-                {rec.title}
-              </h3>
+              {rec.assetId != null ? (
+                <Link
+                  href={`/market/${rec.assetId}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-semibold text-sm leading-snug hover:text-primary hover:underline transition-colors block"
+                >
+                  {rec.title}
+                </Link>
+              ) : (
+                <h3 className="font-semibold text-sm leading-snug">
+                  {rec.title}
+                </h3>
+              )}
               {rec.headline && (
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                  {rec.headline}
-                </p>
+                <div className="text-xs text-muted-foreground mt-1 line-clamp-2 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground/90">
+                  <ReactMarkdown>{rec.headline}</ReactMarkdown>
+                </div>
               )}
             </div>
           </div>
@@ -187,7 +202,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
             )}
           </div>
         </div>
-      </button>
+      </div>
 
       {expanded && (
         <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3 animate-in slide-in-from-top-2 duration-200">
@@ -242,7 +257,9 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                     className="text-xs text-foreground/80 flex items-start gap-2"
                   >
                     <Crosshair className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
-                    {reason}
+                    <div className="prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground">
+                      <ReactMarkdown>{reason}</ReactMarkdown>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -255,7 +272,9 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 <div className="text-[10px] font-mono text-muted-foreground mb-1">
                   HISTORICAL CONTEXT
                 </div>
-                <p className="text-foreground/70">{rec.historicalContext}</p>
+                <div className="text-foreground/70 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground">
+                  <ReactMarkdown>{rec.historicalContext}</ReactMarkdown>
+                </div>
               </div>
             )}
             {rec.bearCase && (
@@ -263,7 +282,9 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 <div className="text-[10px] font-mono text-muted-foreground mb-1">
                   BEAR CASE
                 </div>
-                <p className="text-foreground/70">{rec.bearCase}</p>
+                <div className="text-foreground/70 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground">
+                  <ReactMarkdown>{rec.bearCase}</ReactMarkdown>
+                </div>
               </div>
             )}
           </div>

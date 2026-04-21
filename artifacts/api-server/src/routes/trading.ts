@@ -6,6 +6,7 @@ import {
   getBestPlatform,
   checkRiskGate,
   getDailyTradeCount,
+  getDailyPnl,
   storePendingOrder,
   logLiveTrade,
   getAccountsStatus,
@@ -70,7 +71,8 @@ router.post("/execute", async (req, res) => {
     }
 
     const dailyTradeCount = await getDailyTradeCount();
-    const riskResult = checkRiskGate(rec, amountUsd, 10000, 0, dailyTradeCount);
+    const dailyPnl = await getDailyPnl();
+    const riskResult = checkRiskGate(rec, amountUsd, 10000, dailyPnl, dailyTradeCount);
     if (!riskResult.passed) {
       res.json({
         success: false,
