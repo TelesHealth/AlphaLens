@@ -469,7 +469,7 @@ async function storeAlerts(alerts: RadarAlertData[]): Promise<number> {
         })
         .onConflictDoUpdate({
           target: radarAlertsTable.id,
-          set: { title: alert.title, severity: alert.severity },
+          set: { title: alert.title, severity: alert.severity, createdAt: new Date() },
         });
       stored++;
     } catch (e: any) {
