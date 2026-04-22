@@ -1,0 +1,78 @@
+Fix these two bugs:
+
+BUG #16 — Market Refresh Lock in Wrong Place
+
+Charlize's note: "Put the lock inside the service
+function, not in the routes."
+
+The isRefreshing lock is currently in the route handler.
+Move it into the service function so it works regardless
+of how refresh is triggered.
+
+1. In artifacts/api-server/src/services/market-data.ts,
+   add the lock at the top of refreshAllMarkets():
+
+   let isRefreshing = false;
+
+   export async function refreshAllMarkets() {
+     if (isRefreshing) {
+       console.log("Market refresh already in progress,
+                   skipping");
+       return { skipped: true };
+     }
+     isRefreshing = true;
+     try {
+       // existing refresh logic
+     } finally {
+       isRefreshing = false;
+     }
+   }
+
+2. In artifacts/api-server/src/routes/markets.ts,
+   remove the lock check from the route handler.
+   The route just calls the service and returns
+   the result.
+
+3. Apply the same pattern to radar scan lock in
+   artifacts/api-server/src/services/market-radar.ts
+   — move isRadarScanning into the service function
+   if it is currently in the route.
+
+Verify: POST /api/markets/refresh twice simultaneously
+— second call should return skipped: true or
+status: "refresh_already_running".
+
+---
+
+BUG #2 — Edge Badge Color (persistent)
+
+Edge of +4.0 shows no color badge on the scanner.
+
+In artifacts/alpha-lens/src/components/ui-helpers.tsx,
+find the ScoreDisplay component or edge badge logic.
+
+Most likely cause: Tailwind class names being
+constructed dynamically (e.g. bg-${color}) which
+get purged at build time and never apply.
+
+Fix using hardcoded Tailwind class strings only:
+
+const edgeNum = Number(edge ?? 0);
+const badgeColor = edgeNum > 0
+  ? "bg-green-500/10 text-green-400 border-green-500/20"
+  : edgeNum < 0
+  ? "bg-red-500/10 text-red-400 border-red-500/20"
+  : "bg-muted text-muted-foreground border-border";
+
+Never construct Tailwind class names dynamically
+from variables — always use complete hardcoded
+class strings.
+
+Also add explicit type coercion in case edge
+arrives as a string:
+  const edgeNum = Number(edge ?? 0);
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify on frontend: asset with edge +4.0 shows
+green badge. Edge -3.2 shows red. Edge 0 shows gray.
