@@ -19,13 +19,19 @@ async function main() {
     .where(eq(usersTable.email, email))
     .limit(1);
 
+  const passwordHash = await hashPassword(password);
+
   if (existing.length > 0) {
-    console.log(`Admin account already exists: ${existing[0].email}`);
+    const [user] = await db
+      .update(usersTable)
+      .set({ passwordHash, name, role: "admin", isActive: true })
+      .where(eq(usersTable.id, existing[0].id))
+      .returning({ id: usersTable.id, email: usersTable.email });
+    console.log(`Admin account updated: ${user.email}`);
     await pool.end();
     process.exit(0);
   }
 
-  const passwordHash = await hashPassword(password);
   const [user] = await db
     .insert(usersTable)
     .values({ email, passwordHash, name, role: "admin" })
