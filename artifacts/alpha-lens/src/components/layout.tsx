@@ -1,26 +1,34 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { 
-  Activity, 
-  Briefcase, 
-  MessageSquare, 
+import {
+  Activity,
+  Briefcase,
+  MessageSquare,
   Zap,
   Radio,
   Fish,
   Menu,
-  X
+  X,
+  LogOut,
 } from "lucide-react";
 import { useState } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { useAuth } from "@/hooks/use-auth";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+
+  async function handleSignOut() {
+    await logout();
+    navigate("/login");
+  }
 
   const navItems = [
     { href: "/briefing", label: "Briefing", icon: Zap },
@@ -70,7 +78,25 @@ export function Layout({ children }: { children: ReactNode }) {
         })}
       </nav>
 
-      <div className="p-4 mt-auto">
+      <div className="p-4 mt-auto space-y-3">
+        {user && (
+          <div className="rounded-xl bg-card border border-border p-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary text-sm shrink-0">
+              {user.name?.[0]?.toUpperCase() ?? "?"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium truncate">{user.name}</div>
+              <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+            </div>
+            <button
+              onClick={handleSignOut}
+              title="Sign out"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        )}
         <div className="rounded-xl bg-card border border-border p-4 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
           <div className="flex items-center gap-2 mb-2">

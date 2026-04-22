@@ -1,7 +1,8 @@
 import { db } from "@workspace/db";
-import { liveTradesTable, pendingOrdersTable, recommendationsTable, tradesTable, assetsTable } from "@workspace/db/schema";
+import { liveTradesTable, pendingOrdersTable, recommendationsTable, tradesTable, assetsTable, userTradingAccountsTable } from "@workspace/db/schema";
 import { desc, eq, gte, sql, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { decryptCredentials } from "./auth";
 
 export type Platform = "kalshi" | "polymarket" | "alpaca" | "paper";
 export type OrderSide = "YES" | "NO";
@@ -297,9 +298,45 @@ export async function logLiveTrade(
   });
 }
 
-export function getAccountsStatus() {
+export async function getUserCredentials(
+  userId: number,
+  platform: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const [row] = await db
+      .select()
+      .from(userTradingAccountsTable)
+      .where(
+        and(
+          eq(userTradingAccountsTable.userId, userId),
+          eq(userTradingAccountsTable.platform, platform),
+        ),
+      )
+      .limit(1);
+    if (!row) return null;
+    return decryptCredentials(row.encryptedCredentials);
+  } catch (e) {
+    logger.error({ err: (e as any)?.message, userId, platform }, "decrypt user credentials failed");
+    return null;
+  }
+}
+
+async function getUserPlatformConfigured(userId: number): Promise<Record<string, boolean>> {
+  const rows = await db
+    .select({ platform: userTradingAccountsTable.platform })
+    .from(userTradingAccountsTable)
+    .where(eq(userTradingAccountsTable.userId, userId));
+  const out: Record<string, boolean> = { kalshi: false, alpaca: false, polymarket: false };
+  for (const r of rows) out[r.platform] = true;
+  return out;
+}
+
+export async function getAccountsStatus(userId?: number) {
   const platforms = getPlatformStatus();
   const usMode = RISK.usMode;
+  const userConfig = userId ? await getUserPlatformConfigured(userId) : null;
+  const isConfigured = (key: "kalshi" | "alpaca" | "polymarket") =>
+    userConfig?.[key] || platforms[key].isConfigured;
 
   return {
     usJurisdictionMode: usMode,
@@ -307,7 +344,7 @@ export function getAccountsStatus() {
     note: usMode
       ? "US jurisdiction mode ON — Kalshi is your primary platform. Polymarket is available for research/paper trading only."
       : "Non-US mode — Kalshi primary, Polymarket secondary for unsupported markets.",
-    kalshi: platforms.kalshi.isConfigured
+    kalshi: isConfigured("kalshi")
       ? {
           status: "configured",
           legalStatus: "CFTC regulated — legal for US residents in all 50 states",
@@ -319,7 +356,7 @@ export function getAccountsStatus() {
           priority: "PRIMARY — set this up first",
           legalStatus: "CFTC regulated — legal for US residents",
         },
-    alpaca: platforms.alpaca.isConfigured
+    alpaca: isConfigured("alpaca")
       ? {
           status: "configured",
           legalStatus: "SEC/FINRA regulated — legal for US residents",
@@ -330,7 +367,7 @@ export function getAccountsStatus() {
           message: "Add ALPACA_API_KEY and ALPACA_SECRET_KEY to Secrets",
           priority: "SECONDARY — for stock/ETF recommendations",
         },
-    polymarket: platforms.polymarket.isConfigured
+    polymarket: isConfigured("polymarket")
       ? {
           status: "configured",
           legalStatus: usMode

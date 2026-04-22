@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
+import { ReactNode, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +13,10 @@ import Coach from "@/pages/coach";
 import Briefing from "@/pages/briefing";
 import Radar from "@/pages/radar";
 import Whales from "@/pages/whales";
+import Login from "@/pages/login";
+import Register from "@/pages/register";
+
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,20 +27,56 @@ const queryClient = new QueryClient({
   },
 });
 
+function AuthGate({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  const [location, navigate] = useLocation();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user && location !== "/login" && location !== "/register") {
+      navigate("/login");
+    }
+  }, [user, loading, location, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+        <div className="text-sm text-muted-foreground">Loading…</div>
+      </div>
+    );
+  }
+  if (!user) return null;
+  return <>{children}</>;
+}
+
 function Router() {
+  const { user, loading } = useAuth();
+  const [location] = useLocation();
+
+  if (location === "/login") {
+    if (!loading && user) return <Redirect to="/briefing" />;
+    return <Login />;
+  }
+  if (location === "/register") {
+    if (!loading && user) return <Redirect to="/briefing" />;
+    return <Register />;
+  }
+
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={Scanner} />
-        <Route path="/market/:id" component={MarketDetail} />
-        <Route path="/portfolio" component={Portfolio} />
-        <Route path="/coach" component={Coach} />
-        <Route path="/briefing" component={Briefing} />
-        <Route path="/radar" component={Radar} />
-        <Route path="/whales" component={Whales} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <AuthGate>
+      <Layout>
+        <Switch>
+          <Route path="/" component={Scanner} />
+          <Route path="/market/:id" component={MarketDetail} />
+          <Route path="/portfolio" component={Portfolio} />
+          <Route path="/coach" component={Coach} />
+          <Route path="/briefing" component={Briefing} />
+          <Route path="/radar" component={Radar} />
+          <Route path="/whales" component={Whales} />
+          <Route component={NotFound} />
+        </Switch>
+      </Layout>
+    </AuthGate>
   );
 }
 
@@ -44,7 +85,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <AuthProvider>
+            <Router />
+          </AuthProvider>
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

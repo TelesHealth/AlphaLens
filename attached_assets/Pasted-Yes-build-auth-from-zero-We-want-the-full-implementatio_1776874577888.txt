@@ -1,0 +1,254 @@
+Yes — build auth from zero. We want the full
+implementation: users table, bcryptjs, JWT sessions,
+auth middleware, login/register routes, frontend
+login page, and auth guard. This is not just a DB
+row — it is the complete auth layer.
+
+Follow these steps in order:
+
+STEP 1 — Install packages
+In artifacts/api-server:
+  pnpm add bcryptjs jsonwebtoken
+  pnpm add -D @types/bcryptjs @types/jsonwebtoken
+
+In artifacts/alpha-lens:
+  pnpm add js-cookie
+  pnpm add -D @types/js-cookie
+
+STEP 2 — Add users and user_trading_accounts tables
+In lib/db/src/schema/, add:
+
+users table:
+  id: serial primary key
+  email: varchar(255) unique not null
+  passwordHash: varchar(255) not null
+  name: varchar(255) not null
+  role: varchar(50) default "user"
+  isActive: boolean default true
+  createdAt: timestamp default now()
+  lastLoginAt: timestamp nullable
+
+user_trading_accounts table:
+  id: serial primary key
+  userId: integer references users(id)
+  platform: varchar(50) not null
+  encryptedCredentials: text not null
+  status: varchar(50) default "configured"
+  createdAt: timestamp default now()
+  updatedAt: timestamp default now()
+
+Export both from the db package index.
+Then run: pnpm --filter @workspace/db run push
+
+STEP 3 — Auth service
+Create artifacts/api-server/src/services/auth.ts
+
+Functions:
+  hashPassword(password): Promise<string>
+    bcryptjs saltRounds: 12
+
+  verifyPassword(password, hash): Promise<boolean>
+    bcryptjs.compare
+
+  generateToken(userId, email, role): string
+    JWT signed with process.env.JWT_SECRET
+    expiresIn: "7d"
+    payload: { userId, email, role }
+
+  verifyToken(token): { userId, email, role } | null
+    Returns null on any error
+
+  encryptCredentials(credentials: object): string
+    AES-256-GCM using
+    process.env.CREDENTIALS_ENCRYPTION_KEY
+    Returns base64: iv + authTag + encrypted
+
+  decryptCredentials(encrypted: string): object
+    Reverses encryptCredentials
+
+STEP 4 — Auth middleware
+Create artifacts/api-server/src/middleware/auth.ts
+
+  requireAuth:
+    Reads Bearer token from Authorization header
+    OR cookie "arclion_token"
+    Calls verifyToken()
+    Valid: attaches req.user = { userId, email, role }
+           calls next()
+    Invalid: returns 401
+             { error: "Authentication required" }
+
+  requireAdmin:
+    Calls requireAuth first
+    role !== "admin": returns 403
+    { error: "Admin access required" }
+
+  optionalAuth:
+    Same as requireAuth but always calls next()
+    req.user undefined if no token
+
+STEP 5 — Auth routes
+Create artifacts/api-server/src/routes/auth.ts
+
+POST /api/auth/register
+  Body: { email, password, name }
+  Zod validation:
+    email: valid format
+    password: min 8 chars
+    name: min 2 chars
+  Check email not already registered
+  Hash password
+  Insert user
+  Generate token
+  Return: { user: { id, email, name, role },
+            token, message: "Account created" }
+
+POST /api/auth/login
+  Body: { email, password }
+  Find user by email
+  Verify password
+  Wrong: 401 { error: "Invalid email or password" }
+  Update lastLoginAt
+  Generate token
+  Set httpOnly cookie "arclion_token" 7d expiry
+  Return: { user: { id, email, name, role }, token }
+
+POST /api/auth/logout
+  Clear "arclion_token" cookie
+  Return: { message: "Logged out" }
+
+GET /api/auth/me
+  requireAuth middleware
+  Return: { user: { id, email, name, role,
+            createdAt, lastLoginAt } }
+
+POST /api/auth/change-password
+  requireAuth middleware
+  Body: { currentPassword, newPassword }
+  Verify current, hash and save new
+  Return: { message: "Password updated" }
+
+STEP 6 — Trading credentials routes
+Create artifacts/api-server/src/routes/
+  trading-credentials.ts
+
+GET /api/user/trading-accounts
+  requireAuth
+  Return accounts for req.user.userId
+  Never return raw credentials — only:
+  { id, platform, status, createdAt }
+
+POST /api/user/trading-accounts
+  requireAuth
+  Body: { platform, credentials }
+  platforms: kalshi | alpaca | polymarket
+  kalshi credentials: { email, password }
+  alpaca credentials: { apiKey, secretKey }
+  polymarket credentials: { privateKey }
+  Encrypt and upsert per userId + platform
+  Return: { message: "Credentials saved",
+            platform, status: "configured" }
+
+DELETE /api/user/trading-accounts/:platform
+  requireAuth
+  Delete credentials for that platform
+  Return: { message: "Credentials removed" }
+
+STEP 7 — Update trading service
+In artifacts/api-server/src/services/trading.ts:
+
+Add getUserCredentials(userId, platform):
+  Query user_trading_accounts
+  If found: decrypt and return credentials object
+  If not found: return null
+
+In executeTrade() and checkRiskGate():
+  Accept userId as parameter
+  Try getUserCredentials(userId, platform) first
+  Fall back to process.env.KALSHI_EMAIL etc.
+  if no user credentials found
+
+In GET /api/trading/accounts:
+  Return platform status based on current
+  user's credentials not env vars
+
+STEP 8 — Protect existing routes
+In the main app file where routes are registered,
+add requireAuth to all routes except:
+  /api/auth/* (public)
+  /api/healthz (public)
+
+All other routes require auth:
+  /api/markets, /api/signals, /api/portfolio,
+  /api/coach, /api/recommendations, /api/trading,
+  /api/radar, /api/whales, /api/user
+
+STEP 9 — Frontend login page
+Create artifacts/alpha-lens/src/pages/login.tsx
+
+Simple form:
+  Email input
+  Password input
+  Submit button "Sign in"
+  Link to /register
+  POST /api/auth/login on submit
+  On success: save token via js-cookie as
+    "arclion_token", redirect to /briefing
+  On error: show error message
+
+Create artifacts/alpha-lens/src/pages/register.tsx
+
+Form:
+  Name input
+  Email input
+  Password input (min 8 chars hint)
+  Submit "Create account"
+  Link to /login
+  POST /api/auth/register on submit
+  On success: save token, redirect to /briefing
+
+STEP 10 — Frontend auth guard
+In artifacts/alpha-lens/src/App.tsx:
+
+Add AuthProvider context:
+  On mount: check "arclion_token" cookie
+  Call GET /api/auth/me to validate
+  Valid: set user context, render app
+  Invalid/missing: redirect to /login
+
+Wrap all routes with auth guard.
+Public routes: /login and /register only.
+
+In artifacts/alpha-lens/src/components/layout.tsx:
+  Add user menu in sidebar showing logged-in
+  user name and Sign out button
+  Sign out: POST /api/auth/logout
+  then redirect to /login
+
+STEP 11 — Seed script for admin account
+Create artifacts/api-server/src/seed-admin.ts
+
+A standalone script that:
+  Takes email, password, name from
+  environment variables:
+    ADMIN_EMAIL
+    ADMIN_PASSWORD
+    ADMIN_NAME
+
+  Hashes the password with bcryptjs
+  Inserts into users table with role: "admin"
+  Logs: "Admin account created: {email}"
+  Exits cleanly
+
+DO NOT hardcode any credentials in the script.
+DO NOT echo or log the password anywhere.
+
+I will run this script manually from the shell
+after you finish all 11 steps.
+
+Run pnpm run typecheck after all steps.
+Zero TypeScript errors required.
+
+Report all files created and modified.
+Do not ask for credentials — I will provide
+them separately via shell environment variables.

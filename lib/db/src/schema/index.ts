@@ -4,3 +4,4 @@ export * from "./trades";
 export * from "./recommendations";
 export * from "./trading";
 export * from "./radar";
+export * from "./users";

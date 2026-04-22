@@ -8,17 +8,25 @@ import recommendationsRouter from "./recommendations";
 import tradingRouter from "./trading";
 import radarRouter from "./radar";
 import uwRouter from "./unusual-whales";
+import authRouter from "./auth";
+import tradingCredentialsRouter from "./trading-credentials";
+import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
+// Public
 router.use(healthRouter);
-router.use("/markets", marketsRouter);
-router.use("/signals", signalsRouter);
-router.use("/portfolio", portfolioRouter);
-router.use("/coach", coachRouter);
-router.use("/recommendations", recommendationsRouter);
-router.use("/trading", tradingRouter);
-router.use("/radar", radarRouter);
-router.use("/whales", uwRouter);
+router.use("/auth", authRouter);
+
+// Protected — all other API routes require a valid session
+router.use("/markets", requireAuth, marketsRouter);
+router.use("/signals", requireAuth, signalsRouter);
+router.use("/portfolio", requireAuth, portfolioRouter);
+router.use("/coach", requireAuth, coachRouter);
+router.use("/recommendations", requireAuth, recommendationsRouter);
+router.use("/trading", requireAuth, tradingRouter);
+router.use("/radar", requireAuth, radarRouter);
+router.use("/whales", requireAuth, uwRouter);
+router.use("/user", requireAuth, tradingCredentialsRouter);
 
 export default router;

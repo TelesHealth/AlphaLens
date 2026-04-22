@@ -18,7 +18,7 @@ const router: IRouter = Router();
 
 router.get("/accounts", async (req, res) => {
   try {
-    const accounts = getAccountsStatus();
+    const accounts = await getAccountsStatus(req.user?.userId);
     res.json({ accounts });
   } catch (e: any) {
     req.log.error({ err: e }, "Error getting accounts");
