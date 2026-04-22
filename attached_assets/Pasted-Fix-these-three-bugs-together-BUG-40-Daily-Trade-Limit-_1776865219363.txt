@@ -1,0 +1,85 @@
+Fix these three bugs together:
+
+BUG #40 — Daily Trade Limit Bypass via Approval Queue
+
+The daily trade count check only blocks execution.
+Fix it to also block approval.
+
+1. In POST /api/trading/pending/:id/approve, before
+   approving an order, check getDailyTradeCount()
+   against MAX_DAILY_TRADES:
+
+   const dailyCount = await getDailyTradeCount();
+   const maxTrades = parseInt(
+     process.env.MAX_DAILY_TRADES ?? "10"
+   );
+
+   if (dailyCount >= maxTrades) {
+     return res.status(400).json({
+       error: `Daily trade limit (${maxTrades}) reached
+               — approval blocked`
+     });
+   }
+
+2. In POST /api/trading/execute, before queuing a
+   new pending order, check combined count:
+
+   const pendingCount = await getPendingOrderCount();
+   const dailyCount = await getDailyTradeCount();
+
+   if (dailyCount + pendingCount >= maxTrades) {
+     return res.status(400).json({
+       error: `Daily trade limit (${maxTrades})
+               would be exceeded`
+     });
+   }
+
+3. Add getPendingOrderCount() if it does not exist:
+   Query pending_orders table for orders with
+   status: "pending_approval" created today UTC.
+
+---
+
+BUG #41 — Position Fields Null (price, size, orderId)
+
+In GET /api/trading/positions, price, size, and
+orderId are null.
+
+Fix by populating these fields when creating live
+trade records:
+
+1. price — use asset.currentPrice at execution time.
+   Store as liveTrade.price = asset.currentPrice.
+
+2. size — calculate: size = amountUsd / price.
+   Store as liveTrade.size = size.
+
+3. orderId — generate if not returned by platform:
+   orderId = `ORDER-${Date.now()}-${recommendationId}`
+   Store as liveTrade.orderId = orderId.
+
+Verify GET /api/trading/positions — all position
+objects should have non-null price, size, orderId.
+
+---
+
+BUG #38 — AI Confidence Below 0.75
+
+In artifacts/api-server/src/services/coach.ts,
+the confidence field must be exactly 0.75 on every
+successful Claude API response. It is a fixed value,
+not computed.
+
+1. Find confidence field assignment in coach service.
+2. Set to exactly 0.75 on successful response.
+3. Confirm fallback path sets confidence: 0.3.
+4. Ensure nothing between success and response
+   overwrites the 0.75 value.
+
+Verify: POST /api/coach/analyze with any question
+→ response.confidence === 0.75 exactly.
+
+---
+
+Run pnpm run typecheck after all three fixes.
+Zero errors required.
