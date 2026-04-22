@@ -1,10 +1,12 @@
 import { logger } from "../lib/logger";
+import { getFedFundsRate } from "./macro-data";
 
 const KALSHI_BASE = "https://api.elections.kalshi.com/trade-api/v2";
 
 interface KalshiMarket {
   ticker: string;
   series_ticker?: string;
+  event_ticker?: string;
   title?: string;
   subtitle?: string;
   yes_sub_title?: string;
@@ -16,6 +18,8 @@ interface KalshiMarket {
   volume_24h_fp?: string;
   liquidity_dollars?: string;
   status?: string;
+  close_time?: string;
+  expiration_time?: string;
   cap_strike?: number;
   floor_strike?: number;
 }
@@ -133,9 +137,110 @@ export interface PredictionPrices {
   btc100k: number | null;
 }
 
+async function fetchFedCutProbability(): Promise<number | null> {
+  const cacheKey = "FED-CUT-prob";
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) return cached.value;
+
+  try {
+    const markets = await fetchSeriesMarkets("KXFED");
+    if (!markets.length) {
+      logger.warn("Kalshi KXFED: no open markets");
+      cache.set(cacheKey, { value: null, ts: Date.now() });
+      return null;
+    }
+
+    // Group by event_ticker, pick the nearest upcoming FOMC event
+    const byEvent = new Map<string, KalshiMarket[]>();
+    for (const m of markets) {
+      const ev = m.event_ticker ?? "_";
+      const arr = byEvent.get(ev) ?? [];
+      arr.push(m);
+      byEvent.set(ev, arr);
+    }
+    const eventKey = (e: string) => {
+      const arr = byEvent.get(e) ?? [];
+      const t = arr[0]?.close_time ?? arr[0]?.expiration_time ?? "";
+      return t || "9999";
+    };
+    const nearestEvent = [...byEvent.keys()].sort((a, b) => eventKey(a).localeCompare(eventKey(b)))[0];
+    const eventMarkets = (byEvent.get(nearestEvent) ?? []).filter((m) => typeof m.floor_strike === "number");
+
+    if (!eventMarkets.length) {
+      logger.warn(`Kalshi KXFED: nearest event ${nearestEvent} has no strike data`);
+      cache.set(cacheKey, { value: null, ts: Date.now() });
+      return null;
+    }
+
+    const rate = await getFedFundsRate();
+    let cutProb: number | null = null;
+    let logCurrentRate = "unknown";
+    let logSource = "";
+
+    if (rate) {
+      logCurrentRate = `${rate.targetUpper.toFixed(2)}`;
+      // Cut = next FOMC sets upper bound BELOW current upper.
+      // YES on "rate above (currentUpper - 0.25)" = probability rate stays AT current or higher = NO cut.
+      // So cut prob = 1 - YES at strike = currentUpper - 0.25.
+      const targetStrike = rate.targetUpper - 0.25;
+      let best: KalshiMarket | null = null;
+      let bestDelta = Infinity;
+      for (const m of eventMarkets) {
+        const d = Math.abs((m.floor_strike as number) - targetStrike);
+        if (d < bestDelta) {
+          bestDelta = d;
+          best = m;
+        }
+      }
+      const yesPct = priceFromMarket(best);
+      if (yesPct != null) {
+        cutProb = Math.max(0, Math.min(100, 100 - yesPct));
+        logSource = `1 - YES(${best?.ticker}@${(best?.floor_strike as number).toFixed(2)})=${100 - yesPct}%`;
+      }
+    } else {
+      // Fallback: contract whose strike matches market-implied current rate (YES closest to 50%)
+      // gives "rate stays at/above current" — its NO price ≈ cut probability.
+      let pivot: KalshiMarket | null = null;
+      let pivotDelta = Infinity;
+      for (const m of eventMarkets) {
+        const yes = priceFromMarket(m);
+        if (yes == null) continue;
+        const d = Math.abs(yes - 50);
+        if (d < pivotDelta) {
+          pivotDelta = d;
+          pivot = m;
+        }
+      }
+      const yesPct = priceFromMarket(pivot);
+      if (yesPct != null) {
+        cutProb = Math.max(0, Math.min(100, 100 - yesPct));
+        logSource = `fallback: 100 - YES(${pivot?.ticker})=${100 - yesPct}%`;
+      }
+    }
+
+    if (cutProb == null) {
+      logger.warn(`Kalshi KXFED: could not compute cut probability from ${eventMarkets.length} strikes`);
+    } else {
+      const rounded = Math.round(cutProb);
+      logger.info(
+        `Kalshi KXFED: cut probability calculated as ${rounded}% from ${eventMarkets.length} strike contracts, current rate ${logCurrentRate}% [${logSource}]`,
+      );
+      cache.set(cacheKey, { value: rounded, ts: Date.now() });
+      return rounded;
+    }
+
+    cache.set(cacheKey, { value: null, ts: Date.now() });
+    return null;
+  } catch (e: any) {
+    logger.warn(`Kalshi KXFED: cut probability failed — ${e?.message ?? e}`);
+    cache.set(cacheKey, { value: null, ts: Date.now() });
+    return null;
+  }
+}
+
 export async function fetchAllPredictionPrices(): Promise<PredictionPrices> {
   const [fedCut, recession, btc100k] = await Promise.allSettled([
-    fetchKalshiMarketPrice("KXFED"),
+    fetchFedCutProbability(),
     fetchKalshiMarketPrice("KXRECSSNBER"),
     fetchBtc100k(),
   ]);
