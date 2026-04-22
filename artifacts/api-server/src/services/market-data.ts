@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { assetsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { fetchAllPredictionPrices } from "./kalshi-markets";
 
 const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
 const YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart";
@@ -158,9 +159,23 @@ const PREDICTION_DEFAULTS: Record<string, PriceUpdate> = {
 
 async function fetchPredictionPrices(): Promise<Map<string, PriceUpdate>> {
   const results = new Map<string, PriceUpdate>();
+  const live = await fetchAllPredictionPrices();
+  const map: Record<string, number | null> = {
+    "FED-CUT": live.fedCut,
+    "US-REC": live.recession,
+    "BTC-100K": live.btc100k,
+  };
   for (const [symbol, defaults] of Object.entries(PREDICTION_DEFAULTS)) {
-    results.set(symbol, defaults);
+    const livePrice = map[symbol];
+    if (livePrice != null) {
+      results.set(symbol, { currentPrice: livePrice, priceChange24h: 0 });
+    } else {
+      results.set(symbol, defaults);
+    }
   }
+  logger.info(
+    `Kalshi prediction prices: FED-CUT=${live.fedCut ?? "n/a"}%, US-REC=${live.recession ?? "n/a"}%, BTC-100K=${live.btc100k ?? "n/a"}%`,
+  );
   return results;
 }
 

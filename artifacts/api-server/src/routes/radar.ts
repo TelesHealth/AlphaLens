@@ -14,6 +14,7 @@ import {
   fetchCongressionalTrades,
   fetchCryptoWhaleAlerts,
 } from "../services/unusual-whales";
+import { fetchAllPredictionPrices } from "../services/kalshi-markets";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -170,6 +171,23 @@ router.get("/crypto-whales", async (req, res) => {
   } catch (e: any) {
     logger.error({ err: e.message }, "GET /radar/crypto-whales failed");
     res.status(500).json({ error: "Failed to fetch crypto whale data" });
+  }
+});
+
+router.get("/prediction-prices", async (_req, res) => {
+  try {
+    const prices = await fetchAllPredictionPrices();
+    res.json({
+      fedCut: prices.fedCut,
+      recession: prices.recession,
+      btc100k: prices.btc100k,
+      source: "Kalshi",
+      note: "Live prediction market probabilities",
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e: any) {
+    logger.error({ err: e.message }, "GET /radar/prediction-prices failed");
+    res.status(500).json({ error: "Failed to fetch prediction prices" });
   }
 });
 

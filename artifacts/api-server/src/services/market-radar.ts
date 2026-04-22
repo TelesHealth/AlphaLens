@@ -651,6 +651,11 @@ export function getRadarStatus() {
       tier: "paid",
       note: "Real-time news sentiment — pending subscription ($150/mo). Add BENZINGA_API_KEY when ready.",
     },
+    kalshi_markets: {
+      status: "active",
+      tier: "free",
+      note: "Kalshi live prediction market prices — no API key required. Fed rate cut, recession, BTC $100K probabilities.",
+    },
   };
 
   const activeCount = Object.values(sources).filter((s) => s.status === "active").length;

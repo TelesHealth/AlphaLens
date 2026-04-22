@@ -1,0 +1,127 @@
+Replace the static PREDICTION_DEFAULTS placeholders in
+artifacts/api-server/src/services/market-data.ts with
+live Kalshi market prices.
+
+Kalshi market data is fully public — no authentication
+required for reading prices.
+
+Base URL: https://api.elections.kalshi.com/trade-api/v2
+
+STEP 1 — Create Kalshi market data service
+
+Create artifacts/api-server/src/services/kalshi-markets.ts
+
+Implement fetchKalshiMarketPrice(seriesTicker: string):
+Promise<number | null>
+
+  GET https://api.elections.kalshi.com/trade-api/v2/markets
+  ?series_ticker={seriesTicker}&status=open
+  No auth headers required.
+
+  From the response, find the most liquid market
+  (highest volume) and return its yes_bid price
+  as a percentage (0-100).
+
+  Kalshi prices are in cents (1-99) representing
+  probability. A yes_bid of 42 = 42% probability.
+  Return as a number between 0 and 100.
+
+  On any error: return null (never throw).
+  Log: "Kalshi: fetched {seriesTicker} at {price}%"
+  On failure: "Kalshi: failed to fetch {seriesTicker}"
+
+Implement fetchAllPredictionPrices():
+Promise<{ fedCut: number | null, recession: number | null,
+          btc100k: number | null }>
+
+  Calls fetchKalshiMarketPrice in parallel using
+  Promise.allSettled for these series:
+
+  Fed rate cut: series_ticker = "KXFED"
+    Find the nearest upcoming FOMC meeting market.
+    Filter for markets where title contains
+    "cut" or "lower" or "decrease".
+
+  US Recession: series_ticker = "KXREC"
+    Find the current year recession market.
+
+  BTC $100K: series_ticker = "KXBTC"
+    Find the market closest to $100,000 strike.
+
+  Add a 60-second in-memory cache per series —
+  Kalshi prices don't need to be fetched more
+  than once per minute.
+
+STEP 2 — Wire into market data refresh
+
+In artifacts/api-server/src/services/market-data.ts,
+find where prediction market assets are updated.
+
+Currently FED-CUT, US-REC, BTC-100K use static
+PREDICTION_DEFAULTS values. Replace with live prices:
+
+1. Import fetchAllPredictionPrices from kalshi-markets.ts
+
+2. At the start of the market refresh cycle, call:
+   const predictionPrices = await fetchAllPredictionPrices()
+
+3. When updating prediction market assets, use live prices:
+
+   FED-CUT asset:
+     currentPrice = predictionPrices.fedCut ?? PREDICTION_DEFAULTS.fedCut
+     marketProbability = predictionPrices.fedCut ?? PREDICTION_DEFAULTS.fedCut
+
+   US-REC asset:
+     currentPrice = predictionPrices.recession ?? PREDICTION_DEFAULTS.recession
+     marketProbability = predictionPrices.recession ?? PREDICTION_DEFAULTS.recession
+
+   BTC-100K asset:
+     currentPrice = predictionPrices.btc100k ?? PREDICTION_DEFAULTS.btc100k
+     marketProbability = predictionPrices.btc100k ?? PREDICTION_DEFAULTS.btc100k
+
+   Always fall back to PREDICTION_DEFAULTS if Kalshi
+   returns null — never break the refresh cycle.
+
+4. Add to the refresh completion log:
+   "Kalshi prediction prices: FED-CUT={X}%,
+   US-REC={X}%, BTC-100K={X}%"
+
+STEP 3 — Add to radar status
+
+In artifacts/api-server/src/routes/radar.ts,
+add kalshi_markets to the sources object:
+
+kalshi_markets: {
+  status: "active",
+  tier: "free",
+  note: "Kalshi live prediction market prices —
+         no API key required. Fed rate cut,
+         recession, BTC $100K probabilities."
+}
+
+STEP 4 — Add dedicated endpoint
+
+In artifacts/api-server/src/routes/radar.ts, add:
+
+GET /api/radar/prediction-prices
+  Calls fetchAllPredictionPrices()
+  Returns:
+  {
+    fedCut: number | null,
+    recession: number | null,
+    btc100k: number | null,
+    source: "Kalshi",
+    note: "Live prediction market probabilities",
+    updatedAt: ISO timestamp
+  }
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify:
+1. POST /api/markets/refresh — check console for
+   "Kalshi prediction prices: FED-CUT=X%..."
+2. GET /api/radar/prediction-prices — should return
+   live probability numbers not null
+3. GET /api/markets — FED-CUT asset currentPrice
+   should match Kalshi live price
+4. GET /api/radar/status — shows kalshi_markets: active
