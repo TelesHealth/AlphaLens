@@ -185,6 +185,25 @@ export async function getDailyTradeCount(): Promise<number> {
   }
 }
 
+export async function getPendingOrderCount(): Promise<number> {
+  try {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(pendingOrdersTable)
+      .where(
+        and(
+          eq(pendingOrdersTable.status, "pending_approval"),
+          gte(pendingOrdersTable.createdAt, today)
+        )
+      );
+    return Number(result[0]?.count ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
 async function resolveAssetIdString(rec: typeof recommendationsTable.$inferSelect): Promise<string> {
   if (rec.assetId != null) return String(rec.assetId);
   const title = (rec.assetTitle ?? "").trim();
@@ -238,6 +257,27 @@ export async function logLiveTrade(
 ) {
   const ticker = rec.assetTitle ?? rec.title ?? "";
   const assetIdStr = await resolveAssetIdString(rec);
+
+  let resolvedPrice = price;
+  if (resolvedPrice == null && rec.assetId != null) {
+    try {
+      const [asset] = await db
+        .select()
+        .from(assetsTable)
+        .where(eq(assetsTable.id, rec.assetId))
+        .limit(1);
+      if (asset?.currentPrice != null && asset.currentPrice > 0) {
+        resolvedPrice = asset.currentPrice;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  if (resolvedPrice == null || resolvedPrice <= 0) resolvedPrice = 1;
+
+  const resolvedSize = size ?? (amountUsd > 0 ? amountUsd / resolvedPrice : 0);
+  const resolvedOrderId = orderId ?? `ORDER-${Date.now()}-${rec.id}`;
+
   await db.insert(liveTradesTable).values({
     recommendationId: rec.id,
     platform,
@@ -245,14 +285,14 @@ export async function logLiveTrade(
     assetTitle: rec.assetTitle ?? rec.title,
     direction,
     amountUsd,
-    price,
-    size,
+    price: resolvedPrice,
+    size: resolvedSize,
     status: "filled",
     paperMode: platform === "paper",
     aiProbability: rec.aiProbability,
     aiEdge: rec.edge,
     confidence: rec.confidence,
-    orderId,
+    orderId: resolvedOrderId,
     ticker,
   });
 }

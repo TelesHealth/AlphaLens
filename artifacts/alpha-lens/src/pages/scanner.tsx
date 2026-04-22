@@ -196,12 +196,18 @@ export default function Scanner() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-center">
-                        {market.edge ? (
+                        {market.edge != null ? (
                           <div className={cn(
-                            "inline-flex px-2.5 py-1 rounded font-mono text-sm font-bold",
-                            hasTradeableEdge ? "bg-primary/20 text-primary border border-primary/30 text-glow-primary" : "text-muted-foreground"
+                            "inline-flex px-2.5 py-1 rounded font-mono text-sm font-bold border",
+                            market.edge >= 4
+                              ? "bg-success/20 text-success border-success/40 text-glow-success"
+                              : market.edge > 0
+                                ? "bg-primary/20 text-primary border-primary/30 text-glow-primary"
+                                : market.edge < 0
+                                  ? "bg-destructive/10 text-destructive border-destructive/30"
+                                  : "text-muted-foreground border-transparent"
                           )}>
-                            +{market.edge.toFixed(1)}%
+                            {market.edge > 0 ? "+" : ""}{market.edge.toFixed(1)}%
                           </div>
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>

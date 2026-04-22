@@ -4,22 +4,14 @@ import { refreshAllMarketData } from "./market-data";
 import { scanForRecommendations } from "./recommendations";
 import { runRadarScan } from "./market-radar";
 
-let isRefreshing = false;
 let isScanning = false;
 let isRadarScanning = false;
 
 async function safeRefresh() {
-  if (isRefreshing) {
-    logger.info("Market refresh already in progress, skipping");
-    return;
-  }
-  isRefreshing = true;
   try {
-    await refreshAllMarketData();
+    await refreshAllMarketData(false);
   } catch (e: any) {
     logger.error({ err: e.message }, "Scheduled market refresh failed");
-  } finally {
-    isRefreshing = false;
   }
 }
 
@@ -45,8 +37,8 @@ async function safeRadarScan() {
   }
   isRadarScanning = true;
   try {
-    const alerts = await runRadarScan();
-    logger.info({ count: alerts.length }, "Radar scan complete");
+    const result = await runRadarScan();
+    logger.info({ count: result.count }, "Radar scan complete");
   } catch (e: any) {
     logger.error({ err: e.message }, "Scheduled radar scan failed");
   } finally {

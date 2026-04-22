@@ -129,7 +129,9 @@ export default function Coach() {
                         {msg.recommendations.map((rec, i) => (
                           <li key={i} className="flex items-start gap-2 text-sm">
                             <ChevronRight className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                            <span className="text-foreground/90">{rec}</span>
+                            <div className="text-foreground/90 prose prose-sm prose-invert max-w-none [&_p]:m-0 [&_strong]:text-foreground">
+                              <ReactMarkdown>{rec}</ReactMarkdown>
+                            </div>
                           </li>
                         ))}
                       </ul>

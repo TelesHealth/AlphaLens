@@ -42,6 +42,7 @@ import {
   Landmark,
   Waves,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { cn, formatCurrency } from "@/components/ui-helpers";
 import { useToast } from "@/hooks/use-toast";
 
@@ -137,9 +138,9 @@ function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded:
         <p className="text-sm font-medium text-foreground mb-1">{alert.title}</p>
 
         {(alert.note || alert.reason || alert.historicalNote) && (
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            {alert.note || alert.reason || alert.historicalNote}
-          </p>
+          <div className="text-xs text-muted-foreground leading-relaxed prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground/90">
+            <ReactMarkdown>{alert.note || alert.reason || alert.historicalNote || ""}</ReactMarkdown>
+          </div>
         )}
       </div>
 

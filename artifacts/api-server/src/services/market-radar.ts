@@ -479,7 +479,7 @@ async function storeAlerts(alerts: RadarAlertData[]): Promise<number> {
   return stored;
 }
 
-export async function runRadarScan(): Promise<RadarAlertData[]> {
+export async function runRadarScan(): Promise<{ count: number; alerts: RadarAlertData[]; status: string }> {
   logger.info("E8: Market Radar scan starting...");
   const newAlerts: RadarAlertData[] = [];
   const prices = await fetchAllPrices();
@@ -524,15 +524,16 @@ export async function runRadarScan(): Promise<RadarAlertData[]> {
   }
 
   const existingCount = newAlerts.length - uwCount;
+  let stored = 0;
   if (newAlerts.length > 0) {
-    const stored = await storeAlerts(newAlerts);
+    stored = await storeAlerts(newAlerts);
     logger.info({ generated: newAlerts.length, stored, priceVolume: existingCount, smartMoney: uwCount }, "E8: Radar scan complete");
-    console.log(`Radar scan complete: ${newAlerts.length} alerts (${existingCount} price/volume, ${uwCount} smart money)`);
+    console.log(`Radar scan complete: ${stored} alerts inserted (${existingCount} price/volume, ${uwCount} smart money)`);
   } else {
     logger.info("E8: No anomalies detected this scan");
   }
 
-  return newAlerts;
+  return { count: stored, alerts: newAlerts, status: "complete" };
 }
 
 export async function getActiveAlerts(hours = 4, alertType?: string, severity?: string) {

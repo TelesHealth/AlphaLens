@@ -98,7 +98,7 @@ export async function getCoachAnalysis(input: CoachInput) {
 
     const recommendations: string[] = [];
     let riskAssessment: string | null = null;
-    let confidence = 0.75;
+    const confidence = 0.75;
     let mainAnalysis = analysis;
 
     const recIdx = analysis.indexOf("RECOMMENDATIONS:");
@@ -119,14 +119,6 @@ export async function getCoachAnalysis(input: CoachInput) {
         const confIdx = afterRisk.indexOf("CONFIDENCE:");
         const riskLine = confIdx !== -1 ? afterRisk.slice(0, confIdx) : afterRisk;
         riskAssessment = riskLine.trim().split("\n")[0].trim() || null;
-
-        if (confIdx !== -1) {
-          const confStr = afterRisk.slice(confIdx + "CONFIDENCE:".length).trim().split("\n")[0].trim();
-          const parsed = parseInt(confStr, 10);
-          if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
-            confidence = parsed / 100;
-          }
-        }
       }
     } else {
       const lines = analysis.split("\n");

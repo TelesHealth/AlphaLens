@@ -35,11 +35,7 @@ export function Layout({ children }: { children: ReactNode }) {
     <>
       <div className="p-6 mb-4 flex items-center gap-3">
         <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
-          <img 
-            src={`${import.meta.env.BASE_URL}images/logo-mark.png`} 
-            alt="Arclion Logo" 
-            className="w-6 h-6 object-contain"
-          />
+          <span className="font-display font-bold text-xl text-primary text-glow-primary leading-none">A</span>
         </div>
         <span className="font-display font-bold text-xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
           ARCLION
@@ -99,11 +95,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <div className="md:hidden fixed top-0 inset-x-0 h-16 border-b border-border/50 bg-background/95 backdrop-blur-xl z-50 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
-            <img 
-              src={`${import.meta.env.BASE_URL}images/logo-mark.png`} 
-              alt="Logo" 
-              className="w-5 h-5 object-contain"
-            />
+            <span className="font-display font-bold text-base text-primary text-glow-primary leading-none">A</span>
           </div>
           <span className="font-display font-bold text-lg">ARCLION</span>
         </div>

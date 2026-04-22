@@ -41,7 +41,16 @@ async function fetchWithTimeout(url: string, timeoutMs = 10000): Promise<Respons
   }
 }
 
-async function fetchCryptoPrices(): Promise<Map<string, PriceUpdate>> {
+let cryptoCache: Map<string, PriceUpdate> = new Map();
+let cryptoCacheTime = 0;
+const CRYPTO_CACHE_TTL = 30_000;
+
+async function fetchCryptoPrices(bypassCache = false): Promise<Map<string, PriceUpdate>> {
+  if (!bypassCache && cryptoCache.size > 0 && Date.now() - cryptoCacheTime < CRYPTO_CACHE_TTL) {
+    console.warn("CoinGecko: using cached prices (rate limit guard)");
+    return new Map(cryptoCache);
+  }
+
   const results = new Map<string, PriceUpdate>();
   const ids = Object.values(CRYPTO_MAP).join(",");
 
@@ -52,7 +61,7 @@ async function fetchCryptoPrices(): Promise<Map<string, PriceUpdate>> {
 
     if (!res.ok) {
       logger.warn({ status: res.status }, "CoinGecko API error");
-      return results;
+      return new Map(cryptoCache);
     }
 
     const data = await res.json() as Record<string, { usd: number; usd_24h_change: number }>;
@@ -66,6 +75,8 @@ async function fetchCryptoPrices(): Promise<Map<string, PriceUpdate>> {
         });
       }
     }
+    cryptoCache = new Map(results);
+    cryptoCacheTime = Date.now();
     const btc = results.get("BTC")?.currentPrice;
     const eth = results.get("ETH")?.currentPrice;
     const sol = results.get("SOL")?.currentPrice;
@@ -73,8 +84,9 @@ async function fetchCryptoPrices(): Promise<Map<string, PriceUpdate>> {
       `CoinGecko: fresh prices fetched for BTC=$${btc ?? "n/a"}, ETH=$${eth ?? "n/a"}, SOL=$${sol ?? "n/a"}`
     );
   } catch (e: any) {
-    console.warn("CoinGecko: using cached prices (rate limited or fetch failed)");
+    console.warn("CoinGecko: using cached prices (fetch failed)");
     logger.error({ err: e.message }, "Failed to fetch crypto prices");
+    return new Map(cryptoCache);
   }
 
   return results;
@@ -154,13 +166,28 @@ async function fetchPredictionPrices(): Promise<Map<string, PriceUpdate>> {
 
 
 
-export async function refreshAllMarketData(): Promise<number> {
+let isRefreshing = false;
+
+export async function refreshAllMarketData(bypassCache = false): Promise<number | { skipped: true }> {
+  if (isRefreshing) {
+    logger.info("Market refresh already in progress, skipping");
+    return { skipped: true };
+  }
+  isRefreshing = true;
+  try {
+    return await doRefresh(bypassCache);
+  } finally {
+    isRefreshing = false;
+  }
+}
+
+async function doRefresh(bypassCache: boolean): Promise<number> {
   logger.info("Starting market data refresh...");
   let updated = 0;
 
   
   const [cryptoPrices, stockPrices, predictionPrices] = await Promise.all([
-    fetchCryptoPrices(),
+    fetchCryptoPrices(bypassCache),
     fetchStockPrices(),
     fetchPredictionPrices(),
   ]);

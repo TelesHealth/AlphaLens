@@ -49,9 +49,10 @@ router.get("/", async (req, res) => {
       .limit(20);
 
     const totalPnl = closedTrades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
+    const displayBalance = Math.floor(portfolio.balance * 100) / 100;
 
     res.json({
-      balance: portfolio.balance,
+      balance: displayBalance,
       initialBalance: portfolio.initialBalance,
       totalPnl,
       totalPnlPercent:
@@ -71,6 +72,7 @@ router.post("/trade", async (req, res) => {
   try {
     const body = OpenTradeBody.parse(req.body);
     const portfolio = await getOrCreatePortfolio();
+
 
     if (body.amount > portfolio.balance) {
       res.status(400).json({ error: "Insufficient balance" });
@@ -210,7 +212,7 @@ router.get("/stats", async (req, res) => {
       bestTrade: pnls.length > 0 ? Math.max(...pnls) : null,
       worstTrade: pnls.length > 0 ? Math.min(...pnls) : null,
       sharpeRatio: null,
-      balance: portfolio.balance,
+      balance: Math.floor(portfolio.balance * 100) / 100,
       totalPnl,
     });
   } catch (e: any) {

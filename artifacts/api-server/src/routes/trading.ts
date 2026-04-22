@@ -7,6 +7,7 @@ import {
   checkRiskGate,
   getDailyTradeCount,
   getDailyPnl,
+  getPendingOrderCount,
   storePendingOrder,
   logLiveTrade,
   getAccountsStatus,
@@ -72,6 +73,15 @@ router.post("/execute", async (req, res) => {
 
     const dailyTradeCount = await getDailyTradeCount();
     const dailyPnl = await getDailyPnl();
+    const pendingCount = await getPendingOrderCount();
+    if (dailyTradeCount + pendingCount >= RISK.maxDailyTrades) {
+      res.status(400).json({
+        success: false,
+        error: `Daily trade limit (${RISK.maxDailyTrades}) would be exceeded`,
+        platform: "paper",
+      });
+      return;
+    }
     const riskResult = checkRiskGate(rec, amountUsd, 10000, dailyPnl, dailyTradeCount);
     if (!riskResult.passed) {
       res.json({
@@ -150,6 +160,14 @@ router.post("/pending/:id/approve", async (req, res) => {
 
     if (order.status !== "pending_approval") {
       res.json({ status: order.status, orderId: id, message: `Order already ${order.status}` });
+      return;
+    }
+
+    const dailyCount = await getDailyTradeCount();
+    if (dailyCount >= RISK.maxDailyTrades) {
+      res.status(400).json({
+        error: `Daily trade limit (${RISK.maxDailyTrades}) reached — approval blocked`,
+      });
       return;
     }
 

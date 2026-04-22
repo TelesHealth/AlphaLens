@@ -126,10 +126,14 @@ router.post("/:id/score", async (req, res) => {
 
 router.post("/refresh", async (req, res) => {
   try {
-    const updated = await refreshAllMarketData();
+    const result = await refreshAllMarketData(true);
+    if (typeof result === "object" && "skipped" in result) {
+      res.json({ status: "refresh_already_running", refreshed: 0, message: "A market refresh is already in progress." });
+      return;
+    }
     res.json({
-      refreshed: updated,
-      message: `Refreshed ${updated} markets with live data`,
+      refreshed: result,
+      message: `Refreshed ${result} markets with live data`,
     });
   } catch (e: any) {
     req.log.error({ err: e }, "Error refreshing markets");

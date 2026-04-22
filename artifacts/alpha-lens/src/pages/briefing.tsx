@@ -508,9 +508,9 @@ export default function Briefing() {
               </span>
             )}
           </div>
-          <p className="text-sm text-foreground/90 leading-relaxed">
-            {briefing.summary}
-          </p>
+          <div className="text-sm text-foreground/90 leading-relaxed prose prose-invert prose-sm max-w-none [&_p]:m-0 [&_p+p]:mt-2 [&_strong]:text-foreground">
+            <ReactMarkdown>{briefing.summary}</ReactMarkdown>
+          </div>
           <div className="flex items-center gap-4 mt-3 text-[10px] font-mono text-muted-foreground">
             {briefing.tradeCount != null && (
               <span>{briefing.tradeCount} trades</span>
