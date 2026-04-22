@@ -1,0 +1,71 @@
+Fix these two bugs:
+
+BUG #10 — Universal Markdown for All AI Responses
+
+Apply react-markdown rendering to every page that
+displays AI-generated text. Charlize's note:
+"ENSURE THAT ALL AI RESPONSES' MARKDOWN ARE
+FORMATTED PROPERLY AND COMPLETELY. IMPLEMENT UNIVERSAL."
+
+Pages to update:
+
+1. artifacts/alpha-lens/src/pages/briefing.tsx
+   Confirm headline, why array items, historicalContext,
+   and bearCase all use ReactMarkdown not plain
+   <p> or <span>.
+
+2. artifacts/alpha-lens/src/pages/coach.tsx
+   The analysis field and each recommendations
+   array item — wrap in ReactMarkdown.
+
+3. artifacts/alpha-lens/src/pages/scanner.tsx
+   The aiSummary field on market cards —
+   wrap in ReactMarkdown.
+
+4. artifacts/alpha-lens/src/pages/market-detail.tsx
+   The aiSummary field on the detail page —
+   wrap in ReactMarkdown.
+
+5. artifacts/alpha-lens/src/pages/radar.tsx
+   Any AI-generated alert notes or scan summaries —
+   wrap in ReactMarkdown.
+
+Pattern to use everywhere:
+  import ReactMarkdown from 'react-markdown'
+  <ReactMarkdown className="prose prose-sm
+    prose-invert max-w-none">
+    {text ?? ''}
+  </ReactMarkdown>
+
+Run pnpm run typecheck. Zero errors required.
+
+---
+
+BUG #35 — Logo Image Still Says Alpha Lens
+
+The PNG image file in the sidebar still shows
+Alpha Lens branding. The text was updated to
+ARCLION but the image graphic was not.
+
+In artifacts/alpha-lens/src/components/layout.tsx,
+remove the logo image entirely and replace with
+a styled letter mark:
+
+Replace the <img> element with:
+  <div className="w-10 h-10 rounded-xl bg-primary/20
+    border border-primary/30 flex items-center
+    justify-center font-bold text-primary text-lg">
+    A
+  </div>
+
+This gives Arclion a clean letter mark without
+needing a new image asset. The ARCLION text is
+already displaying next to it.
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify on frontend:
+- Sidebar shows "A" letter mark instead of
+  Alpha Lens logo image
+- All AI responses render formatted text with
+  no raw asterisks or markdown symbols
