@@ -10,6 +10,8 @@ import {
   Menu,
   X,
   LogOut,
+  Settings as SettingsIcon,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { clsx, type ClassValue } from "clsx";
@@ -80,14 +82,34 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <div className="p-4 mt-auto space-y-3">
         {user && (
-          <div className="rounded-xl bg-card border border-border p-3 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary text-sm shrink-0">
-              {user.name?.[0]?.toUpperCase() ?? "?"}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium truncate">{user.name}</div>
-              <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-            </div>
+          <div className="rounded-xl bg-card border border-border p-3 flex items-center gap-2">
+            <Link
+              href="/settings"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-90 transition"
+              title="Account settings"
+            >
+              <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary text-sm shrink-0">
+                {user.name?.[0]?.toUpperCase() ?? "?"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                  <span className="truncate">{user.name}</span>
+                  {user.role === "admin" && (
+                    <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" aria-label="Admin" />
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+              </div>
+            </Link>
+            <Link
+              href="/settings"
+              onClick={() => setIsMobileMenuOpen(false)}
+              title="Settings"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition"
+            >
+              <SettingsIcon className="w-4 h-4" />
+            </Link>
             <button
               onClick={handleSignOut}
               title="Sign out"
