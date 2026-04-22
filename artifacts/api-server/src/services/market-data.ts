@@ -210,26 +210,37 @@ async function doRefresh(bypassCache: boolean): Promise<number> {
   const allAssets = await db.select().from(assetsTable);
 
   for (const asset of allAssets) {
+    const isPrediction = predictionPrices.has(asset.symbol);
     const priceUpdate =
       cryptoPrices.get(asset.symbol) ??
       stockPrices.get(asset.symbol) ??
       predictionPrices.get(asset.symbol);
 
     if (priceUpdate) {
-      await db
-        .update(assetsTable)
-        .set({
-          currentPrice: priceUpdate.currentPrice,
-          priceChange24h: priceUpdate.priceChange24h,
-          updatedAt: new Date(),
-        })
-        .where(eq(assetsTable.id, asset.id));
+      const patch: {
+        currentPrice: number;
+        priceChange24h: number;
+        updatedAt: Date;
+        marketProbability?: number;
+      } = {
+        currentPrice: priceUpdate.currentPrice,
+        priceChange24h: priceUpdate.priceChange24h,
+        updatedAt: new Date(),
+      };
+      if (isPrediction) {
+        patch.marketProbability = priceUpdate.currentPrice;
+      }
+      await db.update(assetsTable).set(patch).where(eq(assetsTable.id, asset.id));
       updated++;
       logger.info(
-        { symbol: asset.symbol, price: priceUpdate.currentPrice, change: priceUpdate.priceChange24h },
-        "Updated price"
+        {
+          symbol: asset.symbol,
+          price: priceUpdate.currentPrice,
+          change: priceUpdate.priceChange24h,
+          marketProbability: isPrediction ? priceUpdate.currentPrice : undefined,
+        },
+        "Updated price",
       );
-    
     }
   }
 
