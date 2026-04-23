@@ -2,6 +2,7 @@ import { logger } from "../lib/logger";
 
 const NY_FED_EFFR = "https://markets.newyorkfed.org/api/rates/unsecured/effr/last/1.json";
 const BLS_ENDPOINT = "https://api.bls.gov/publicAPI/v2/timeseries/data/";
+const BEA_ENDPOINT = "https://apps.bea.gov/api/data";
 
 const SERIES_CPI = "CUUR0000SA0";
 const SERIES_UNEMPLOYMENT = "LNS14000000";
@@ -33,16 +34,28 @@ export interface BlsMacro {
   asOf: string;
 }
 
+export interface GdpData {
+  current: number;
+  previous: number;
+  change: number;
+  period: string;
+  source: "BEA";
+}
+
 interface FedCacheEntry { value: FedFundsRate | null; ts: number; }
 interface BlsCacheEntry { value: BlsMacro | null; ts: number; }
+interface GdpCacheEntry { value: GdpData | null; ts: number; }
 
 const CACHE_TTL_OK_MS = 6 * 60 * 60 * 1000;
 const CACHE_TTL_FAIL_MS = 2 * 60 * 1000;
 const BLS_CACHE_TTL_OK_MS = 24 * 60 * 60 * 1000;
 const BLS_CACHE_TTL_FAIL_MS = 5 * 60 * 1000;
+const GDP_CACHE_TTL_OK_MS = 24 * 60 * 60 * 1000;
+const GDP_CACHE_TTL_FAIL_MS = 5 * 60 * 1000;
 
 let fedCache: FedCacheEntry | null = null;
 let blsCache: BlsCacheEntry | null = null;
+let gdpCache: GdpCacheEntry | null = null;
 
 interface NyFedResponse {
   refRates?: Array<{
@@ -190,10 +203,83 @@ export async function fetchUnemploymentRate(): Promise<BlsSeries | null> {
   return m?.unemployment ?? null;
 }
 
+interface BeaDatum {
+  LineDescription?: string;
+  TimePeriod?: string;
+  DataValue?: string;
+}
+
+interface BeaResponse {
+  BEAAPI?: {
+    Results?: {
+      Data?: BeaDatum[];
+      Error?: { APIErrorDescription?: string };
+    };
+    Error?: { APIErrorDescription?: string };
+  };
+}
+
+export async function fetchGDP(): Promise<GdpData | null> {
+  if (gdpCache) {
+    const ttl = gdpCache.value ? GDP_CACHE_TTL_OK_MS : GDP_CACHE_TTL_FAIL_MS;
+    if (Date.now() - gdpCache.ts < ttl) return gdpCache.value;
+  }
+  const key = (process.env.BEA_API_KEY || "").trim();
+  if (!key) {
+    logger.warn("BEA GDP: fetch failed (no BEA_API_KEY)");
+    gdpCache = { value: null, ts: Date.now() };
+    return null;
+  }
+  try {
+    const yearNow = new Date().getUTCFullYear();
+    const years = [yearNow, yearNow - 1, yearNow - 2, yearNow - 3, yearNow - 4].join(",");
+    const params = new URLSearchParams({
+      UserID: key,
+      method: "GetData",
+      DataSetName: "NIPA",
+      TableName: "T10101",
+      Frequency: "Q",
+      Year: years,
+      ResultFormat: "JSON",
+    });
+    const res = await fetch(`${BEA_ENDPOINT}?${params.toString()}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`BEA HTTP ${res.status}`);
+    const json = (await res.json()) as BeaResponse;
+    const apiErr = json.BEAAPI?.Results?.Error?.APIErrorDescription || json.BEAAPI?.Error?.APIErrorDescription;
+    if (apiErr) throw new Error(`BEA API error: ${apiErr}`);
+    const allData = json.BEAAPI?.Results?.Data ?? [];
+    const gdpRows = allData
+      .filter((d) => d.LineDescription === "Gross domestic product")
+      .sort((a, b) => (b.TimePeriod ?? "").localeCompare(a.TimePeriod ?? ""));
+    if (gdpRows.length < 2) throw new Error("BEA GDP: insufficient quarters in response");
+    const current = parseFloat((gdpRows[0].DataValue ?? "").replace(/,/g, ""));
+    const previous = parseFloat((gdpRows[1].DataValue ?? "").replace(/,/g, ""));
+    if (isNaN(current) || isNaN(previous) || previous === 0) throw new Error("BEA GDP: invalid DataValue");
+    const change = parseFloat((((current - previous) / previous) * 100).toFixed(2));
+    const value: GdpData = {
+      current,
+      previous,
+      change,
+      period: gdpRows[0].TimePeriod ?? "",
+      source: "BEA",
+    };
+    logger.info(`BEA GDP: ${value.current} (QoQ change: ${value.change}%)`);
+    gdpCache = { value, ts: Date.now() };
+    return value;
+  } catch (e: any) {
+    logger.warn(`BEA GDP: fetch failed — ${e?.message ?? e}`);
+    gdpCache = { value: null, ts: Date.now() };
+    return null;
+  }
+}
+
 export async function fetchMacroContext(): Promise<string> {
-  const settled = await Promise.allSettled([getFedFundsRate(), fetchBLSMacro()]);
+  const settled = await Promise.allSettled([getFedFundsRate(), fetchBLSMacro(), fetchGDP()]);
   const fed = settled[0].status === "fulfilled" ? settled[0].value : null;
   const bls = settled[1].status === "fulfilled" ? settled[1].value : null;
+  const gdp = settled[2].status === "fulfilled" ? settled[2].value : null;
   const lines: string[] = [];
   if (fed) {
     lines.push(
@@ -209,6 +295,11 @@ export async function fetchMacroContext(): Promise<string> {
     const u = bls.unemployment;
     const delta = u.change != null ? ` (${u.change >= 0 ? "+" : ""}${u.change.toFixed(2)}pp MoM)` : "";
     lines.push(`- Unemployment Rate (SA): ${u.current.value.toFixed(2)}%${delta} — period ${u.current.date}`);
+  }
+  if (gdp) {
+    lines.push(
+      `- GDP Growth: ${gdp.change >= 0 ? "+" : ""}${gdp.change.toFixed(2)}% QoQ (current ${gdp.current}, prev ${gdp.previous}) — period ${gdp.period} — Source: BEA`
+    );
   }
   if (lines.length === 0) return "";
   return `\n\nMACRO CONTEXT:\n${lines.join("\n")}`;

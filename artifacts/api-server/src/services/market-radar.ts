@@ -663,6 +663,11 @@ export function getRadarStatus() {
         ? "Bureau of Labor Statistics — registered key (500 calls/day). CPI + Unemployment."
         : "Bureau of Labor Statistics — add BLS_API_KEY to Secrets to enable (500 calls/day with registered key).",
     },
+    bea: {
+      status: process.env.BEA_API_KEY ? "active" : "not_configured",
+      tier: "free",
+      note: "BEA — GDP growth rate. Quarterly data, 24h cache.",
+    },
   };
 
   const activeCount = Object.values(sources).filter((s) => s.status === "active").length;

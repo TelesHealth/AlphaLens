@@ -15,7 +15,7 @@ import {
   fetchCryptoWhaleAlerts,
 } from "../services/unusual-whales";
 import { fetchAllPredictionPrices } from "../services/kalshi-markets";
-import { fetchBLSMacro } from "../services/macro-data";
+import { fetchBLSMacro, fetchGDP } from "../services/macro-data";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -213,6 +213,28 @@ router.get("/macro/bls", async (_req, res) => {
   } catch (e: any) {
     logger.error({ err: e.message }, "GET /radar/macro/bls failed");
     res.status(500).json({ error: "Failed to fetch BLS macro data" });
+  }
+});
+
+router.get("/macro/bea", async (_req, res) => {
+  if (!process.env.BEA_API_KEY) {
+    res.status(503).json({ error: "BEA not configured — add BEA_API_KEY to Secrets" });
+    return;
+  }
+  try {
+    const data = await fetchGDP();
+    if (!data) {
+      res.status(503).json({ error: "BEA data temporarily unavailable" });
+      return;
+    }
+    res.json({
+      gdp: data,
+      source: "Bureau of Economic Analysis",
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e: any) {
+    logger.error({ err: e.message }, "GET /radar/macro/bea failed");
+    res.status(500).json({ error: "Failed to fetch BEA macro data" });
   }
 });
 
