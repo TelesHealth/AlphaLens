@@ -1,0 +1,97 @@
+Add BEA (Bureau of Economic Analysis) GDP data to
+artifacts/api-server/src/services/macro-data.ts
+
+BEA API base URL:
+https://apps.bea.gov/api/data
+
+API key env var: process.env.BEA_API_KEY
+
+STEP 1 — Add fetchGDP() function
+
+GET request to BEA API:
+https://apps.bea.gov/api/data?
+  UserID={BEA_API_KEY}
+  &method=GetData
+  &DataSetName=NIPA
+  &TableName=T10101
+  &Frequency=Q
+  &Year=LAST5
+  &ResultFormat=JSON
+
+Parse response:
+  Find the "Gross domestic product" line item
+  in BEAAPIResponse.BEAAPI.Results.Data
+  Filter where LineDescription === 
+    "Gross domestic product"
+  Sort by TimePeriod descending
+  Take two most recent quarters
+
+  current = parseFloat(data[0].DataValue
+    .replace(/,/g, ''))
+  previous = parseFloat(data[1].DataValue
+    .replace(/,/g, ''))
+  change = parseFloat(
+    (((current - previous) / previous) * 100)
+    .toFixed(2)
+  )
+  period = data[0].TimePeriod (e.g. "2025Q4")
+
+Return:
+{
+  current,
+  previous,
+  change,
+  period,
+  source: "BEA"
+}
+
+On any error: return null. Never throw.
+Log: "BEA GDP: {current} (QoQ change: {change}%)"
+On failure: "BEA GDP: fetch failed"
+
+Add 24-hour cache — GDP is quarterly data.
+Short TTL (5 min) on failures.
+
+STEP 2 — Wire into fetchMacroContext()
+
+Add GDP to the macro context string Claude receives:
+
+"MACRO CONTEXT:
+Fed Funds Rate: X% — Source: NY Fed
+CPI Inflation: X (MoM change: X%) — Source: BLS
+Unemployment Rate: X% (change: X%) — Source: BLS
+GDP Growth: X% QoQ (prev: X%) — Source: BEA"
+
+Call fetchGDP() alongside existing macro calls
+using Promise.allSettled.
+
+STEP 3 — Add to radar status
+
+In artifacts/api-server/src/routes/radar.ts,
+update the bea entry in sources:
+
+bea: {
+  status: process.env.BEA_API_KEY
+    ? "active" : "not_configured",
+  tier: "free",
+  note: "BEA — GDP growth rate. Quarterly data,
+         24h cache."
+}
+
+STEP 4 — Add dedicated endpoint
+
+GET /api/radar/macro/bea
+  Requires: requireAuth middleware
+  Calls fetchGDP()
+  Returns GDP data object plus updatedAt.
+  503 if BEA_API_KEY not configured.
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify:
+1. GET /api/radar/status — bea shows active
+2. GET /api/radar/macro/bea — returns real
+   GDP values with period and change
+3. GET /api/radar/macro/bls — still working
+4. POST /api/recommendations/scan then check
+   briefing references GDP in macro context
