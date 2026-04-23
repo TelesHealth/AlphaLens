@@ -1,0 +1,79 @@
+Fix the AI Coach to always inject live market data
+context into every Claude request, regardless of
+whether an asset is selected.
+
+Root cause confirmed: when no assetId is provided,
+the coach sends zero live data to Claude. Claude
+then correctly says it has no real-time access
+because it genuinely hasn't been given any.
+
+Fix in artifacts/api-server/src/services/coach.ts:
+
+STEP 1 — Always inject market snapshot
+
+At the start of every coach request, fetch:
+1. Top 5 assets by alpha score from the assets table
+   (id, name, symbol, currentPrice, aiProbability,
+   marketProbability, edge, direction)
+2. Current macro context from fetchMacroContext()
+   (already built in macro-data.ts)
+3. Latest briefing summary from daily_briefings table
+   (most recent summary field only)
+
+Build a market snapshot string:
+"LIVE MARKET DATA (as of [timestamp]):
+Top opportunities by edge:
+- [name] ([symbol]): price $[X], AI [X]%
+  vs market [X]%, edge +[X]pts, [direction]
+- [repeat for top 5]
+
+Latest briefing: [summary excerpt, 100 chars max]
+
+[macro context string from fetchMacroContext()]"
+
+STEP 2 — Update system prompt
+
+The current COACH_PROMPT tells Claude it is a
+trading coach but does not tell it live data
+is available.
+
+Update the system prompt to include:
+
+"You have access to live market data including
+current prices, AI probability scores, edge
+calculations, and macro indicators (Fed funds
+rate, CPI, unemployment, GDP). This data is
+injected into every conversation. Use it to
+give specific, data-driven answers. Never say
+you lack real-time data — you have it."
+
+STEP 3 — Asset-specific context (existing, verify)
+
+When assetId IS provided, the existing asset
+fetch and signals injection should still work.
+Confirm this path is still intact after the
+changes above.
+
+STEP 4 — Inject in correct order
+
+The final prompt sent to Claude should be:
+1. System prompt (updated with live data notice)
+2. Market snapshot (always present)
+3. Asset-specific context (when assetId provided)
+4. Macro context (always present)
+5. User question
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify:
+Ask the AI Coach "what markets look good right now?"
+without selecting any asset. The response should
+reference specific assets by name with current
+prices and edge values, not generic advice.
+
+Ask "what is the current Fed funds rate?"
+The response should say 3.75% from live data.
+
+Ask "how is BTC doing?"
+The response should quote the current BTC price
+from the live market snapshot.

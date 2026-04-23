@@ -1,7 +1,7 @@
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { db } from "@workspace/db";
-import { assetsTable, signalsTable } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { assetsTable, signalsTable, dailyBriefingsTable } from "@workspace/db/schema";
+import { eq, desc, sql } from "drizzle-orm";
 import { fetchMacroContext } from "./macro-data";
 
 const COACH_PROMPT = `You are Arclion's elite AI trading coach, an investment intelligence platform.
@@ -75,24 +75,54 @@ async function buildAssetContext(assetId: number): Promise<string> {
   }
 }
 
-async function buildMarketSnapshot(): Promise<string> {
+async function buildMarketSnapshot(question: string): Promise<string> {
   try {
+    const top = await db
+      .select()
+      .from(assetsTable)
+      .orderBy(sql`${assetsTable.alphaScore} DESC NULLS LAST`)
+      .limit(5);
+
     const allAssets = await db.select().from(assetsTable);
-    if (allAssets.length === 0) return "";
-    const lines: string[] = ["LIVE MARKET SNAPSHOT (real-time):"];
-    for (const a of allAssets) {
-      const parts: string[] = [];
-      parts.push(`- ${a.name} (${a.symbol})`);
-      if (a.currentPrice != null) parts.push(`price=$${a.currentPrice}`);
-      if (a.priceChange24h != null) parts.push(`24h=${a.priceChange24h >= 0 ? "+" : ""}${a.priceChange24h}%`);
-      if (a.aiProbability != null) parts.push(`AI=${a.aiProbability}%`);
-      if (a.marketProbability != null) parts.push(`Mkt=${a.marketProbability}%`);
-      if (a.edge != null) parts.push(`edge=${a.edge >= 0 ? "+" : ""}${a.edge}pts`);
-      if (a.sector) parts.push(`sector=${a.sector}`);
-      lines.push(parts.join(" | "));
+    const q = question.toLowerCase();
+    const seen = new Set(top.map((a) => a.id));
+    const mentioned = allAssets.filter(
+      (a) =>
+        !seen.has(a.id) &&
+        ((a.symbol && q.includes(a.symbol.toLowerCase())) ||
+          (a.name && q.includes(a.name.toLowerCase()))),
+    );
+    const combined = [...top, ...mentioned];
+    if (combined.length === 0) return "";
+    const lines: string[] = [
+      `LIVE MARKET DATA (as of ${new Date().toISOString()}):`,
+      "Top opportunities by alpha score:",
+    ];
+    for (const a of combined) {
+      const parts: string[] = [`- ${a.name} (${a.symbol})`];
+      if (a.currentPrice != null) parts.push(`price $${a.currentPrice}`);
+      if (a.aiProbability != null) parts.push(`AI ${a.aiProbability}%`);
+      if (a.marketProbability != null) parts.push(`vs market ${a.marketProbability}%`);
+      if (a.edge != null) parts.push(`edge ${a.edge >= 0 ? "+" : ""}${a.edge}pts`);
+      if (a.direction) parts.push(`${a.direction}`);
+      lines.push(parts.join(", "));
     }
-    lines.push(`\nSnapshot generated: ${new Date().toISOString()}`);
     return lines.join("\n");
+  } catch {
+    return "";
+  }
+}
+
+async function buildLatestBriefing(): Promise<string> {
+  try {
+    const [b] = await db
+      .select({ summary: dailyBriefingsTable.summary })
+      .from(dailyBriefingsTable)
+      .orderBy(desc(dailyBriefingsTable.id))
+      .limit(1);
+    if (!b?.summary) return "";
+    const excerpt = b.summary.length > 100 ? b.summary.slice(0, 100) + "…" : b.summary;
+    return `Latest briefing: ${excerpt}`;
   } catch {
     return "";
   }
@@ -103,15 +133,18 @@ export async function getCoachAnalysis(input: CoachInput) {
   if (input.assetId != null) {
     assetContext = await buildAssetContext(input.assetId);
   }
-  const [marketSnapshot, macroContext] = await Promise.all([
-    buildMarketSnapshot(),
+  const [marketSnapshot, briefingLine, macroContext] = await Promise.all([
+    buildMarketSnapshot(input.question),
+    buildLatestBriefing(),
     fetchMacroContext(),
   ]);
   const macroBlock = macroContext.replace(/^\n+/, "").trim();
-  const contextParts = [marketSnapshot, macroBlock, assetContext, input.context]
+  const contextParts = [marketSnapshot, briefingLine, assetContext, macroBlock, input.context]
     .filter(Boolean)
     .join("\n\n");
-  const prompt = `${input.question}${contextParts ? `\n\n--- LIVE DATA AVAILABLE ---\n${contextParts}\n--- END LIVE DATA ---` : ""}`;
+  const prompt = contextParts
+    ? `--- LIVE DATA AVAILABLE ---\n${contextParts}\n--- END LIVE DATA ---\n\nUser question: ${input.question}`
+    : `User question: ${input.question}`;
 
   try {
     const response = await anthropic.messages.create({
