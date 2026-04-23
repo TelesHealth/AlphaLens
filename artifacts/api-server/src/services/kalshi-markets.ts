@@ -142,6 +142,8 @@ async function fetchFedCutProbability(): Promise<number | null> {
   const cached = cache.get(cacheKey);
   if (cached && Date.now() - cached.ts < CACHE_TTL_MS) return cached.value;
 
+  const HORIZON = new Date("2026-08-01T00:00:00Z").getTime();
+
   try {
     const markets = await fetchSeriesMarkets("KXFED");
     if (!markets.length) {
@@ -150,7 +152,7 @@ async function fetchFedCutProbability(): Promise<number | null> {
       return null;
     }
 
-    // Group by event_ticker, pick the nearest upcoming FOMC event
+    // Group by event_ticker
     const byEvent = new Map<string, KalshiMarket[]>();
     for (const m of markets) {
       const ev = m.event_ticker ?? "_";
@@ -158,77 +160,86 @@ async function fetchFedCutProbability(): Promise<number | null> {
       arr.push(m);
       byEvent.set(ev, arr);
     }
-    const eventKey = (e: string) => {
+    const eventCloseTs = (e: string): number => {
       const arr = byEvent.get(e) ?? [];
       const t = arr[0]?.close_time ?? arr[0]?.expiration_time ?? "";
-      return t || "9999";
+      const ms = t ? Date.parse(t) : NaN;
+      return Number.isFinite(ms) ? ms : Infinity;
     };
-    const nearestEvent = [...byEvent.keys()].sort((a, b) => eventKey(a).localeCompare(eventKey(b)))[0];
-    const eventMarkets = (byEvent.get(nearestEvent) ?? []).filter((m) => typeof m.floor_strike === "number");
 
-    if (!eventMarkets.length) {
-      logger.warn(`Kalshi KXFED: nearest event ${nearestEvent} has no strike data`);
-      cache.set(cacheKey, { value: null, ts: Date.now() });
-      return null;
-    }
+    const allEventsSorted = [...byEvent.keys()].sort((a, b) => eventCloseTs(a) - eventCloseTs(b));
+    const horizonEvents = allEventsSorted.filter((e) => eventCloseTs(e) < HORIZON);
 
     const rate = await getFedFundsRate();
-    let cutProb: number | null = null;
-    let logCurrentRate = "unknown";
-    let logSource = "";
+    const logCurrentRate = rate ? rate.targetUpper.toFixed(2) : "unknown";
 
-    if (rate) {
-      logCurrentRate = `${rate.targetUpper.toFixed(2)}`;
-      // Cut = next FOMC sets upper bound BELOW current upper.
-      // YES on "rate above (currentUpper - 0.25)" = probability rate stays AT current or higher = NO cut.
-      // So cut prob = 1 - YES at strike = currentUpper - 0.25.
-      const targetStrike = rate.targetUpper - 0.25;
-      let best: KalshiMarket | null = null;
-      let bestDelta = Infinity;
-      for (const m of eventMarkets) {
-        const d = Math.abs((m.floor_strike as number) - targetStrike);
-        if (d < bestDelta) {
-          bestDelta = d;
-          best = m;
+    // Helper: compute hold probability (0..1) for one event
+    const holdProbForEvent = (ev: string): { ev: string; ticker: string; holdProb: number } | null => {
+      const eventMarkets = (byEvent.get(ev) ?? []).filter((m) => typeof m.floor_strike === "number");
+      if (!eventMarkets.length) return null;
+
+      let chosen: KalshiMarket | null = null;
+      if (rate) {
+        const targetStrike = rate.targetUpper - 0.25;
+        let bestDelta = Infinity;
+        for (const m of eventMarkets) {
+          const d = Math.abs((m.floor_strike as number) - targetStrike);
+          if (d < bestDelta) {
+            bestDelta = d;
+            chosen = m;
+          }
+        }
+      } else {
+        // Fallback: pivot at strike where YES is closest to 50%
+        let pivotDelta = Infinity;
+        for (const m of eventMarkets) {
+          const yes = priceFromMarket(m);
+          if (yes == null) continue;
+          const d = Math.abs(yes - 50);
+          if (d < pivotDelta) {
+            pivotDelta = d;
+            chosen = m;
+          }
         }
       }
-      const yesPct = priceFromMarket(best);
-      if (yesPct != null) {
-        cutProb = Math.max(0, Math.min(100, 100 - yesPct));
-        logSource = `1 - YES(${best?.ticker}@${(best?.floor_strike as number).toFixed(2)})=${100 - yesPct}%`;
-      }
-    } else {
-      // Fallback: contract whose strike matches market-implied current rate (YES closest to 50%)
-      // gives "rate stays at/above current" — its NO price ≈ cut probability.
-      let pivot: KalshiMarket | null = null;
-      let pivotDelta = Infinity;
-      for (const m of eventMarkets) {
-        const yes = priceFromMarket(m);
-        if (yes == null) continue;
-        const d = Math.abs(yes - 50);
-        if (d < pivotDelta) {
-          pivotDelta = d;
-          pivot = m;
-        }
-      }
-      const yesPct = priceFromMarket(pivot);
-      if (yesPct != null) {
-        cutProb = Math.max(0, Math.min(100, 100 - yesPct));
-        logSource = `fallback: 100 - YES(${pivot?.ticker})=${100 - yesPct}%`;
+      const yesPct = priceFromMarket(chosen);
+      if (yesPct == null || !chosen) return null;
+      return { ev, ticker: chosen.ticker, holdProb: yesPct / 100 };
+    };
+
+    // Cumulative path: at least 2 events before horizon
+    if (horizonEvents.length >= 2) {
+      const contributions = horizonEvents
+        .map(holdProbForEvent)
+        .filter((x): x is { ev: string; ticker: string; holdProb: number } => x != null);
+
+      if (contributions.length >= 2) {
+        const cumulativeHold = contributions.reduce((acc, c) => acc * c.holdProb, 1);
+        const cutProb = Math.round((1 - cumulativeHold) * 100);
+        const holdList = contributions
+          .map((c) => `${c.ev}=${Math.round(c.holdProb * 100)}%`)
+          .join(", ");
+        logger.info(
+          `Kalshi KXFED: cumulative cut probability by July 2026 = ${cutProb}% across ${contributions.length} FOMC events (hold probs: ${holdList}), current rate ${logCurrentRate}%`,
+        );
+        cache.set(cacheKey, { value: cutProb, ts: Date.now() });
+        return cutProb;
       }
     }
 
-    if (cutProb == null) {
-      logger.warn(`Kalshi KXFED: could not compute cut probability from ${eventMarkets.length} strikes`);
-    } else {
-      const rounded = Math.round(cutProb);
+    // Fallback: single nearest event
+    const nearest = allEventsSorted[0];
+    const single = nearest ? holdProbForEvent(nearest) : null;
+    if (single) {
+      const cutProb = Math.max(0, Math.min(100, Math.round((1 - single.holdProb) * 100)));
       logger.info(
-        `Kalshi KXFED: cut probability calculated as ${rounded}% from ${eventMarkets.length} strike contracts, current rate ${logCurrentRate}% [${logSource}]`,
+        `Kalshi KXFED: single-event cut probability = ${cutProb}% from event ${single.ev} [${single.ticker}, hold=${Math.round(single.holdProb * 100)}%], current rate ${logCurrentRate}% (only ${horizonEvents.length} qualifying event before Aug 2026)`,
       );
-      cache.set(cacheKey, { value: rounded, ts: Date.now() });
-      return rounded;
+      cache.set(cacheKey, { value: cutProb, ts: Date.now() });
+      return cutProb;
     }
 
+    logger.warn(`Kalshi KXFED: could not compute cut probability (${byEvent.size} events, ${horizonEvents.length} before horizon)`);
     cache.set(cacheKey, { value: null, ts: Date.now() });
     return null;
   } catch (e: any) {

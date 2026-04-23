@@ -1,0 +1,67 @@
+Extend fetchFedCutProbability() in
+artifacts/api-server/src/services/kalshi-markets.ts
+to calculate cumulative cut probability across all
+KXFED events through July 2026, not just the
+nearest meeting.
+
+The FED-CUT asset is titled "Fed Rate Cut by July
+2026" — so the correct market price is the
+probability of at least one cut occurring at ANY
+FOMC meeting between now and July 2026.
+
+Probability math:
+  P(at least one cut by July) =
+  1 - P(no cut at meeting 1) × P(no cut at meeting 2) × ...
+
+Where P(no cut at meeting N) = the YES price of
+the contract at the current rate threshold for
+that meeting's KXFED event.
+
+Implementation:
+
+1. Fetch all open KXFED events (not just nearest).
+   Group markets by event_ticker.
+   Filter events where close_time is before
+   August 1, 2026 (covers all meetings through July).
+
+2. For each qualifying event, find the contract
+   at the current rate threshold (targetUpper - 0.25)
+   using the same logic as the existing single-event
+   calculation.
+   
+   Extract holdProbability = YES price / 100
+   (probability Fed holds at that meeting)
+
+3. Calculate cumulative cut probability:
+   cumulativeHoldProb = holdProbabilities.reduce(
+     (acc, p) => acc * p, 1
+   )
+   cutProbability = Math.round(
+     (1 - cumulativeHoldProb) * 100
+   )
+
+4. Update the log line:
+   "Kalshi KXFED: cumulative cut probability by
+   July 2026 = {X}% across {N} FOMC events
+   (hold probs: {p1}%, {p2}%, ...)"
+
+5. Fall back to single-event calculation if fewer
+   than 2 events are found before August 2026.
+
+6. Fall back to null if calculation fails entirely.
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify:
+GET /api/radar/prediction-prices — fedCut should
+now return a meaningful probability (likely 15-40%
+range) reflecting cumulative cut probability across
+multiple FOMC meetings through July 2026.
+
+Console should show the new log format listing
+all contributing events.
+
+Then trigger POST /api/recommendations/scan and
+confirm the next briefing shows a fedCut market
+price in the 15-40% range with a correspondingly
+adjusted edge calculation.
