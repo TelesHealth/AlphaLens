@@ -193,6 +193,10 @@ router.get("/prediction-prices", async (_req, res) => {
 });
 
 router.get("/macro/bls", async (_req, res) => {
+  if (!process.env.BLS_API_KEY) {
+    res.status(503).json({ error: "BLS not configured — add BLS_API_KEY to Secrets" });
+    return;
+  }
   try {
     const data = await fetchBLSMacro();
     if (!data) {

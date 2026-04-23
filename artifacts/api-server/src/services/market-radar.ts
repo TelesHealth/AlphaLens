@@ -657,11 +657,11 @@ export function getRadarStatus() {
       note: "Kalshi live prediction market prices — no API key required. Fed rate cut, recession, BTC $100K probabilities.",
     },
     bls: {
-      status: "active",
-      tier: process.env.BLS_API_KEY ? "registered" : "unregistered",
+      status: process.env.BLS_API_KEY ? "active" : "not_configured",
+      tier: process.env.BLS_API_KEY ? "registered" : "none",
       note: process.env.BLS_API_KEY
-        ? "Bureau of Labor Statistics — registered key (500 calls/day). CPI + Unemployment. Auto-falls back to unregistered if key invalid."
-        : "Bureau of Labor Statistics — unregistered access (25 calls/day). Add BLS_API_KEY for 500/day.",
+        ? "Bureau of Labor Statistics — registered key (500 calls/day). CPI + Unemployment."
+        : "Bureau of Labor Statistics — add BLS_API_KEY to Secrets to enable (500 calls/day with registered key).",
     },
   };
 

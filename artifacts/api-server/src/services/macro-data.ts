@@ -191,7 +191,9 @@ export async function fetchUnemploymentRate(): Promise<BlsSeries | null> {
 }
 
 export async function fetchMacroContext(): Promise<string> {
-  const [fed, bls] = await Promise.all([getFedFundsRate(), fetchBLSMacro()]);
+  const settled = await Promise.allSettled([getFedFundsRate(), fetchBLSMacro()]);
+  const fed = settled[0].status === "fulfilled" ? settled[0].value : null;
+  const bls = settled[1].status === "fulfilled" ? settled[1].value : null;
   const lines: string[] = [];
   if (fed) {
     lines.push(
