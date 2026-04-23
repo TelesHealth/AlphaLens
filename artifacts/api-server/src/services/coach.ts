@@ -2,12 +2,15 @@ import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { db } from "@workspace/db";
 import { assetsTable, signalsTable } from "@workspace/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { fetchMacroContext } from "./macro-data";
 
 const COACH_PROMPT = `You are Arclion's elite AI trading coach, an investment intelligence platform.
 
+IMPORTANT: You DO have access to live market data. Every user message includes a LIVE MARKET SNAPSHOT (real-time prices for major assets, AI vs market edges) and MACRO CONTEXT (Fed Funds Rate, CPI, Unemployment, GDP, prediction-market probabilities). NEVER tell the user you don't have access to current prices or real-time data — quote the numbers from the snapshot directly. The data is already there in the prompt below.
+
 You provide personalized, actionable coaching to traders analyzing markets. Your tone is:
 - Direct and confident, like a seasoned trading desk mentor
-- Data-driven — reference specific numbers and evidence
+- Data-driven — reference specific numbers and evidence from the snapshot
 - Balanced — always present bull AND bear cases
 - Educational — explain WHY, not just WHAT
 
@@ -72,13 +75,43 @@ async function buildAssetContext(assetId: number): Promise<string> {
   }
 }
 
+async function buildMarketSnapshot(): Promise<string> {
+  try {
+    const allAssets = await db.select().from(assetsTable);
+    if (allAssets.length === 0) return "";
+    const lines: string[] = ["LIVE MARKET SNAPSHOT (real-time):"];
+    for (const a of allAssets) {
+      const parts: string[] = [];
+      parts.push(`- ${a.name} (${a.symbol})`);
+      if (a.currentPrice != null) parts.push(`price=$${a.currentPrice}`);
+      if (a.priceChange24h != null) parts.push(`24h=${a.priceChange24h >= 0 ? "+" : ""}${a.priceChange24h}%`);
+      if (a.aiProbability != null) parts.push(`AI=${a.aiProbability}%`);
+      if (a.marketProbability != null) parts.push(`Mkt=${a.marketProbability}%`);
+      if (a.edge != null) parts.push(`edge=${a.edge >= 0 ? "+" : ""}${a.edge}pts`);
+      if (a.sector) parts.push(`sector=${a.sector}`);
+      lines.push(parts.join(" | "));
+    }
+    lines.push(`\nSnapshot generated: ${new Date().toISOString()}`);
+    return lines.join("\n");
+  } catch {
+    return "";
+  }
+}
+
 export async function getCoachAnalysis(input: CoachInput) {
   let assetContext = "";
   if (input.assetId != null) {
     assetContext = await buildAssetContext(input.assetId);
   }
-  const contextParts = [assetContext, input.context].filter(Boolean).join("\n\n");
-  const prompt = `${input.question}${contextParts ? `\n\nAdditional context:\n${contextParts}` : ""}`;
+  const [marketSnapshot, macroContext] = await Promise.all([
+    buildMarketSnapshot(),
+    fetchMacroContext(),
+  ]);
+  const macroBlock = macroContext.replace(/^\n+/, "").trim();
+  const contextParts = [marketSnapshot, macroBlock, assetContext, input.context]
+    .filter(Boolean)
+    .join("\n\n");
+  const prompt = `${input.question}${contextParts ? `\n\n--- LIVE DATA AVAILABLE ---\n${contextParts}\n--- END LIVE DATA ---` : ""}`;
 
   try {
     const response = await anthropic.messages.create({
