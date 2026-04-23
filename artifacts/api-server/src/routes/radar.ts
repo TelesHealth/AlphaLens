@@ -15,6 +15,7 @@ import {
   fetchCryptoWhaleAlerts,
 } from "../services/unusual-whales";
 import { fetchAllPredictionPrices } from "../services/kalshi-markets";
+import { fetchBLSMacro } from "../services/macro-data";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -188,6 +189,26 @@ router.get("/prediction-prices", async (_req, res) => {
   } catch (e: any) {
     logger.error({ err: e.message }, "GET /radar/prediction-prices failed");
     res.status(500).json({ error: "Failed to fetch prediction prices" });
+  }
+});
+
+router.get("/macro/bls", async (_req, res) => {
+  try {
+    const data = await fetchBLSMacro();
+    if (!data) {
+      res.status(503).json({ error: "BLS data temporarily unavailable" });
+      return;
+    }
+    res.json({
+      cpi: data.cpi,
+      unemployment: data.unemployment,
+      asOf: data.asOf,
+      source: "Bureau of Labor Statistics",
+      registered: !!process.env.BLS_API_KEY,
+    });
+  } catch (e: any) {
+    logger.error({ err: e.message }, "GET /radar/macro/bls failed");
+    res.status(500).json({ error: "Failed to fetch BLS macro data" });
   }
 });
 

@@ -1,0 +1,150 @@
+Add BLS (Bureau of Labor Statistics) macro data to the
+existing macro-data.ts service in
+artifacts/api-server/src/services/macro-data.ts
+
+BLS API documentation is confirmed. Use these exact
+endpoints:
+
+BASE URL: https://api.bls.gov/publicAPI/v2/timeseries/data/
+METHOD: POST
+HEADER: Content-Type: application/json
+API KEY ENV VAR: process.env.BLS_API_KEY
+
+STEP 1 — Add fetchCPI() function
+
+POST to BLS API with this payload:
+{
+  "seriesid": ["CUUR0000SA0"],
+  "startyear": "currentYear - 1",
+  "endyear": "currentYear",
+  "registrationkey": process.env.BLS_API_KEY || ""
+}
+
+Series CUUR0000SA0 = Consumer Price Index,
+All Urban Consumers, All Items.
+
+Parse response:
+  Results.series[0].data — sorted by year+period
+  descending. Take the two most recent entries.
+  current = parseFloat(data[0].value)
+  previous = parseFloat(data[1].value)
+  change = parseFloat(
+    (((current - previous) / previous) * 100).toFixed(2)
+  )
+  date = data[0].year + "-" + data[0].period
+
+Return:
+{
+  current,
+  previous,
+  change,
+  date,
+  source: "BLS"
+}
+
+On any error: return null. Never throw.
+Log: "BLS CPI: {current} (change: {change}%)"
+On failure: "BLS CPI: fetch failed"
+
+STEP 2 — Add fetchUnemploymentRate() function
+
+Same POST pattern with series:
+{
+  "seriesid": ["LNS14000000"],
+  "startyear": "currentYear - 1",
+  "endyear": "currentYear",
+  "registrationkey": process.env.BLS_API_KEY || ""
+}
+
+Series LNS14000000 = Unemployment Rate,
+Seasonally Adjusted.
+
+Same parsing pattern as CPI.
+
+Return:
+{
+  current,
+  previous,
+  change,
+  date,
+  source: "BLS"
+}
+
+Log: "BLS Unemployment: {current}% (change: {change}%)"
+
+STEP 3 — Add fetchBLSMacro() function
+
+Fetch both series in a single POST request
+for efficiency:
+{
+  "seriesid": ["CUUR0000SA0", "LNS14000000"],
+  "startyear": "currentYear - 1",
+  "endyear": "currentYear",
+  "registrationkey": process.env.BLS_API_KEY || ""
+}
+
+Parse both series from the response.
+Use Promise pattern — single API call,
+split results by seriesID.
+
+Return:
+{
+  cpi: { current, previous, change, date, source },
+  unemployment: { current, previous, change, date, source }
+}
+
+Add 24-hour cache — BLS data is monthly,
+no need to fetch more than once per day.
+Short TTL (5 min) on failures.
+
+STEP 4 — Wire into fetchMacroContext()
+
+The existing fetchMacroContext() function in
+macro-data.ts builds a formatted string for Claude.
+
+Add BLS data to the context string:
+
+"MACRO CONTEXT:
+Fed Funds Rate: X% — Source: NY Fed
+CPI Inflation: X (MoM change: X%) — Source: BLS
+Unemployment Rate: X% (change: X%) — Source: BLS
+[existing GDP and other fields if present]"
+
+Call fetchBLSMacro() alongside the existing
+NY Fed call using Promise.allSettled.
+
+STEP 5 — Add to radar status
+
+In artifacts/api-server/src/routes/radar.ts,
+update the bls entry in sources:
+
+bls: {
+  status: process.env.BLS_API_KEY
+    ? "active" : "not_configured",
+  tier: "free",
+  note: "BLS — CPI and unemployment rate.
+         Monthly data, 24h cache."
+}
+
+STEP 6 — Add dedicated endpoint
+
+In artifacts/api-server/src/routes/radar.ts:
+
+GET /api/radar/macro/bls
+  Requires: requireAuth middleware
+  Calls fetchBLSMacro()
+  Returns the full BLS data object plus
+  updatedAt timestamp.
+  503 if BLS_API_KEY not configured.
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify:
+1. GET /api/radar/status — bls shows active
+   if BLS_API_KEY is set
+2. GET /api/radar/macro/bls — returns CPI
+   and unemployment with real values
+3. POST /api/recommendations/scan then
+   GET /api/recommendations/briefing —
+   confirm macro context in AI summary
+   references CPI or unemployment data

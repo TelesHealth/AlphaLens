@@ -656,6 +656,13 @@ export function getRadarStatus() {
       tier: "free",
       note: "Kalshi live prediction market prices — no API key required. Fed rate cut, recession, BTC $100K probabilities.",
     },
+    bls: {
+      status: "active",
+      tier: process.env.BLS_API_KEY ? "registered" : "unregistered",
+      note: process.env.BLS_API_KEY
+        ? "Bureau of Labor Statistics — registered key (500 calls/day). CPI + Unemployment. Auto-falls back to unregistered if key invalid."
+        : "Bureau of Labor Statistics — unregistered access (25 calls/day). Add BLS_API_KEY for 500/day.",
+    },
   };
 
   const activeCount = Object.values(sources).filter((s) => s.status === "active").length;

@@ -14,6 +14,7 @@ import {
   fetchDarkPoolAlerts,
   fetchCongressionalTrades,
 } from "./unusual-whales";
+import { fetchMacroContext } from "./macro-data";
 
 const AGENT_SYSTEM_PROMPT = `You are the Arclion proactive trading intelligence agent.
 
@@ -417,6 +418,8 @@ async function generateRecommendations(
     )
     .join("\n");
 
+  const macroContext = await fetchMacroContext();
+
   const prompt = `Today is ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}.
 
 SCORED ASSETS:
@@ -426,7 +429,7 @@ RECENT SIGNALS:
 ${signalSummary || "None available yet"}
 
 GLOBAL EVENTS:
-${eventSummary || "None available yet"}${smartMoneySummary}
+${eventSummary || "None available yet"}${macroContext}${smartMoneySummary}
 
 Identify the best trade calls and watches. Cross-reference assets with events and signals.${smartMoneySummary ? " Pay close attention to smart money signals — large institutional options bets and congressional trades often foreshadow major moves." : ""}`;
 
