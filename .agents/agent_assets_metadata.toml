@@ -6,3 +6,9 @@ id = "MIhpE251GyhhqZBjSORS1"
 uri = "file://ARCLION_Testing_Plan_v2.md"
 type = "text"
 title = "ARCLION Testing Plan v2.0"
+
+[[outputs]]
+id = "A1Erb1hMVN4K_XKQEy7T6"
+uri = "file://ARCLION_Testing_Plan_v3.md"
+type = "text"
+title = "ARCLION Testing Plan v3.0"
