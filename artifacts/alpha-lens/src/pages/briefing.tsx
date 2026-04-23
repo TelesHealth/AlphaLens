@@ -162,6 +162,11 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   {rec.title}
                 </h3>
               )}
+              {rec.assetTitle && (
+                <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
+                  {rec.assetTitle}
+                </div>
+              )}
               {rec.headline && (
                 <div className="text-xs text-muted-foreground mt-1 line-clamp-2 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground/90">
                   <ReactMarkdown>{rec.headline}</ReactMarkdown>
