@@ -1,4 +1,5 @@
 import { pgTable, serial, text, doublePrecision, timestamp, jsonb, integer, boolean } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
 
 export const dailyBriefingsTable = pgTable("daily_briefings", {
   id: serial("id").primaryKey(),
@@ -52,6 +53,7 @@ export const globalEventsTable = pgTable("global_events", {
 
 export const watchlistTable = pgTable("watchlist", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
   assetId: integer("asset_id"),
   assetTitle: text("asset_title").default(""),
   assetClass: text("asset_class").default(""),

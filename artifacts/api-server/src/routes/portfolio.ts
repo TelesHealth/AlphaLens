@@ -1,13 +1,15 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { tradesTable, portfolioTable, assetsTable } from "@workspace/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import {
   OpenTradeBody,
   CloseTradeParams,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+const DEFAULT_STARTING_BALANCE = 10000;
 
 function buildTradeReasoning(asset: typeof assetsTable.$inferSelect, direction: string, entryPrice: number): string {
   const parts: string[] = [];
@@ -21,30 +23,39 @@ function buildTradeReasoning(asset: typeof assetsTable.$inferSelect, direction: 
   return parts.join(" ");
 }
 
-async function getOrCreatePortfolio() {
-  const [existing] = await db.select().from(portfolioTable).limit(1);
+async function getOrCreatePortfolio(userId: number) {
+  const [existing] = await db
+    .select()
+    .from(portfolioTable)
+    .where(eq(portfolioTable.userId, userId))
+    .limit(1);
   if (existing) return existing;
   const [created] = await db
     .insert(portfolioTable)
-    .values({ balance: 10000, initialBalance: 10000 })
+    .values({
+      userId,
+      balance: DEFAULT_STARTING_BALANCE,
+      initialBalance: DEFAULT_STARTING_BALANCE,
+    })
     .returning();
   return created;
 }
 
 router.get("/", async (req, res) => {
   try {
-    const portfolio = await getOrCreatePortfolio();
+    const userId = req.user!.userId;
+    const portfolio = await getOrCreatePortfolio(userId);
 
     const openTrades = await db
       .select()
       .from(tradesTable)
-      .where(eq(tradesTable.status, "open"))
+      .where(and(eq(tradesTable.userId, userId), eq(tradesTable.status, "open")))
       .orderBy(desc(tradesTable.openedAt));
 
     const closedTrades = await db
       .select()
       .from(tradesTable)
-      .where(eq(tradesTable.status, "closed"))
+      .where(and(eq(tradesTable.userId, userId), eq(tradesTable.status, "closed")))
       .orderBy(desc(tradesTable.closedAt))
       .limit(20);
 
@@ -70,8 +81,9 @@ router.get("/", async (req, res) => {
 
 router.post("/trade", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const body = OpenTradeBody.parse(req.body);
-    const portfolio = await getOrCreatePortfolio();
+    const portfolio = await getOrCreatePortfolio(userId);
 
 
     if (body.amount > portfolio.balance) {
@@ -96,6 +108,7 @@ router.post("/trade", async (req, res) => {
     const [trade] = await db
       .insert(tradesTable)
       .values({
+        userId,
         assetId: body.assetId,
         assetName: asset.name,
         assetSymbol: asset.symbol,
@@ -126,12 +139,13 @@ router.post("/trade", async (req, res) => {
 
 router.post("/trade/:id/close", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const { id } = CloseTradeParams.parse(req.params);
 
     const [trade] = await db
       .select()
       .from(tradesTable)
-      .where(eq(tradesTable.id, id))
+      .where(and(eq(tradesTable.id, id), eq(tradesTable.userId, userId)))
       .limit(1);
 
     if (!trade) {
@@ -171,7 +185,7 @@ router.post("/trade/:id/close", async (req, res) => {
       .where(eq(tradesTable.id, id))
       .returning();
 
-    const portfolio = await getOrCreatePortfolio();
+    const portfolio = await getOrCreatePortfolio(userId);
     const returnedAmount = trade.entryPrice * trade.quantity + pnl;
     const newBalance = portfolio.balance + returnedAmount;
     await db
@@ -192,9 +206,13 @@ router.post("/trade/:id/close", async (req, res) => {
 
 router.get("/stats", async (req, res) => {
   try {
-    const portfolio = await getOrCreatePortfolio();
+    const userId = req.user!.userId;
+    const portfolio = await getOrCreatePortfolio(userId);
 
-    const allTrades = await db.select().from(tradesTable);
+    const allTrades = await db
+      .select()
+      .from(tradesTable)
+      .where(eq(tradesTable.userId, userId));
     const closedTrades = allTrades.filter((t) => t.status === "closed");
     const winners = closedTrades.filter((t) => (t.pnl ?? 0) > 0);
     const totalPnl = closedTrades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);

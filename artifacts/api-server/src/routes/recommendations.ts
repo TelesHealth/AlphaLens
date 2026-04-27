@@ -6,7 +6,7 @@ import {
   watchlistTable,
   dailyBriefingsTable,
 } from "@workspace/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import {
   scanForRecommendations,
   getCurrentBriefing,
@@ -97,9 +97,11 @@ router.get("/events", async (req, res) => {
 
 router.get("/watchlist", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const items = await db
       .select()
       .from(watchlistTable)
+      .where(eq(watchlistTable.userId, userId))
       .orderBy(desc(watchlistTable.addedAt));
     res.json({ watchlist: items });
   } catch (e: any) {
@@ -110,10 +112,12 @@ router.get("/watchlist", async (req, res) => {
 
 router.post("/watchlist", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const { assetId, assetTitle, assetClass, alertEdgeThreshold, notes } = req.body;
     const [item] = await db
       .insert(watchlistTable)
       .values({
+        userId,
         assetId,
         assetTitle: assetTitle ?? "",
         assetClass: assetClass ?? "",
@@ -130,8 +134,24 @@ router.post("/watchlist", async (req, res) => {
 
 router.delete("/watchlist/:id", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const id = Number(req.params.id);
-    await db.delete(watchlistTable).where(eq(watchlistTable.id, id));
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const [existing] = await db
+      .select({ id: watchlistTable.id })
+      .from(watchlistTable)
+      .where(and(eq(watchlistTable.id, id), eq(watchlistTable.userId, userId)))
+      .limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "Watchlist item not found" });
+      return;
+    }
+    await db
+      .delete(watchlistTable)
+      .where(and(eq(watchlistTable.id, id), eq(watchlistTable.userId, userId)));
     res.json({ status: "removed" });
   } catch (e: any) {
     req.log.error({ err: e }, "Error removing from watchlist");

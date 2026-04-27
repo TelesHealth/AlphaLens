@@ -152,19 +152,19 @@ export function checkRiskGate(
   return { passed: true, reason: "All risk checks passed" };
 }
 
-export async function getDailyPnl(): Promise<number> {
+export async function getDailyPnl(userId?: number): Promise<number> {
   try {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
+    const conds = [
+      eq(tradesTable.status, "closed"),
+      gte(tradesTable.closedAt, today),
+    ];
+    if (userId != null) conds.push(eq(tradesTable.userId, userId));
     const result = await db
       .select({ totalPnl: sql<number>`coalesce(sum(${tradesTable.pnl}), 0)` })
       .from(tradesTable)
-      .where(
-        and(
-          eq(tradesTable.status, "closed"),
-          gte(tradesTable.closedAt, today)
-        )
-      );
+      .where(and(...conds));
     return Number(result[0]?.totalPnl ?? 0);
   } catch (e: any) {
     logger.warn({ err: e?.message }, "getDailyPnl failed, defaulting to 0");
@@ -172,33 +172,35 @@ export async function getDailyPnl(): Promise<number> {
   }
 }
 
-export async function getDailyTradeCount(): Promise<number> {
+export async function getDailyTradeCount(userId?: number): Promise<number> {
   try {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
+    const conds = [gte(liveTradesTable.executedAt, today)];
+    if (userId != null) conds.push(eq(liveTradesTable.userId, userId));
     const result = await db
       .select({ count: sql<number>`count(*)` })
       .from(liveTradesTable)
-      .where(gte(liveTradesTable.executedAt, today));
+      .where(and(...conds));
     return Number(result[0]?.count ?? 0);
   } catch {
     return 0;
   }
 }
 
-export async function getPendingOrderCount(): Promise<number> {
+export async function getPendingOrderCount(userId?: number): Promise<number> {
   try {
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
+    const conds = [
+      eq(pendingOrdersTable.status, "pending_approval"),
+      gte(pendingOrdersTable.createdAt, today),
+    ];
+    if (userId != null) conds.push(eq(pendingOrdersTable.userId, userId));
     const result = await db
       .select({ count: sql<number>`count(*)` })
       .from(pendingOrdersTable)
-      .where(
-        and(
-          eq(pendingOrdersTable.status, "pending_approval"),
-          gte(pendingOrdersTable.createdAt, today)
-        )
-      );
+      .where(and(...conds));
     return Number(result[0]?.count ?? 0);
   } catch {
     return 0;
@@ -228,11 +230,13 @@ async function resolveAssetIdString(rec: typeof recommendationsTable.$inferSelec
 export async function storePendingOrder(
   rec: typeof recommendationsTable.$inferSelect,
   amountUsd: number,
-  platformOverride?: Platform
+  platformOverride?: Platform,
+  userId?: number,
 ) {
   const routing = getBestPlatform(rec);
   const assetIdStr = await resolveAssetIdString(rec);
   await db.insert(pendingOrdersTable).values({
+    userId,
     recommendationId: rec.id,
     recTitle: rec.title,
     assetId: assetIdStr,
@@ -254,7 +258,8 @@ export async function logLiveTrade(
   direction: string,
   price?: number,
   size?: number,
-  orderId?: string
+  orderId?: string,
+  userId?: number,
 ) {
   const ticker = rec.assetTitle ?? rec.title ?? "";
   const assetIdStr = await resolveAssetIdString(rec);
@@ -280,6 +285,7 @@ export async function logLiveTrade(
   const resolvedOrderId = orderId ?? `ORDER-${Date.now()}-${rec.id}`;
 
   await db.insert(liveTradesTable).values({
+    userId,
     recommendationId: rec.id,
     platform,
     assetId: assetIdStr,

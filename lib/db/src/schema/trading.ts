@@ -1,8 +1,10 @@
 import { pgTable, serial, text, doublePrecision, timestamp, integer, boolean } from "drizzle-orm/pg-core";
 import { recommendationsTable } from "./recommendations";
+import { usersTable } from "./users";
 
 export const liveTradesTable = pgTable("live_trades", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
   recommendationId: integer("recommendation_id").references(() => recommendationsTable.id),
   platform: text("platform").notNull().default("paper"),
   assetId: text("asset_id").default(""),
@@ -23,6 +25,7 @@ export const liveTradesTable = pgTable("live_trades", {
 
 export const pendingOrdersTable = pgTable("pending_orders", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
   recommendationId: integer("recommendation_id").references(() => recommendationsTable.id),
   recTitle: text("rec_title").default(""),
   assetId: text("asset_id").default(""),

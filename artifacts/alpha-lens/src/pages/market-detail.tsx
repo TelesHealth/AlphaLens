@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { format } from "date-fns";
 import { 
   formatCurrency, 
@@ -207,7 +208,7 @@ export default function MarketDetail() {
                 <Zap className="w-4 h-4" /> Intelligence Brief
               </h3>
               <div className="text-base leading-relaxed text-foreground/90 relative z-10 font-medium prose prose-invert max-w-none [&_p]:mb-2 [&_p:last-child]:mb-0 [&_strong]:text-foreground [&_ul]:my-2 [&_li]:my-0.5">
-                <ReactMarkdown>{market.aiSummary}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{market.aiSummary}</ReactMarkdown>
               </div>
             </div>
           )}

@@ -240,6 +240,7 @@ export async function fetchGDP(): Promise<GdpData | null> {
       TableName: "T10101",
       Frequency: "Q",
       Year: years,
+      LineNumber: "1",
       ResultFormat: "JSON",
     });
     const res = await fetch(`${BEA_ENDPOINT}?${params.toString()}`, {

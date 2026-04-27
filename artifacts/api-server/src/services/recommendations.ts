@@ -216,6 +216,36 @@ export async function scanForRecommendations() {
   }
 }
 
+function buildSources(
+  matchedAsset: typeof assetsTable.$inferSelect | undefined,
+  smartMoneySummary: string,
+  macroIncluded: boolean,
+): string[] {
+  const sources = new Set<string>();
+  if (matchedAsset) {
+    const cls = (matchedAsset.sector ?? "").toLowerCase();
+    const sym = (matchedAsset.symbol ?? "").toLowerCase();
+    if (cls.includes("crypto") || /^(btc|eth|sol|xrp|doge|ada|bnb|matic|avax)/.test(sym)) {
+      sources.add("CoinGecko");
+    } else if (cls.includes("prediction") || cls.includes("kalshi")) {
+      sources.add("Kalshi");
+    } else if (cls.includes("forex") || cls.includes("fx")) {
+      sources.add("Yahoo Finance");
+    } else {
+      sources.add("Yahoo Finance");
+    }
+  }
+  if (smartMoneySummary && smartMoneySummary.length > 0) {
+    sources.add("Unusual Whales");
+  }
+  if (macroIncluded) {
+    sources.add("BLS");
+    sources.add("BEA");
+    sources.add("NY Fed");
+  }
+  return Array.from(sources);
+}
+
 async function _doScan() {
   logger.info("E6: Starting recommendations scan...");
 
@@ -238,6 +268,7 @@ async function _doScan() {
 
   const events = await scanGlobalEvents();
 
+  const macroIncluded = !!(process.env.BEA_API_KEY || process.env.BLS_API_KEY);
   let smartMoneySummary = "";
   if (process.env.UNUSUAL_WHALES_KEY) {
     try {
@@ -326,6 +357,7 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
       edge: matchedAsset?.edge ?? matchedAsset?.alphaScore ?? 0,
       aiProbability: matchedAsset?.aiProbability ?? 0,
       marketPrice: matchedAsset?.marketProbability ?? matchedAsset?.currentPrice ?? 0,
+      sources: buildSources(matchedAsset, smartMoneySummary, macroIncluded),
     });
   }
 
@@ -394,6 +426,8 @@ async function generateRecommendations(
   events: RawEvent[],
   smartMoneySummary: string = ""
 ): Promise<RawRecommendation[]> {
+
+
   if (assets.length === 0) return [];
 
   const assetSummary = assets

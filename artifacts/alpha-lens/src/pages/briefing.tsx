@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   useGetBriefing,
   useTriggerScan,
@@ -169,7 +170,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               )}
               {rec.headline && (
                 <div className="text-xs text-muted-foreground mt-1 line-clamp-2 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground/90">
-                  <ReactMarkdown>{rec.headline}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec.headline}</ReactMarkdown>
                 </div>
               )}
             </div>
@@ -263,7 +264,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   >
                     <Crosshair className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
                     <div className="prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground">
-                      <ReactMarkdown>{reason}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{reason}</ReactMarkdown>
                     </div>
                   </li>
                 ))}
@@ -278,7 +279,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   HISTORICAL CONTEXT
                 </div>
                 <div className="text-foreground/70 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground">
-                  <ReactMarkdown>{rec.historicalContext}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec.historicalContext}</ReactMarkdown>
                 </div>
               </div>
             )}
@@ -288,7 +289,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   BEAR CASE
                 </div>
                 <div className="text-foreground/70 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground">
-                  <ReactMarkdown>{rec.bearCase}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec.bearCase}</ReactMarkdown>
                 </div>
               </div>
             )}
@@ -514,7 +515,7 @@ export default function Briefing() {
             )}
           </div>
           <div className="text-sm text-foreground/90 leading-relaxed prose prose-invert prose-sm max-w-none [&_p]:m-0 [&_p+p]:mt-2 [&_strong]:text-foreground">
-            <ReactMarkdown>{briefing.summary}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{briefing.summary}</ReactMarkdown>
           </div>
           <div className="flex items-center gap-4 mt-3 text-[10px] font-mono text-muted-foreground">
             {briefing.tradeCount != null && (

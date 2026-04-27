@@ -43,6 +43,7 @@ import {
   Waves,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { cn, formatCurrency } from "@/components/ui-helpers";
 import { useToast } from "@/hooks/use-toast";
 
@@ -139,7 +140,7 @@ function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded:
 
         {(alert.note || alert.reason || alert.historicalNote) && (
           <div className="text-xs text-muted-foreground leading-relaxed prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground/90">
-            <ReactMarkdown>{alert.note || alert.reason || alert.historicalNote || ""}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{alert.note || alert.reason || alert.historicalNote || ""}</ReactMarkdown>
           </div>
         )}
       </div>

@@ -25,6 +25,13 @@ const YAHOO_MAP: Record<string, string> = {
 interface PriceUpdate {
   currentPrice: number;
   priceChange24h: number;
+  dataFreshness?: DataFreshness;
+}
+
+export interface DataFreshness {
+  source: string;
+  fetchedAt: string;
+  cacheAge: number;
 }
 
 async function fetchWithTimeout(url: string, timeoutMs = 10000): Promise<Response> {
@@ -44,12 +51,38 @@ async function fetchWithTimeout(url: string, timeoutMs = 10000): Promise<Respons
 
 let cryptoCache: Map<string, PriceUpdate> = new Map();
 let cryptoCacheTime = 0;
-const CRYPTO_CACHE_TTL = 30_000;
+const CRYPTO_CACHE_TTL = 10_000;
+
+function decoratedCryptoCache(): Map<string, PriceUpdate> {
+  const out = new Map<string, PriceUpdate>();
+  const fetchedAt = new Date(cryptoCacheTime).toISOString();
+  const cacheAgeSec = Math.round((Date.now() - cryptoCacheTime) / 1000);
+  for (const [k, v] of cryptoCache) {
+    out.set(k, {
+      ...v,
+      dataFreshness: {
+        source: "CoinGecko",
+        fetchedAt,
+        cacheAge: cacheAgeSec,
+      },
+    });
+  }
+  return out;
+}
+
+export function getCryptoFreshness(symbol: string): DataFreshness | null {
+  if (cryptoCacheTime === 0 || !cryptoCache.has(symbol.toUpperCase())) return null;
+  return {
+    source: "CoinGecko",
+    fetchedAt: new Date(cryptoCacheTime).toISOString(),
+    cacheAge: Math.round((Date.now() - cryptoCacheTime) / 1000),
+  };
+}
 
 async function fetchCryptoPrices(bypassCache = false): Promise<Map<string, PriceUpdate>> {
   if (!bypassCache && cryptoCache.size > 0 && Date.now() - cryptoCacheTime < CRYPTO_CACHE_TTL) {
     console.warn("CoinGecko: using cached prices (rate limit guard)");
-    return new Map(cryptoCache);
+    return decoratedCryptoCache();
   }
 
   const results = new Map<string, PriceUpdate>();
@@ -62,7 +95,7 @@ async function fetchCryptoPrices(bypassCache = false): Promise<Map<string, Price
 
     if (!res.ok) {
       logger.warn({ status: res.status }, "CoinGecko API error");
-      return new Map(cryptoCache);
+      return decoratedCryptoCache();
     }
 
     const data = await res.json() as Record<string, { usd: number; usd_24h_change: number }>;
@@ -78,6 +111,13 @@ async function fetchCryptoPrices(bypassCache = false): Promise<Map<string, Price
     }
     cryptoCache = new Map(results);
     cryptoCacheTime = Date.now();
+    const fetchedAt = new Date(cryptoCacheTime).toISOString();
+    for (const [sym, v] of results) {
+      results.set(sym, {
+        ...v,
+        dataFreshness: { source: "CoinGecko", fetchedAt, cacheAge: 0 },
+      });
+    }
     const btc = results.get("BTC")?.currentPrice;
     const eth = results.get("ETH")?.currentPrice;
     const sol = results.get("SOL")?.currentPrice;
@@ -108,8 +148,11 @@ async function fetchYahooPrice(yahooSymbol: string): Promise<PriceUpdate | null>
     const result = data?.chart?.result?.[0];
     if (!result) return null;
 
+    
     const meta = result.meta;
     const currentPrice = meta.regularMarketPrice;
+
+    
 
     const closes: number[] = result.indicators?.quote?.[0]?.close?.filter(
       (c: number | null) => c != null
@@ -127,6 +170,7 @@ async function fetchYahooPrice(yahooSymbol: string): Promise<PriceUpdate | null>
 
     const change = ((currentPrice - previousClose) / previousClose) * 100;
 
+    
     return {
       currentPrice: Math.round(currentPrice * 100) / 100,
       priceChange24h: Math.round(change * 100) / 100,
@@ -140,6 +184,7 @@ async function fetchYahooPrice(yahooSymbol: string): Promise<PriceUpdate | null>
 async function fetchStockPrices(): Promise<Map<string, PriceUpdate>> {
   const results = new Map<string, PriceUpdate>();
 
+  
   const fetches = Object.entries(YAHOO_MAP).map(async ([symbol, yahooSymbol]) => {
     const price = await fetchYahooPrice(yahooSymbol);
     if (price) {
@@ -183,13 +228,19 @@ async function fetchPredictionPrices(): Promise<Map<string, PriceUpdate>> {
 
 let isRefreshing = false;
 
-export async function refreshAllMarketData(bypassCache = false): Promise<number | { skipped: true }> {
+export async function refreshAllMarketData(
+  bypassCache = false,
+): Promise<number | { skipped: true; status: "refresh_already_running" }> {
   if (isRefreshing) {
     logger.info("Market refresh already in progress, skipping");
-    return { skipped: true };
+    return { skipped: true, status: "refresh_already_running" };
   }
   isRefreshing = true;
   try {
+    if (bypassCache) {
+      cryptoCache.clear();
+      cryptoCacheTime = 0;
+    }
     return await doRefresh(bypassCache);
   } finally {
     isRefreshing = false;

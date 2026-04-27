@@ -25,7 +25,13 @@ Structure your response as follows:
 1. First, write 3-5 focused paragraphs of analysis. Be conversational but precise.
 2. Then on a new line write "RECOMMENDATIONS:" followed by 3-5 actionable bullet points starting with "- "
 3. Then on a new line write "RISK:" followed by a single-line risk assessment (e.g., "Medium — volatility elevated, position size carefully")
-4. Then on a new line write "CONFIDENCE:" followed by a number 0-100`;
+4. Then on a new line write "CONFIDENCE:" followed by a number 0-100
+
+MARKDOWN FORMATTING RULES (strict):
+- Use only well-formed markdown. Every "**" opening MUST have a matching closing "**" with no spaces between the asterisks and the bolded word(s) (correct: **High**, incorrect: ** High** or High **).
+- Never emit a stray "**" by itself or with trailing whitespace.
+- Bullet lines must start with "- " (a hyphen and a space). Never use "**" as a bullet marker.
+- Use plain words for emphasis when in doubt rather than risk unbalanced asterisks.`;
 
 interface CoachInput {
   assetId?: number | null;
@@ -104,7 +110,7 @@ async function buildMarketSnapshot(question: string): Promise<string> {
       if (a.aiProbability != null) parts.push(`AI ${a.aiProbability}%`);
       if (a.marketProbability != null) parts.push(`vs market ${a.marketProbability}%`);
       if (a.edge != null) parts.push(`edge ${a.edge >= 0 ? "+" : ""}${a.edge}pts`);
-      if (a.direction) parts.push(`${a.direction}`);
+      parts.push(`direction: ${a.direction ?? "neutral"}`);
       lines.push(parts.join(", "));
     }
     return lines.join("\n");
@@ -120,8 +126,15 @@ async function buildLatestBriefing(): Promise<string> {
       .from(dailyBriefingsTable)
       .orderBy(desc(dailyBriefingsTable.id))
       .limit(1);
-    if (!b?.summary) return "";
-    const excerpt = b.summary.length > 100 ? b.summary.slice(0, 100) + "…" : b.summary;
+    const summary = (b?.summary ?? "").trim();
+    const isPlaceholder = /^(undefined|null)$/i.test(summary);
+    const safeSummary =
+      summary.length > 10 && !/error/i.test(summary) && !isPlaceholder
+        ? summary.slice(0, 200)
+        : "";
+    if (!safeSummary) return "";
+    const excerpt =
+      safeSummary.length > 100 ? safeSummary.slice(0, 100) + "…" : safeSummary;
     return `Latest briefing: ${excerpt}`;
   } catch {
     return "";
@@ -154,6 +167,7 @@ export async function getCoachAnalysis(input: CoachInput) {
       messages: [{ role: "user", content: prompt }],
     });
 
+   
     let analysis = "";
     for (const block of response.content) {
       if (block.type === "text") {

@@ -8,7 +8,7 @@ import {
   ScoreMarketParams,
 } from "@workspace/api-zod";
 import { scoreMarketWithAI } from "../services/scoring";
-import { refreshAllMarketData } from "../services/market-data";
+import { refreshAllMarketData, getCryptoFreshness } from "../services/market-data";
 
 const router: IRouter = Router();
 
@@ -142,6 +142,7 @@ router.post("/refresh", async (req, res) => {
 });
 
 function formatMarket(m: typeof assetsTable.$inferSelect) {
+  const dataFreshness = getCryptoFreshness(m.symbol);
   return {
     id: m.id,
     name: m.name,
@@ -159,6 +160,7 @@ function formatMarket(m: typeof assetsTable.$inferSelect) {
     tradingBloc: m.tradingBloc,
     riskLevel: m.riskLevel,
     updatedAt: m.updatedAt,
+    dataFreshness,
   };
 }
 

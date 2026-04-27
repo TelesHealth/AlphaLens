@@ -248,6 +248,7 @@ function updatePriceHistory(assetId: string, price: number): void {
   const history = priceHistory.get(assetId)!;
   history.push({ price, ts: now });
 
+
   const cutoff = new Date(now.getTime() - 2 * 60 * 60 * 1000);
   const filtered = history.filter((p) => p.ts > cutoff);
   priceHistory.set(assetId, filtered);
@@ -399,7 +400,12 @@ async function checkVolumeAnomalies(): Promise<RadarAlertData[]> {
       if (!result?.indicators?.quote?.[0]?.volume) continue;
 
       const volumes: number[] = result.indicators.quote[0].volume.filter((v: any) => v != null && v > 0);
-      if (volumes.length < 10) continue;
+
+     
+      if (volumes.length < 10) {
+        console.log("NO VOLUME ANOMALY GENERATED: ", volumes.length);
+        continue;
+      }
 
       const historicalVolumes = volumes.slice(0, -1);
       const todayVolume = volumes[volumes.length - 1];
@@ -490,6 +496,7 @@ export async function runRadarScan(): Promise<{ count: number; alerts: RadarAler
   for (const [assetId, currentPrice] of Object.entries(prices)) {
     if (currentPrice <= 0) continue;
     updatePriceHistory(assetId, currentPrice);
+   
 
     const spike = checkSpike(assetId, currentPrice);
     if (spike) {

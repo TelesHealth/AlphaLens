@@ -3,6 +3,7 @@ import { useCoachAnalyze, useListMarkets } from "@workspace/api-client-react";
 import { Send, Bot, User, BrainCircuit, AlertTriangle, ChevronRight, Zap } from "lucide-react";
 import { cn } from "@/components/ui-helpers";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type Message = {
   id: string;
@@ -115,7 +116,7 @@ export default function Coach() {
                   )}>
                     {msg.role === "coach" ? (
                       <div className="prose prose-sm prose-invert max-w-none [&>p]:mb-2 [&>ul]:mb-2 [&>ol]:mb-2 [&>h1]:text-lg [&>h2]:text-base [&>h3]:text-sm">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
                       </div>
                     ) : msg.content}
                   </div>
@@ -130,7 +131,7 @@ export default function Coach() {
                           <li key={i} className="flex items-start gap-2 text-sm">
                             <ChevronRight className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                             <div className="text-foreground/90 prose prose-sm prose-invert max-w-none [&_p]:m-0 [&_strong]:text-foreground">
-                              <ReactMarkdown>{rec}</ReactMarkdown>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec}</ReactMarkdown>
                             </div>
                           </li>
                         ))}

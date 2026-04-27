@@ -68,6 +68,10 @@ export interface FlowAlert {
   total_ask_side_prem: string;
   total_bid_side_prem: string;
   sector: string | null;
+  issue_type?: string | null;
+  er_time?: string | null;
+  marketcap?: string | null;
+  next_earnings_date?: string | null;
 }
 
 export interface DarkPoolPrint {
@@ -80,6 +84,8 @@ export interface DarkPoolPrint {
   nbbo_ask: string;
   nbbo_bid: string;
   market_center: string;
+  sale_cond_codes?: string | string[] | null;
+  trade_code?: string | null;
 }
 
 export interface MarketTideTick {
@@ -147,19 +153,38 @@ export function isConfigured(): boolean {
   return !!process.env.UNUSUAL_WHALES_KEY;
 }
 
+function normalizeFlowAlert(raw: any): FlowAlert {
+  return {
+    ...raw,
+    sector: raw.sector ?? raw.underlying_sector ?? null,
+    issue_type: raw.issue_type ?? raw.type_of_underlying ?? null,
+    er_time: raw.er_time ?? raw.earnings_time ?? null,
+    marketcap: raw.marketcap ?? raw.market_cap ?? null,
+    next_earnings_date: raw.next_earnings_date ?? raw.earnings_date ?? null,
+  };
+}
+
+function normalizeDarkPoolPrint(raw: any): DarkPoolPrint {
+  return {
+    ...raw,
+    sale_cond_codes: raw.sale_cond_codes ?? raw.conditions ?? null,
+    trade_code: raw.trade_code ?? raw.trade_type ?? null,
+  };
+}
+
 export async function getFlowAlerts(): Promise<FlowAlert[]> {
   const alerts = await uwFetch<FlowAlert[]>("/option-trades/flow-alerts");
-  return Array.isArray(alerts) ? alerts.slice(0, 50) : [];
+  return Array.isArray(alerts) ? alerts.slice(0, 50).map(normalizeFlowAlert) : [];
 }
 
 export async function getDarkPoolRecent(): Promise<DarkPoolPrint[]> {
   const prints = await uwFetch<DarkPoolPrint[]>("/darkpool/recent");
-  return Array.isArray(prints) ? prints.slice(0, 50) : [];
+  return Array.isArray(prints) ? prints.slice(0, 50).map(normalizeDarkPoolPrint) : [];
 }
 
 export async function getDarkPoolTicker(ticker: string): Promise<DarkPoolPrint[]> {
   const prints = await uwFetch<DarkPoolPrint[]>(`/darkpool/${encodeURIComponent(ticker.toUpperCase())}`);
-  return Array.isArray(prints) ? prints.slice(0, 50) : [];
+  return Array.isArray(prints) ? prints.slice(0, 50).map(normalizeDarkPoolPrint) : [];
 }
 
 export async function getMarketTide(): Promise<MarketTideTick[]> {
@@ -188,6 +213,14 @@ export async function fetchOptionsFlowAlerts(): Promise<RadarAlertCompat[]> {
       .map((a) => {
         const premium = parseFloat(a.total_premium) || 0;
         const premStr = `$${(premium / 1_000_000).toFixed(1)}M`;
+        const extras: string[] = [];
+        if (a.sector) extras.push(`sector ${a.sector}`);
+        if (a.issue_type) extras.push(`issue ${a.issue_type}`);
+        if (a.marketcap) extras.push(`mcap ${a.marketcap}`);
+        if (a.next_earnings_date) {
+          extras.push(`next ER ${a.next_earnings_date}${a.er_time ? ` (${a.er_time})` : ""}`);
+        }
+        const extrasStr = extras.length > 0 ? ` ${extras.join(", ")}.` : "";
         return {
           id: md5Short(`uw_flow_${a.id || a.ticker + a.strike + a.expiry}`),
           type: "volume_anomaly",
@@ -197,7 +230,7 @@ export async function fetchOptionsFlowAlerts(): Promise<RadarAlertCompat[]> {
           title: `Unusual options flow: ${premStr} in ${a.ticker} ${a.strike} ${a.type}`,
           direction: a.type === "call" ? "bull" : "bear",
           volumeType: "options_flow",
-          note: `${a.ticker} ${a.strike} ${a.type} expiring ${a.expiry} — ${premStr} premium, ${a.volume} contracts, ${a.has_sweep ? "SWEEP" : "block"}. Vol/OI ratio: ${a.volume_oi_ratio}.`,
+          note: `${a.ticker} ${a.strike} ${a.type} expiring ${a.expiry} — ${premStr} premium, ${a.volume} contracts, ${a.has_sweep ? "SWEEP" : "block"}. Vol/OI ratio: ${a.volume_oi_ratio}.${extrasStr}`,
           dataSource: "Unusual Whales",
           chainAssets: [],
           createdAt: a.created_at || new Date().toISOString(),
@@ -231,6 +264,13 @@ export async function fetchDarkPoolAlerts(): Promise<RadarAlertCompat[]> {
         const notionalStr = notional >= 1_000_000
           ? `$${(notional / 1_000_000).toFixed(1)}M`
           : `$${(notional / 1_000).toFixed(0)}K`;
+        const condCodes = Array.isArray(p.sale_cond_codes)
+          ? p.sale_cond_codes.join(",")
+          : (p.sale_cond_codes ?? null);
+        const extras: string[] = [];
+        if (condCodes) extras.push(`cond ${condCodes}`);
+        if (p.trade_code) extras.push(`code ${p.trade_code}`);
+        const extrasStr = extras.length > 0 ? ` ${extras.join(", ")}.` : "";
         return {
           id: md5Short(`uw_dp_${p.ticker}${p.executed_at}${p.size}`),
           type: "volume_anomaly",
@@ -239,7 +279,7 @@ export async function fetchDarkPoolAlerts(): Promise<RadarAlertCompat[]> {
           assetLabel: p.ticker.toUpperCase(),
           title: `Dark pool block trade: ${p.size.toLocaleString()} shares of ${p.ticker} off-exchange`,
           volumeType: "dark_pool",
-          note: `${p.ticker} dark pool print: ${p.size.toLocaleString()} shares at $${price.toFixed(2)} (${notionalStr} notional). NBBO: $${p.nbbo_bid}–$${p.nbbo_ask}. Venue: ${p.market_center}.`,
+          note: `${p.ticker} dark pool print: ${p.size.toLocaleString()} shares at $${price.toFixed(2)} (${notionalStr} notional). NBBO: $${p.nbbo_bid}–$${p.nbbo_ask}. Venue: ${p.market_center}.${extrasStr}`,
           dataSource: "Unusual Whales Dark Pool",
           chainAssets: [],
           createdAt: p.executed_at || new Date().toISOString(),

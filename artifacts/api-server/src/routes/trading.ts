@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { liveTradesTable, pendingOrdersTable, recommendationsTable } from "@workspace/db/schema";
-import { eq, desc, gte } from "drizzle-orm";
+import { eq, desc, gte, and } from "drizzle-orm";
 import {
   getBestPlatform,
   checkRiskGate,
@@ -58,6 +58,7 @@ router.get("/route/:recommendationId", async (req, res) => {
 
 router.post("/execute", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const { recommendationId, amountUsd, platform: platformOverride, overrideApproval } = req.body;
 
     const [rec] = await db
@@ -71,9 +72,9 @@ router.post("/execute", async (req, res) => {
       return;
     }
 
-    const dailyTradeCount = await getDailyTradeCount();
-    const dailyPnl = await getDailyPnl();
-    const pendingCount = await getPendingOrderCount();
+    const dailyTradeCount = await getDailyTradeCount(userId);
+    const dailyPnl = await getDailyPnl(userId);
+    const pendingCount = await getPendingOrderCount(userId);
     if (dailyTradeCount + pendingCount >= RISK.maxDailyTrades) {
       res.status(400).json({
         success: false,
@@ -93,7 +94,7 @@ router.post("/execute", async (req, res) => {
     }
 
     if (RISK.requireApproval && !overrideApproval) {
-      await storePendingOrder(rec, amountUsd, platformOverride);
+      await storePendingOrder(rec, amountUsd, platformOverride, userId);
       res.json({
         success: false,
         error: "Order queued for your approval. Go to Trading → Pending to confirm.",
@@ -107,7 +108,7 @@ router.post("/execute", async (req, res) => {
     const selectedPlatform = platformOverride ?? routing.platform;
 
     if (selectedPlatform === "paper" || !routing.tradeable) {
-      await logLiveTrade(rec, "paper", amountUsd, rec.direction ?? "YES");
+      await logLiveTrade(rec, "paper", amountUsd, rec.direction ?? "YES", undefined, undefined, undefined, userId);
       res.json({
         success: true,
         platform: "paper",
@@ -117,7 +118,7 @@ router.post("/execute", async (req, res) => {
       return;
     }
 
-    await logLiveTrade(rec, "paper", amountUsd, rec.direction ?? "YES");
+    await logLiveTrade(rec, "paper", amountUsd, rec.direction ?? "YES", undefined, undefined, undefined, userId);
     res.json({
       success: true,
       platform: "paper",
@@ -132,10 +133,16 @@ router.post("/execute", async (req, res) => {
 
 router.get("/pending", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const pending = await db
       .select()
       .from(pendingOrdersTable)
-      .where(eq(pendingOrdersTable.status, "pending_approval"))
+      .where(
+        and(
+          eq(pendingOrdersTable.userId, userId),
+          eq(pendingOrdersTable.status, "pending_approval"),
+        ),
+      )
       .orderBy(desc(pendingOrdersTable.createdAt));
     res.json({ pending });
   } catch (e: any) {
@@ -146,11 +153,12 @@ router.get("/pending", async (req, res) => {
 
 router.post("/pending/:id/approve", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const id = Number(req.params.id);
     const [order] = await db
       .select()
       .from(pendingOrdersTable)
-      .where(eq(pendingOrdersTable.id, id))
+      .where(and(eq(pendingOrdersTable.id, id), eq(pendingOrdersTable.userId, userId)))
       .limit(1);
 
     if (!order) {
@@ -163,7 +171,7 @@ router.post("/pending/:id/approve", async (req, res) => {
       return;
     }
 
-    const dailyCount = await getDailyTradeCount();
+    const dailyCount = await getDailyTradeCount(userId);
     if (dailyCount >= RISK.maxDailyTrades) {
       res.status(400).json({
         error: `Daily trade limit (${RISK.maxDailyTrades}) reached — approval blocked`,
@@ -184,7 +192,11 @@ router.post("/pending/:id/approve", async (req, res) => {
           rec,
           selectedPlatform,
           req.body.amountOverride ?? order.amountUsd,
-          order.direction ?? "YES"
+          order.direction ?? "YES",
+          undefined,
+          undefined,
+          undefined,
+          userId,
         );
       }
     }
@@ -203,7 +215,17 @@ router.post("/pending/:id/approve", async (req, res) => {
 
 router.post("/pending/:id/reject", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const id = Number(req.params.id);
+    const [order] = await db
+      .select()
+      .from(pendingOrdersTable)
+      .where(and(eq(pendingOrdersTable.id, id), eq(pendingOrdersTable.userId, userId)))
+      .limit(1);
+    if (!order) {
+      res.status(404).json({ error: "Pending order not found" });
+      return;
+    }
     await db
       .update(pendingOrdersTable)
       .set({ status: "rejected", rejectedAt: new Date() })
@@ -217,18 +239,19 @@ router.post("/pending/:id/reject", async (req, res) => {
 
 router.get("/history", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const limit = Math.min(Number(req.query.limit) || 50, 100);
     const platformFilter = req.query.platform as string | undefined;
 
-    const baseQuery = db
+    const conds = [eq(liveTradesTable.userId, userId)];
+    if (platformFilter) conds.push(eq(liveTradesTable.platform, platformFilter));
+
+    const trades = await db
       .select()
       .from(liveTradesTable)
+      .where(and(...conds))
       .orderBy(desc(liveTradesTable.executedAt))
       .limit(limit);
-
-    const trades = platformFilter
-      ? await baseQuery.where(eq(liveTradesTable.platform, platformFilter))
-      : await baseQuery;
 
     res.json({ trades });
   } catch (e: any) {
@@ -239,10 +262,16 @@ router.get("/history", async (req, res) => {
 
 router.get("/positions", async (req, res) => {
   try {
+    const userId = req.user!.userId;
     const positions = await db
       .select()
       .from(liveTradesTable)
-      .where(eq(liveTradesTable.status, "filled"))
+      .where(
+        and(
+          eq(liveTradesTable.userId, userId),
+          eq(liveTradesTable.status, "filled"),
+        ),
+      )
       .orderBy(desc(liveTradesTable.executedAt));
     res.json({ positions });
   } catch (e: any) {
