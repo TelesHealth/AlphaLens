@@ -16,6 +16,7 @@ import Whales from "@/pages/whales";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Settings from "@/pages/settings";
+import TradingPage from "@/pages/trading";
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
@@ -74,6 +75,7 @@ function Router() {
           <Route path="/briefing" component={Briefing} />
           <Route path="/radar" component={Radar} />
           <Route path="/whales" component={Whales} />
+          <Route path="/trading" component={TradingPage} />
           <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>

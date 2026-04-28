@@ -8,15 +8,36 @@ import {
   useGetGlobalEvents,
   useGetWatchlist,
   useRemoveFromWatchlist,
+  useOpenTrade,
+  useExecuteTrade,
+  useGetTradingAccounts,
+  useGetRoutingDecision,
   getGetBriefingQueryKey,
   getGetGlobalEventsQueryKey,
   getGetWatchlistQueryKey,
+  getGetPortfolioQueryKey,
+  getGetPortfolioStatsQueryKey,
+  getGetPendingOrdersQueryKey,
+  getGetTradeHistoryQueryKey,
+  getGetTradingPositionsQueryKey,
+  getGetTradingAccountsQueryKey,
+  getGetRoutingDecisionQueryKey,
+  type OpenTradeRequestDirection,
 } from "@workspace/api-client-react";
 import type {
   Recommendation,
   GlobalEvent,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Zap,
   Globe,
@@ -96,7 +117,149 @@ function getPlatformBadge(rec: Recommendation): { label: string; color: string }
 
 function RecommendationCard({ rec }: { rec: Recommendation }) {
   const [expanded, setExpanded] = useState(false);
+  const [liveModalOpen, setLiveModalOpen] = useState(false);
+  const [amountUsd, setAmountUsd] = useState<string>("50");
+  const [amountErr, setAmountErr] = useState<string | null>(null);
+  const [executeErr, setExecuteErr] = useState<string | null>(null);
   const platformBadge = getPlatformBadge(rec);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: accountsData } = useGetTradingAccounts({
+    query: {
+      queryKey: getGetTradingAccountsQueryKey(),
+      staleTime: 60_000,
+    },
+  });
+  const accounts = accountsData?.accounts;
+  const hasLiveAccount =
+    accounts?.kalshi?.status === "configured" ||
+    accounts?.alpaca?.status === "configured" ||
+    accounts?.polymarket?.status === "configured";
+
+  const recId = rec.id;
+  const { data: routingData } = useGetRoutingDecision(recId ?? 0, {
+    query: {
+      queryKey: getGetRoutingDecisionQueryKey(recId ?? 0),
+      enabled: !!recId && hasLiveAccount,
+      staleTime: 60_000,
+    },
+  });
+  const targetPlatform = (
+    routingData?.selectedPlatform ?? "paper"
+  ).toUpperCase();
+
+  const paperMutation = useOpenTrade({
+    mutation: {
+      onSuccess: () => {
+        toast({
+          title: "Paper trade executed",
+          description: `${formatCurrency(Number(amountUsd) || 50)} on ${rec.title}`,
+        });
+        queryClient.invalidateQueries({ queryKey: getGetPortfolioQueryKey() });
+        queryClient.invalidateQueries({
+          queryKey: getGetPortfolioStatsQueryKey(),
+        });
+      },
+      onError: (err: unknown) => {
+        toast({
+          title: "Paper trade failed",
+          description: (err as Error)?.message ?? "Try again",
+          variant: "destructive",
+        });
+      },
+    },
+  });
+
+  const liveMutation = useExecuteTrade({
+    mutation: {
+      onSuccess: (result) => {
+        if (result.status === "pending_approval") {
+          toast({
+            title: "Trade queued for approval",
+            description: "Review it in the Trading page before it goes live.",
+          });
+          setLiveModalOpen(false);
+          setExecuteErr(null);
+        } else if (result.success) {
+          toast({
+            title: `Trade executed on ${(result.platform ?? "platform").toUpperCase()}`,
+            description: result.message,
+          });
+          setLiveModalOpen(false);
+          setExecuteErr(null);
+        } else {
+          // Risk gate or platform error returned 200 with success:false
+          const msg =
+            result.error ?? "Trade blocked. Adjust amount or check settings.";
+          setExecuteErr(msg);
+        }
+        queryClient.invalidateQueries({
+          queryKey: getGetPendingOrdersQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetTradeHistoryQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetTradingPositionsQueryKey(),
+        });
+      },
+      onError: (err: unknown) => {
+        setExecuteErr((err as Error)?.message ?? "Execute failed");
+      },
+    },
+  });
+
+  function handlePaperTrade() {
+    const amount = Math.max(10, Number(amountUsd) || 50);
+    if (recId == null) return;
+    if (rec.assetId == null) {
+      // Recommendation IDs are not asset IDs — POST /api/portfolio/trade
+      // validates assetId against assetsTable. Without one we cannot paper
+      // trade; surface the limitation rather than firing a 404.
+      toast({
+        title: "Paper trade unavailable",
+        description:
+          "This recommendation is not linked to a tradable asset.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const direction: OpenTradeRequestDirection =
+      rec.direction === "bearish" || rec.direction === "short" ? "short" : "long";
+    paperMutation.mutate({
+      data: {
+        assetId: rec.assetId,
+        direction,
+        amount,
+      },
+    });
+  }
+
+  function openLiveModal() {
+    setExecuteErr(null);
+    setAmountErr(null);
+    setAmountUsd("50");
+    setLiveModalOpen(true);
+  }
+
+  function handleConfirmLive() {
+    const amount = Number(amountUsd);
+    if (!Number.isFinite(amount) || amount < 10) {
+      setAmountErr("Minimum amount is $10");
+      return;
+    }
+    if (recId == null) return;
+    setAmountErr(null);
+    setExecuteErr(null);
+    liveMutation.mutate({
+      data: {
+        recommendationId: recId,
+        amountUsd: amount,
+        overrideApproval: false,
+      },
+    });
+  }
 
   const typeConfig: Record<string, { icon: typeof Zap; color: string }> = {
     trade: {
@@ -308,6 +471,176 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
             )}
           </div>
         </div>
+      )}
+
+      {rec.type === "trade" && recId != null && (
+        <div className="px-4 pb-4 pt-1 flex flex-col sm:flex-row gap-2 border-t border-border/50">
+          <button
+            type="button"
+            onClick={handlePaperTrade}
+            disabled={paperMutation.isPending}
+            data-testid={`btn-paper-trade-${recId}`}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/70 border border-border text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            <Target className="w-4 h-4" />
+            {paperMutation.isPending ? "Submitting…" : "Paper Trade"}
+          </button>
+
+          {hasLiveAccount ? (
+            <button
+              type="button"
+              onClick={openLiveModal}
+              data-testid={`btn-live-trade-${recId}`}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-primary text-sm font-medium transition-colors"
+            >
+              <Zap className="w-4 h-4" />
+              Execute via {targetPlatform}
+            </button>
+          ) : (
+            <Link
+              href="/settings"
+              data-testid={`link-connect-trading-${recId}`}
+              title="Connect a trading account in Settings to enable live trading"
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-muted/50 border border-border text-muted-foreground text-sm font-medium hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <Zap className="w-4 h-4" />
+              Connect to Live Trade
+            </Link>
+          )}
+        </div>
+      )}
+
+      {recId != null && (
+        <Dialog
+          open={liveModalOpen}
+          onOpenChange={(open) => {
+            setLiveModalOpen(open);
+            if (!open) setExecuteErr(null);
+          }}
+        >
+          <DialogContent
+            className="max-w-md"
+            data-testid={`live-trade-modal-${recId}`}
+          >
+            <DialogHeader>
+              <DialogTitle>Execute Live Trade</DialogTitle>
+              <DialogDescription>
+                Review the trade details before submitting.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">
+                    Asset
+                  </div>
+                  <div className="font-medium leading-snug">{rec.title}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">
+                    Platform
+                  </div>
+                  <div className="font-mono font-bold">{targetPlatform}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">
+                    Direction
+                  </div>
+                  <div className="font-mono uppercase">
+                    {rec.direction ?? "—"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">
+                    AI Confidence
+                  </div>
+                  <div className="font-mono">
+                    {rec.confidence != null ? `${rec.confidence}%` : "—"}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor={`amount-input-${recId}`}
+                  className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground"
+                >
+                  Amount (USD, min $10)
+                </label>
+                <Input
+                  id={`amount-input-${recId}`}
+                  type="number"
+                  min={10}
+                  step={5}
+                  value={amountUsd}
+                  onChange={(e) => {
+                    setAmountUsd(e.target.value);
+                    setAmountErr(null);
+                  }}
+                  data-testid={`input-amount-${recId}`}
+                  className="mt-1 font-mono"
+                />
+                {amountErr && (
+                  <div className="text-xs text-destructive mt-1">{amountErr}</div>
+                )}
+              </div>
+
+              {routingData?.reason && (
+                <div className="text-xs text-muted-foreground border-l-2 border-primary/40 pl-3">
+                  <span className="font-mono uppercase text-[10px] tracking-wider">
+                    Routing:
+                  </span>{" "}
+                  {routingData.reason}
+                </div>
+              )}
+
+              <div className="text-xs text-muted-foreground bg-secondary/30 rounded p-2">
+                Risk gate: All checks will run automatically.
+              </div>
+
+              {routingData?.requireApproval !== false && (
+                <div className="text-xs text-warning bg-warning/10 border border-warning/30 rounded p-2 flex gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    This trade requires your approval before executing. Review
+                    it on the Trading page before it goes live.
+                  </span>
+                </div>
+              )}
+
+              {executeErr && (
+                <div
+                  className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded p-2"
+                  data-testid={`execute-error-${recId}`}
+                >
+                  {executeErr}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2">
+              <button
+                type="button"
+                onClick={() => setLiveModalOpen(false)}
+                disabled={liveMutation.isPending}
+                className="px-4 py-2 rounded-lg bg-secondary hover:bg-secondary/70 text-sm font-medium transition-colors disabled:opacity-50"
+                data-testid={`btn-cancel-live-${recId}`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLive}
+                disabled={liveMutation.isPending}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors disabled:opacity-50"
+                data-testid={`btn-confirm-live-${recId}`}
+              >
+                {liveMutation.isPending ? "Submitting…" : "Confirm"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

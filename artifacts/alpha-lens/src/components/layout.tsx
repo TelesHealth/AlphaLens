@@ -12,11 +12,16 @@ import {
   LogOut,
   Settings as SettingsIcon,
   ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  useGetPendingOrders,
+  getGetPendingOrdersQueryKey,
+} from "@workspace/api-client-react";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -27,16 +32,32 @@ export function Layout({ children }: { children: ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
 
+  const { data: pendingData } = useGetPendingOrders({
+    query: {
+      queryKey: getGetPendingOrdersQueryKey(),
+      refetchInterval: 60000,
+      enabled: !!user,
+      retry: false,
+    },
+  });
+  const pendingCount = pendingData?.pending?.length ?? 0;
+
   async function handleSignOut() {
     await logout();
     navigate("/login");
   }
 
-  const navItems = [
+  const navItems: Array<{
+    href: string;
+    label: string;
+    icon: typeof Activity;
+    badge?: number;
+  }> = [
     { href: "/briefing", label: "Briefing", icon: Zap },
     { href: "/", label: "Scanner", icon: Activity },
     { href: "/coach", label: "AI Coach", icon: MessageSquare },
     { href: "/portfolio", label: "Portfolio", icon: Briefcase },
+    { href: "/trading", label: "Trading", icon: TrendingUp, badge: pendingCount },
     { href: "/radar", label: "Radar", icon: Radio },
     { href: "/whales", label: "Smart Money", icon: Fish },
     { href: "/settings", label: "Settings", icon: SettingsIcon },
@@ -75,7 +96,16 @@ export function Layout({ children }: { children: ReactNode }) {
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
               )}
               <Icon className={cn("w-5 h-5 transition-transform duration-200", isActive ? "scale-110 text-primary text-glow-primary" : "group-hover:scale-110")} />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.badge != null && item.badge > 0 && (
+                <span
+                  className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold font-mono shadow-[0_0_6px_rgba(239,68,68,0.5)]"
+                  data-testid={`nav-badge-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  aria-label={`${item.badge} pending`}
+                >
+                  {item.badge > 99 ? "99+" : item.badge}
+                </span>
+              )}
             </Link>
           );
         })}
