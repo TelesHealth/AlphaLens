@@ -12,3 +12,9 @@ id = "A1Erb1hMVN4K_XKQEy7T6"
 uri = "file://ARCLION_Testing_Plan_v3.md"
 type = "text"
 title = "ARCLION Testing Plan v3.0"
+
+[[outputs]]
+id = "kggBJiUN5VZO8xsxO3vsN"
+uri = "file://attached_assets/ARCLION_AUDIT_REPORT_2026-04-28.md"
+type = "text"
+title = "ARCLION Pre-UAT Audit Report — April 28, 2026"
