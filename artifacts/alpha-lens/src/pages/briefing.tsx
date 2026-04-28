@@ -364,11 +364,14 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 </div>
               </div>
             )}
-            {expanded ? (
-              <ChevronUp className="w-4 h-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            )}
+            <div className="flex items-center gap-1 ml-auto text-xs text-muted-foreground">
+              <span>{expanded ? "Hide analysis" : "Show analysis"}</span>
+              {expanded ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </div>
           </div>
         </div>
       </div>

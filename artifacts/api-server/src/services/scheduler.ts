@@ -5,7 +5,8 @@ import { scanForRecommendations } from "./recommendations";
 import { runRadarScan } from "./market-radar";
 
 let isScanning = false;
-let isRadarScanning = false;
+// Note: the radar-scan lock now lives inside runRadarScan() in market-radar.ts
+// (single source of truth shared with the manual POST /api/radar/scan route).
 
 async function safeRefresh() {
   try {
@@ -31,18 +32,18 @@ async function safeScan() {
 }
 
 async function safeRadarScan() {
-  if (isRadarScanning) {
-    logger.info("Radar scan already in progress, skipping");
-    return;
-  }
-  isRadarScanning = true;
   try {
+    // runRadarScan() owns the concurrency lock. If a scan is already running
+    // (e.g. triggered manually via POST /api/radar/scan), it returns
+    // { status: "scan_already_running" } instead of starting a second scan.
     const result = await runRadarScan();
+    if (result.status === "scan_already_running") {
+      logger.info("Scheduled radar scan skipped — another scan is already running");
+      return;
+    }
     logger.info({ count: result.count }, "Radar scan complete");
   } catch (e: any) {
     logger.error({ err: e.message }, "Scheduled radar scan failed");
-  } finally {
-    isRadarScanning = false;
   }
 }
 

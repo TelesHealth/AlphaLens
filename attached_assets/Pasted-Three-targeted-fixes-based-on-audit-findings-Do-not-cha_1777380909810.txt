@@ -1,0 +1,82 @@
+Three targeted fixes based on audit findings.
+Do not change anything else.
+
+---
+
+FIX 1 — Audit item 7.3
+Radar scan lock race condition between scheduler
+and manual route.
+
+In artifacts/api-server/src/routes/radar.ts,
+find the module-level scanInProgress lock
+(around line 23).
+
+Remove it entirely from the route file.
+
+The route handler for POST /api/radar/scan
+should simply call runRadarScan() from the
+market-radar service and return the result.
+
+The existing isRadarScanning lock in
+scheduler.ts (line 8) is the single source
+of truth. runRadarScan() in market-radar.ts
+must also check and set that same lock before
+running — not a separate lock.
+
+Verify the shared lock is in market-radar.ts
+or accessible from both the scheduler and the
+route. After fix, a manual POST /api/radar/scan
+while the scheduler is running should return
+{ status: "scan_already_running" } not start
+a second scan.
+
+---
+
+FIX 2 — Audit item 10.3
+scanner.tsx missing react-markdown and remark-gfm.
+
+In artifacts/alpha-lens/src/pages/scanner.tsx,
+find any place where AI-generated text is
+rendered — specifically the aiSummary field
+on market cards or any other string that
+comes from Claude.
+
+Add react-markdown + remark-gfm rendering
+to those fields:
+
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
+<ReactMarkdown remarkPlugins={[remarkGfm]}>
+  {asset.aiSummary ?? ''}
+</ReactMarkdown>
+
+If aiSummary is not rendered on the scanner
+page at all (only shown on market-detail),
+add a code comment confirming this and mark
+as N/A — do not add unnecessary imports.
+
+---
+
+FIX 3 — Audit item 12.3c
+Add text hints to recommendation card
+expand/collapse toggle.
+
+In artifacts/alpha-lens/src/pages/briefing.tsx,
+find the ChevronDown/ChevronUp toggle on
+RecommendationCard.
+
+Add a small text label next to the icon:
+  When collapsed: "Show analysis" + ChevronDown
+  When expanded:  "Hide analysis" + ChevronUp
+
+Use text-xs text-muted-foreground styling.
+Keep it subtle — one line, right-aligned.
+
+---
+
+Run pnpm run typecheck after all three fixes.
+Zero errors required.
+
+Report which files were changed and confirm
+each fix is in place.

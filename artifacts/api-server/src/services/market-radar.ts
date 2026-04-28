@@ -485,7 +485,29 @@ async function storeAlerts(alerts: RadarAlertData[]): Promise<number> {
   return stored;
 }
 
+// Single source of truth for the "is a radar scan running" lock.
+// Both the cron scheduler and the manual POST /api/radar/scan route call
+// runRadarScan(), so the lock must live with the function it guards.
+let isRadarScanning = false;
+
+export function getIsRadarScanning(): boolean {
+  return isRadarScanning;
+}
+
 export async function runRadarScan(): Promise<{ count: number; alerts: RadarAlertData[]; status: string }> {
+  if (isRadarScanning) {
+    logger.info("E8: Radar scan already in progress — skipping concurrent invocation");
+    return { count: 0, alerts: [], status: "scan_already_running" };
+  }
+  isRadarScanning = true;
+  try {
+    return await runRadarScanInner();
+  } finally {
+    isRadarScanning = false;
+  }
+}
+
+async function runRadarScanInner(): Promise<{ count: number; alerts: RadarAlertData[]; status: string }> {
   logger.info("E8: Market Radar scan starting...");
   const newAlerts: RadarAlertData[] = [];
   const prices = await fetchAllPrices();

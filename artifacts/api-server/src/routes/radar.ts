@@ -20,7 +20,11 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-let scanInProgress = false;
+// NOTE: There is intentionally no module-level lock here. The single source
+// of truth for "is a radar scan running" lives in market-radar.ts and is
+// enforced inside runRadarScan() itself. Both the cron scheduler and this
+// route call runRadarScan() — concurrent invocations short-circuit with
+// { status: "scan_already_running" }.
 
 function clamp(val: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, val));
@@ -61,15 +65,24 @@ router.get("/prices", async (_req, res) => {
 });
 
 router.post("/scan", async (_req, res) => {
-  if (scanInProgress) {
-    res.json({ status: "scan_already_running", message: "A radar scan is already in progress. Check /api/radar/alerts shortly." });
-    return;
+  try {
+    const result = await runRadarScan();
+    if (result.status === "scan_already_running") {
+      res.json({
+        status: "scan_already_running",
+        message: "A radar scan is already in progress. Check /api/radar/alerts shortly.",
+      });
+      return;
+    }
+    res.json({
+      status: result.status,
+      count: result.count,
+      message: `Radar scan complete — ${result.count} alert(s) generated.`,
+    });
+  } catch (e: any) {
+    logger.error({ err: e?.message }, "Manual radar scan failed");
+    res.status(500).json({ error: "Radar scan failed" });
   }
-  scanInProgress = true;
-  res.json({ status: "scan_started", message: "Radar scan running in background. Check /api/radar/alerts in ~30 seconds." });
-  runRadarScan()
-    .catch((e) => logger.error({ err: e.message }, "Background radar scan failed"))
-    .finally(() => { scanInProgress = false; });
 });
 
 router.get("/chains/:assetId", (req, res) => {

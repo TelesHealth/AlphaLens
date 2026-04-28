@@ -1,3 +1,8 @@
+// Note (audit 10.3): scanner.tsx renders only structured market metadata
+// (price, edge, sector, score badges, watchlist toggles) — it does NOT
+// render any AI-generated free-form text such as `aiSummary`. AI summaries
+// are shown on market-detail.tsx, which already uses react-markdown +
+// remark-gfm. No markdown rendering is needed here. Marking as N/A.
 import { useState } from "react";
 import { Link } from "wouter";
 import { 
