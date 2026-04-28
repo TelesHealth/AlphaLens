@@ -260,6 +260,7 @@ export async function logLiveTrade(
   size?: number,
   orderId?: string,
   userId?: number,
+  status: string = "filled",
 ) {
   const ticker = rec.assetTitle ?? rec.title ?? "";
   const assetIdStr = await resolveAssetIdString(rec);
@@ -294,7 +295,7 @@ export async function logLiveTrade(
     amountUsd,
     price: resolvedPrice,
     size: resolvedSize,
-    status: "filled",
+    status,
     paperMode: platform === "paper",
     aiProbability: rec.aiProbability,
     aiEdge: rec.edge,
@@ -341,8 +342,14 @@ export async function getAccountsStatus(userId?: number) {
   const platforms = getPlatformStatus();
   const usMode = RISK.usMode;
   const userConfig = userId ? await getUserPlatformConfigured(userId) : null;
-  const isConfigured = (key: "kalshi" | "alpaca" | "polymarket") =>
-    userConfig?.[key] || platforms[key].isConfigured;
+  // When a user is authenticated, ONLY their own user_trading_accounts row
+  // determines configuration. Env vars (KALSHI_EMAIL, etc.) are an admin/no-user
+  // fallback only — using them for a logged-in user produces inconsistent UI
+  // (Bug #28: per-user platforms looked configured because env was set globally).
+  const isConfigured = (key: "kalshi" | "alpaca" | "polymarket") => {
+    if (userConfig != null) return !!userConfig[key];
+    return platforms[key].isConfigured;
+  };
 
   return {
     usJurisdictionMode: usMode,

@@ -208,6 +208,11 @@ router.post("/pending/:id/approve", async (req, res) => {
       return;
     }
 
+    // pending_orders has no amountOverride column; accept an optional override
+    // from the request body but always fall back to the stored order amount.
+    const amountUsd =
+      Number(req.body?.amountOverride ?? order.amountUsd ?? 50) || 50;
+
     if (order.recommendationId) {
       const [rec] = await db
         .select()
@@ -220,7 +225,7 @@ router.post("/pending/:id/approve", async (req, res) => {
         await logLiveTrade(
           rec,
           selectedPlatform,
-          req.body.amountOverride ?? order.amountUsd,
+          amountUsd,
           order.direction ?? "YES",
           undefined,
           undefined,
@@ -255,6 +260,37 @@ router.post("/pending/:id/reject", async (req, res) => {
       res.status(404).json({ error: "Pending order not found" });
       return;
     }
+
+    if (order.status !== "pending_approval") {
+      res.json({ status: order.status, orderId: id, message: `Order already ${order.status}` });
+      return;
+    }
+
+    // Log a row to live_trades with status='rejected' so the rejected order
+    // appears in the Trading → History tab (Bug #30).
+    if (order.recommendationId) {
+      const [rec] = await db
+        .select()
+        .from(recommendationsTable)
+        .where(eq(recommendationsTable.id, order.recommendationId))
+        .limit(1);
+      if (rec) {
+        const selectedPlatform = (order.platform as any) ?? "paper";
+        const amountUsd = Number(order.amountUsd ?? 0) || 0;
+        await logLiveTrade(
+          rec,
+          selectedPlatform,
+          amountUsd,
+          order.direction ?? "YES",
+          undefined,
+          undefined,
+          undefined,
+          userId,
+          "rejected",
+        );
+      }
+    }
+
     await db
       .update(pendingOrdersTable)
       .set({ status: "rejected", rejectedAt: new Date() })
