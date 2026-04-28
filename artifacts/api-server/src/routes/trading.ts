@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { liveTradesTable, pendingOrdersTable, recommendationsTable } from "@workspace/db/schema";
+import { liveTradesTable, pendingOrdersTable, recommendationsTable, portfolioTable } from "@workspace/db/schema";
 import { eq, desc, gte, and } from "drizzle-orm";
 import {
   getBestPlatform,
@@ -13,6 +13,34 @@ import {
   getAccountsStatus,
   RISK,
 } from "../services/platform-router";
+
+const DEFAULT_STARTING_BALANCE = 10000;
+
+async function getOrCreatePortfolioBalance(userId: number): Promise<number> {
+  const existing = await db
+    .select({ balance: portfolioTable.balance })
+    .from(portfolioTable)
+    .where(eq(portfolioTable.userId, userId))
+    .limit(1);
+  if (existing[0]) return Number(existing[0].balance ?? 0);
+  // Race-safe: if two concurrent first trades both reach the insert, the unique
+  // (user_id) index will reject the duplicate. onConflictDoNothing swallows the
+  // collision; we then re-read the row written by the winning request.
+  await db
+    .insert(portfolioTable)
+    .values({
+      userId,
+      balance: DEFAULT_STARTING_BALANCE,
+      initialBalance: DEFAULT_STARTING_BALANCE,
+    })
+    .onConflictDoNothing({ target: portfolioTable.userId });
+  const [row] = await db
+    .select({ balance: portfolioTable.balance })
+    .from(portfolioTable)
+    .where(eq(portfolioTable.userId, userId))
+    .limit(1);
+  return Number(row?.balance ?? DEFAULT_STARTING_BALANCE);
+}
 
 const router: IRouter = Router();
 
@@ -83,7 +111,8 @@ router.post("/execute", async (req, res) => {
       });
       return;
     }
-    const riskResult = checkRiskGate(rec, amountUsd, 10000, dailyPnl, dailyTradeCount);
+    const portfolioValue = await getOrCreatePortfolioBalance(userId);
+    const riskResult = checkRiskGate(rec, amountUsd, portfolioValue, dailyPnl, dailyTradeCount);
     if (!riskResult.passed) {
       res.json({
         success: false,

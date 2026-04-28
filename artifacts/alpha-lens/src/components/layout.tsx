@@ -39,6 +39,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { href: "/portfolio", label: "Portfolio", icon: Briefcase },
     { href: "/radar", label: "Radar", icon: Radio },
     { href: "/whales", label: "Smart Money", icon: Fish },
+    { href: "/settings", label: "Settings", icon: SettingsIcon },
   ];
 
   const SidebarContent = () => (
@@ -162,10 +163,10 @@ export function Layout({ children }: { children: ReactNode }) {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-72 pt-16 md:pt-0 min-h-screen relative flex flex-col">
+      <main className="flex-1 md:ml-72 pt-16 md:pt-0 min-h-screen relative flex flex-col min-w-0 overflow-x-hidden">
         {/* Subtle background glow */}
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
-        <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-8 lg:p-10 z-10">
+        <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-8 lg:p-10 z-10 min-w-0">
           {children}
         </div>
       </main>

@@ -50,7 +50,7 @@ function formatTime(ts: string): string {
 
 export default function Whales() {
   const [tab, setTab] = useState<TabId>("flow");
-  const { data: statusData } = useGetWhalesStatus();
+  const { data: statusData, isLoading: statusLoading, isFetched: statusFetched } = useGetWhalesStatus();
   const { data: summaryData, isLoading: summaryLoading } = useGetWhalesFlowSummary();
   const { data: flowData, isLoading: flowLoading } = useGetWhalesFlowAlerts();
   const { data: dpData, isLoading: dpLoading } = useGetWhalesDarkPool();
@@ -58,11 +58,29 @@ export default function Whales() {
   const { data: congressData, isLoading: congressLoading } = useGetWhalesCongress();
   const { data: cryptoData, isLoading: cryptoLoading } = useGetWhalesCryptoWhales();
 
+  // Treat the page as "loading" until the status check has actually completed.
+  // Previously a still-pending status request was treated as not_configured,
+  // which made the page flash the error state on slow connections (Bug #27p4).
+  const checkingStatus = statusLoading || !statusFetched;
   const configured = statusData?.configured ?? false;
+
+  if (checkingStatus) {
+    return (
+      <div
+        className="flex items-center justify-center h-[60vh]"
+        data-testid="whales-loading"
+      >
+        <div className="text-center space-y-3">
+          <Fish className="w-10 h-10 text-primary/50 mx-auto animate-pulse" />
+          <div className="text-sm text-muted-foreground">Connecting to Smart Money…</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!configured) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center h-[60vh]" data-testid="whales-not-configured">
         <div className="text-center space-y-4 max-w-md">
           <Fish className="w-12 h-12 text-muted-foreground/50 mx-auto" />
           <h2 className="text-xl font-display">Unusual Whales Not Configured</h2>
@@ -149,7 +167,7 @@ export default function Whales() {
         </div>
       )}
 
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto scrollbar-none w-full">
         {tabs.map((t) => {
           const Icon = t.icon;
           return (
@@ -157,11 +175,12 @@ export default function Whales() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px",
+                "flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px shrink-0 whitespace-nowrap",
                 tab === t.id
                   ? "text-primary border-primary"
                   : "text-muted-foreground border-transparent hover:text-foreground"
               )}
+              data-testid={`whales-tab-${t.id}`}
             >
               <Icon className="w-4 h-4" /> {t.label}
             </button>

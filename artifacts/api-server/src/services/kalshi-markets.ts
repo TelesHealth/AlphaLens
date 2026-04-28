@@ -37,12 +37,50 @@ interface CacheEntry {
 const CACHE_TTL_MS = 60_000;
 const cache = new Map<string, CacheEntry>();
 
+class KalshiError extends Error {
+  status: number | null;
+  classification: "rate_limit" | "client" | "server" | "timeout" | "network";
+  constructor(
+    message: string,
+    status: number | null,
+    classification: KalshiError["classification"],
+  ) {
+    super(message);
+    this.status = status;
+    this.classification = classification;
+  }
+}
+
 async function fetchSeriesMarkets(seriesTicker: string): Promise<KalshiMarket[]> {
   const url = `${KALSHI_BASE}/markets?series_ticker=${encodeURIComponent(seriesTicker)}&status=open&limit=200`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`Kalshi HTTP ${res.status}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      // Kalshi public market data does not require Authorization.
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      signal: controller.signal,
+    });
+  } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new KalshiError("Kalshi request timed out after 10s", null, "timeout");
+    }
+    throw new KalshiError(`Kalshi network error: ${e?.message ?? e}`, null, "network");
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  if (!res.ok) {
+    if (res.status === 429) {
+      throw new KalshiError(`Kalshi rate limited (HTTP 429)`, 429, "rate_limit");
+    }
+    if (res.status >= 500) {
+      throw new KalshiError(`Kalshi server error (HTTP ${res.status})`, res.status, "server");
+    }
+    throw new KalshiError(`Kalshi client error (HTTP ${res.status})`, res.status, "client");
+  }
   const json = (await res.json()) as { markets?: KalshiMarket[] };
-  return json.markets ?? [];
+  return Array.isArray(json.markets) ? json.markets : [];
 }
 
 function liquidityScore(m: KalshiMarket): number {
@@ -84,10 +122,31 @@ export async function fetchKalshiMarketPrice(
     cache.set(cacheKey, { value: price, ts: Date.now() });
     return price;
   } catch (e: any) {
-    logger.warn(`Kalshi: failed to fetch ${seriesTicker} — ${e?.message ?? e}`);
+    logKalshiError(`fetchKalshiMarketPrice(${seriesTicker})`, e);
     cache.set(cacheKey, { value: null, ts: Date.now() });
     return null;
   }
+}
+
+function logKalshiError(context: string, e: unknown): void {
+  if (e instanceof KalshiError) {
+    if (e.classification === "rate_limit") {
+      logger.warn(`Kalshi rate-limited in ${context} — backing off (HTTP 429)`);
+      return;
+    }
+    if (e.classification === "timeout" || e.classification === "network") {
+      logger.warn(`Kalshi transient failure in ${context}: ${e.message}`);
+      return;
+    }
+    if (e.classification === "server") {
+      logger.warn(`Kalshi upstream issue in ${context}: ${e.message}`);
+      return;
+    }
+    // client error (4xx other than 429)
+    logger.error(`Kalshi client error in ${context}: ${e.message}`);
+    return;
+  }
+  logger.warn(`Kalshi unexpected failure in ${context}: ${(e as any)?.message ?? e}`);
 }
 
 function btcStrikeFromMarket(m: KalshiMarket): number | null {
@@ -124,8 +183,8 @@ async function fetchBtc100k(): Promise<number | null> {
     }
     cache.set(cacheKey, { value: price, ts: Date.now() });
     return price;
-  } catch (e: any) {
-    logger.warn(`Kalshi: failed to fetch KXBTC — ${e?.message ?? e}`);
+  } catch (e: unknown) {
+    logKalshiError("fetchBtc100k(KXBTC)", e);
     cache.set(cacheKey, { value: null, ts: Date.now() });
     return null;
   }
@@ -242,8 +301,8 @@ async function fetchFedCutProbability(): Promise<number | null> {
     logger.warn(`Kalshi KXFED: could not compute cut probability (${byEvent.size} events, ${horizonEvents.length} before horizon)`);
     cache.set(cacheKey, { value: null, ts: Date.now() });
     return null;
-  } catch (e: any) {
-    logger.warn(`Kalshi KXFED: cut probability failed — ${e?.message ?? e}`);
+  } catch (e: unknown) {
+    logKalshiError("fetchFedCutProbability(KXFED)", e);
     cache.set(cacheKey, { value: null, ts: Date.now() });
     return null;
   }

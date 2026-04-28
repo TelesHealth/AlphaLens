@@ -165,10 +165,27 @@ function normalizeFlowAlert(raw: any): FlowAlert {
 }
 
 function normalizeDarkPoolPrint(raw: any): DarkPoolPrint {
+  // Unusual Whales has shipped multiple variants of these field names across
+  // their dark pool endpoints. Try every documented + observed alias before
+  // falling back to null. If UW genuinely omits the field, null is correct.
+  const saleCondCodes =
+    raw.sale_cond_codes ??
+    raw.sale_conditions ??
+    raw.conditions ??
+    raw.sale_cond ??
+    raw.flags ??
+    null;
+  const tradeCode =
+    raw.trade_code ??
+    raw.trade_type ??
+    raw.type ??
+    raw.side ??
+    raw.aggressor ??
+    null;
   return {
     ...raw,
-    sale_cond_codes: raw.sale_cond_codes ?? raw.conditions ?? null,
-    trade_code: raw.trade_code ?? raw.trade_type ?? null,
+    sale_cond_codes: saleCondCodes,
+    trade_code: tradeCode,
   };
 }
 

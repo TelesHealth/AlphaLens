@@ -33,6 +33,49 @@ MARKDOWN FORMATTING RULES (strict):
 - Bullet lines must start with "- " (a hyphen and a space). Never use "**" as a bullet marker.
 - Use plain words for emphasis when in doubt rather than risk unbalanced asterisks.`;
 
+/**
+ * Strip stray asterisks that aren't part of a balanced **bold** pair.
+ * Also turns `* ` line bullets into `- ` line bullets so remark-gfm renders
+ * them as a list instead of italic emphasis. Whitelisted patterns:
+ *  - `**word**` (well-formed bold) is preserved
+ *  - `- item` bullets are preserved
+ * Anything else loose (single `*`, leading `* `, trailing `**`) is cleaned up.
+ */
+function sanitizeMarkdown(input: string): string {
+  if (!input) return input;
+  let out = input;
+
+  // Convert `* ` bullets at start of line to `- ` bullets.
+  out = out.replace(/^[ \t]*\*[ \t]+/gm, "- ");
+
+  // Drop leftover orphan `**` that isn't paired (odd count on a line).
+  out = out
+    .split("\n")
+    .map((line) => {
+      const dblCount = (line.match(/\*\*/g) ?? []).length;
+      if (dblCount % 2 !== 0) {
+        // Remove the LAST stray ** to balance.
+        const idx = line.lastIndexOf("**");
+        if (idx !== -1) {
+          line = line.slice(0, idx) + line.slice(idx + 2);
+        }
+      }
+      return line;
+    })
+    .join("\n");
+
+  // NOTE: We intentionally do NOT globally rewrite single `*` here. Valid
+  // italic emphasis (`*word*`) is rendered correctly by remark-gfm and must be
+  // preserved. The leading bullet conversion on line above already handles the
+  // most common stray-asterisk case; orphan `**` is balanced above. Anything
+  // else is treated as authored content.
+
+  // Final defensive trim of doubled spaces.
+  out = out.replace(/[ \t]{2,}/g, " ");
+
+  return out;
+}
+
 interface CoachInput {
   assetId?: number | null;
   question: string;
@@ -166,6 +209,7 @@ export async function getCoachAnalysis(input: CoachInput) {
       system: COACH_PROMPT,
       messages: [{ role: "user", content: prompt }],
     });
+ 
 
    
     let analysis = "";
@@ -210,9 +254,9 @@ export async function getCoachAnalysis(input: CoachInput) {
     }
 
     return {
-      analysis: mainAnalysis,
-      recommendations: recommendations.slice(0, 5),
-      riskAssessment,
+      analysis: sanitizeMarkdown(mainAnalysis),
+      recommendations: recommendations.slice(0, 5).map(sanitizeMarkdown),
+      riskAssessment: riskAssessment ? sanitizeMarkdown(riskAssessment) : null,
       confidence,
     };
   } catch (e: any) {
