@@ -128,7 +128,10 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
   const { data: accountsData } = useGetTradingAccounts({
     query: {
       queryKey: getGetTradingAccountsQueryKey(),
-      staleTime: 60_000,
+      // staleTime: 0 ensures we always see the freshest configured/not-configured
+      // state right after the user connects a platform in /settings, instead of
+      // showing a stale "Execute via PAPER" button from an earlier visit.
+      staleTime: 0,
     },
   });
   const accounts = accountsData?.accounts;

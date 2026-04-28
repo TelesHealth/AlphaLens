@@ -68,15 +68,27 @@ export interface RoutingDecision {
   tradeable: boolean;
 }
 
-export function getBestPlatform(rec: {
-  title?: string | null;
-  assetClass?: string | null;
-  sector?: string | null;
-}): RoutingDecision {
+export async function getBestPlatform(
+  rec: {
+    title?: string | null;
+    assetClass?: string | null;
+    sector?: string | null;
+  },
+  userId?: number,
+): Promise<RoutingDecision> {
   const title = (rec.title ?? "").toLowerCase();
   const assetClass = (rec.assetClass ?? "").toLowerCase();
   const sector = (rec.sector ?? "").toLowerCase();
-  const platforms = getPlatformStatus();
+  const envPlatforms = getPlatformStatus();
+  // When a user is authenticated, ONLY their own user_trading_accounts row
+  // counts as "configured" — env vars are an admin/no-user fallback only.
+  // Without this, briefing.tsx receives `selectedPlatform: "paper"` from the
+  // routing endpoint even when the user has Kalshi connected in /settings,
+  // because env-var-only routing diverges from the per-user accounts the UI
+  // already reads. (Bug #28: kept routing in lockstep with getAccountsStatus.)
+  const userConfig = userId ? await getUserPlatformConfigured(userId) : null;
+  const isConfigured = (key: "kalshi" | "alpaca" | "polymarket") =>
+    userConfig != null ? !!userConfig[key] : envPlatforms[key].isConfigured;
 
   const isEquity =
     assetClass === "stock" || assetClass === "stocks" ||
@@ -85,32 +97,32 @@ export function getBestPlatform(rec: {
     sector === "stock" || sector === "stocks" ||
     sector === "equity" || sector === "equities";
   if (isEquity) {
-    if (platforms.alpaca.isConfigured) {
+    if (isConfigured("alpaca")) {
       return { platform: "alpaca", reason: "Stock/ETF market → Alpaca", tradeable: true };
     }
-    return { platform: "paper", reason: "Alpaca not configured (add ALPACA_API_KEY)", tradeable: false };
+    return { platform: "paper", reason: "Alpaca not configured", tradeable: false };
   }
 
   const kalshiMatch = KALSHI_STRONG.some(kw => title.includes(kw));
   const polymarketOnlyMatch = POLYMARKET_ONLY.some(kw => title.includes(kw));
 
   if (kalshiMatch && !polymarketOnlyMatch) {
-    if (platforms.kalshi.isConfigured) {
+    if (isConfigured("kalshi")) {
       return { platform: "kalshi", reason: "Kalshi covers this market — CFTC regulated, USD settled", tradeable: true };
     }
-    return { platform: "paper", reason: "Kalshi not configured (add KALSHI_EMAIL + KALSHI_PASSWORD)", tradeable: false };
+    return { platform: "paper", reason: "Kalshi not configured", tradeable: false };
   }
 
   if (RISK.usMode) {
-    if (platforms.kalshi.isConfigured) {
+    if (isConfigured("kalshi")) {
       return { platform: "kalshi", reason: "US jurisdiction mode — routing to Kalshi (legal for US residents)", tradeable: true };
     }
     return { platform: "paper", reason: "US jurisdiction mode — Polymarket not available for US residents", tradeable: false };
   } else {
-    if (polymarketOnlyMatch && platforms.polymarket.isConfigured) {
+    if (polymarketOnlyMatch && isConfigured("polymarket")) {
       return { platform: "polymarket", reason: "Polymarket covers this market type (non-US jurisdiction)", tradeable: true };
     }
-    if (platforms.kalshi.isConfigured) {
+    if (isConfigured("kalshi")) {
       return { platform: "kalshi", reason: "Falling back to Kalshi (Polymarket not configured)", tradeable: true };
     }
     return { platform: "paper", reason: "No prediction market platform configured", tradeable: false };
@@ -233,7 +245,7 @@ export async function storePendingOrder(
   platformOverride?: Platform,
   userId?: number,
 ) {
-  const routing = getBestPlatform(rec);
+  const routing = await getBestPlatform(rec, userId);
   const assetIdStr = await resolveAssetIdString(rec);
   await db.insert(pendingOrdersTable).values({
     userId,

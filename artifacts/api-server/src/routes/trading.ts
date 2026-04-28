@@ -68,7 +68,7 @@ router.get("/route/:recommendationId", async (req, res) => {
       return;
     }
 
-    const routing = getBestPlatform(rec);
+    const routing = await getBestPlatform(rec, req.user?.userId);
     res.json({
       recommendationId: id,
       title: rec.title,
@@ -133,7 +133,7 @@ router.post("/execute", async (req, res) => {
       return;
     }
 
-    const routing = getBestPlatform(rec);
+    const routing = await getBestPlatform(rec, userId);
     const selectedPlatform = platformOverride ?? routing.platform;
 
     if (selectedPlatform === "paper" || !routing.tradeable) {
