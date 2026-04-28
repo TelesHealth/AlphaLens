@@ -265,6 +265,15 @@ export const RecommendationOutcome = {
   partial: "partial",
 } as const;
 
+export type RecommendationResolutionMethod =
+  | (typeof RecommendationResolutionMethod)[keyof typeof RecommendationResolutionMethod]
+  | null;
+
+export const RecommendationResolutionMethod = {
+  auto: "auto",
+  manual: "manual",
+} as const;
+
 export interface Recommendation {
   id: number;
   briefingId?: number | null;
@@ -293,6 +302,7 @@ export interface Recommendation {
   resolutionNote?: string | null;
   marketPriceAtResolution?: number | null;
   paperReturn?: number | null;
+  resolutionMethod?: RecommendationResolutionMethod;
   createdAt?: string | null;
 }
 
@@ -719,6 +729,9 @@ export interface LeaderboardStats {
   paperReturnPct: number;
   highConfidenceWinRate?: number | null;
   highEdgeWinRate?: number | null;
+  autoResolved?: number;
+  manualResolved?: number;
+  pendingResolution?: number;
 }
 
 export interface LeaderboardCalibrationBucket {
@@ -726,6 +739,45 @@ export interface LeaderboardCalibrationBucket {
   calls: number;
   correct: number;
   rate: number;
+}
+
+export type ResolutionDigestEntryOutcome =
+  (typeof ResolutionDigestEntryOutcome)[keyof typeof ResolutionDigestEntryOutcome];
+
+export const ResolutionDigestEntryOutcome = {
+  correct: "correct",
+  incorrect: "incorrect",
+  partial: "partial",
+} as const;
+
+export type ResolutionDigestEntryPlatform =
+  (typeof ResolutionDigestEntryPlatform)[keyof typeof ResolutionDigestEntryPlatform];
+
+export const ResolutionDigestEntryPlatform = {
+  kalshi: "kalshi",
+  polymarket: "polymarket",
+  price: "price",
+  macro: "macro",
+  unknown: "unknown",
+} as const;
+
+export interface ResolutionDigestEntry {
+  id: number;
+  assetTitle: string;
+  outcome: ResolutionDigestEntryOutcome;
+  platform: ResolutionDigestEntryPlatform;
+}
+
+export interface ResolutionDigest {
+  date: string;
+  resolvedToday: number;
+  skipped: number;
+  failed: number;
+  stillOpen: number;
+  approachingWindow: number;
+  needsHumanReview: number;
+  resolved: ResolutionDigestEntry[];
+  needsReviewIds: number[];
 }
 
 export interface LeaderboardResponse {
@@ -773,6 +825,10 @@ export type GetGlobalEventsParams = {
 
 export type AddToWatchlist200 = {
   status?: string;
+};
+
+export type ResolveOutcomes200 = {
+  digest: ResolutionDigest;
 };
 
 export type UpdateRecommendationOutcome200 = {

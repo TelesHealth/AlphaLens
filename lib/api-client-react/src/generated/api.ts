@@ -63,6 +63,7 @@ import type {
   RefreshResponse,
   RejectPendingOrder200,
   RemoveFromWatchlist200,
+  ResolveOutcomes200,
   RoutingDecisionResponse,
   ScanResponse,
   ScoreResponse,
@@ -1431,6 +1432,87 @@ export const useAddToWatchlist = <
   TContext
 > => {
   return useMutation(getAddToWatchlistMutationOptions(options));
+};
+
+/**
+ * @summary Trigger automated outcome resolution run (admin only)
+ */
+export const getResolveOutcomesUrl = () => {
+  return `/api/recommendations/resolve-outcomes`;
+};
+
+export const resolveOutcomes = async (
+  options?: RequestInit,
+): Promise<ResolveOutcomes200> => {
+  return customFetch<ResolveOutcomes200>(getResolveOutcomesUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getResolveOutcomesMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resolveOutcomes>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resolveOutcomes>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["resolveOutcomes"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resolveOutcomes>>,
+    void
+  > = () => {
+    return resolveOutcomes(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResolveOutcomesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resolveOutcomes>>
+>;
+
+export type ResolveOutcomesMutationError = ErrorType<void>;
+
+/**
+ * @summary Trigger automated outcome resolution run (admin only)
+ */
+export const useResolveOutcomes = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resolveOutcomes>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resolveOutcomes>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getResolveOutcomesMutationOptions(options));
 };
 
 /**

@@ -446,6 +446,7 @@ export const GetBriefingResponse = zod.object({
         resolutionNote: zod.string().nullish(),
         marketPriceAtResolution: zod.number().nullish(),
         paperReturn: zod.number().nullish(),
+        resolutionMethod: zod.enum(["auto", "manual"]).nullish(),
         createdAt: zod.date().nullish(),
       }),
     )
@@ -533,6 +534,36 @@ export const AddToWatchlistResponse = zod.object({
 });
 
 /**
+ * @summary Trigger automated outcome resolution run (admin only)
+ */
+export const ResolveOutcomesResponse = zod.object({
+  digest: zod.object({
+    date: zod.string(),
+    resolvedToday: zod.number(),
+    skipped: zod.number(),
+    failed: zod.number(),
+    stillOpen: zod.number(),
+    approachingWindow: zod.number(),
+    needsHumanReview: zod.number(),
+    resolved: zod.array(
+      zod.object({
+        id: zod.number(),
+        assetTitle: zod.string(),
+        outcome: zod.enum(["correct", "incorrect", "partial"]),
+        platform: zod.enum([
+          "kalshi",
+          "polymarket",
+          "price",
+          "macro",
+          "unknown",
+        ]),
+      }),
+    ),
+    needsReviewIds: zod.array(zod.number()),
+  }),
+});
+
+/**
  * @summary Update outcome on a recommendation (admin only)
  */
 export const UpdateRecommendationOutcomeParams = zod.object({
@@ -576,6 +607,7 @@ export const UpdateRecommendationOutcomeResponse = zod.object({
     resolutionNote: zod.string().nullish(),
     marketPriceAtResolution: zod.number().nullish(),
     paperReturn: zod.number().nullish(),
+    resolutionMethod: zod.enum(["auto", "manual"]).nullish(),
     createdAt: zod.date().nullish(),
   }),
 });
@@ -622,6 +654,9 @@ export const GetLeaderboardResponse = zod.object({
     paperReturnPct: zod.number(),
     highConfidenceWinRate: zod.number().nullish(),
     highEdgeWinRate: zod.number().nullish(),
+    autoResolved: zod.number().optional(),
+    manualResolved: zod.number().optional(),
+    pendingResolution: zod.number().optional(),
   }),
   calibration: zod.array(
     zod.object({
@@ -660,6 +695,7 @@ export const GetLeaderboardResponse = zod.object({
       resolutionNote: zod.string().nullish(),
       marketPriceAtResolution: zod.number().nullish(),
       paperReturn: zod.number().nullish(),
+      resolutionMethod: zod.enum(["auto", "manual"]).nullish(),
       createdAt: zod.date().nullish(),
     }),
   ),

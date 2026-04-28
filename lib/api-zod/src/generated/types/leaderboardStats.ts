@@ -25,4 +25,7 @@ export interface LeaderboardStats {
   paperReturnPct: number;
   highConfidenceWinRate?: number | null;
   highEdgeWinRate?: number | null;
+  autoResolved?: number;
+  manualResolved?: number;
+  pendingResolution?: number;
 }

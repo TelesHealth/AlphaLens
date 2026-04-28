@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { RecommendationOutcome } from "./recommendationOutcome";
+import type { RecommendationResolutionMethod } from "./recommendationResolutionMethod";
 import type { RecommendationType } from "./recommendationType";
 import type { RecommendationUrgency } from "./recommendationUrgency";
 
@@ -37,5 +38,6 @@ export interface Recommendation {
   resolutionNote?: string | null;
   marketPriceAtResolution?: number | null;
   paperReturn?: number | null;
+  resolutionMethod?: RecommendationResolutionMethod;
   createdAt?: Date | null;
 }

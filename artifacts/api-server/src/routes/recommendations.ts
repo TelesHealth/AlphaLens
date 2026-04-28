@@ -11,6 +11,7 @@ import {
   scanForRecommendations,
   getCurrentBriefing,
 } from "../services/recommendations";
+import { runOutcomeResolution } from "../services/outcome-resolver";
 import { requireAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -75,6 +76,7 @@ router.patch("/:id/outcome", requireAdmin, async (req, res) => {
             : null,
         paperReturn:
           typeof paperReturn === "number" ? paperReturn : null,
+        resolutionMethod: "manual",
       })
       .where(eq(recommendationsTable.id, id))
       .returning();
@@ -82,6 +84,17 @@ router.patch("/:id/outcome", requireAdmin, async (req, res) => {
     res.json({ recommendation: updated });
   } catch (e: any) {
     req.log.error({ err: e }, "Error updating recommendation outcome");
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Admin-only: trigger an immediate outcome-resolution run.
+router.post("/resolve-outcomes", requireAdmin, async (req, res) => {
+  try {
+    const digest = await runOutcomeResolution();
+    res.json({ digest });
+  } catch (e: any) {
+    req.log.error({ err: e }, "Manual outcome resolution failed");
     res.status(500).json({ error: e.message });
   }
 });

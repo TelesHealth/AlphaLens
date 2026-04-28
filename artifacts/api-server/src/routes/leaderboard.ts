@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { recommendationsTable } from "@workspace/db/schema";
 import { desc } from "drizzle-orm";
+import { categorizeUnresolved, derivePlatform } from "../services/outcome-resolver.js";
 
 const router: IRouter = Router();
 
@@ -38,6 +39,18 @@ router.get("/", async (req, res) => {
     const totalCalls = all.length;
     const resolvedCalls = resolvedAll.length;
     const openCalls = openAll.length;
+
+    const autoResolved = resolvedAll.filter((r) => r.resolutionMethod === "auto").length;
+    const manualResolved = resolvedAll.filter((r) => r.resolutionMethod === "manual").length;
+    // pendingResolution: open `trade` calls flagged "needs-review" by the same
+    // categorizer the resolver uses for its daily digest. This includes both
+    // (a) price/macro recs whose declared window has already passed, and
+    // (b) Kalshi/Polymarket recs older than 60 days with no parseable window.
+    // Sharing the helper guarantees this stat cannot drift from the digest.
+    const pendingResolution = openAll.filter((r) => {
+      if (r.type !== "trade") return false;
+      return categorizeUnresolved(r, derivePlatform(r)) === "needs-review";
+    }).length;
 
     const winRate =
       resolvedCalls > 0 ? round1((correctCalls / resolvedCalls) * 100) : 0;
@@ -176,6 +189,9 @@ router.get("/", async (req, res) => {
         paperReturnPct,
         highConfidenceWinRate,
         highEdgeWinRate,
+        autoResolved,
+        manualResolved,
+        pendingResolution,
       },
       calibration,
       recommendations,

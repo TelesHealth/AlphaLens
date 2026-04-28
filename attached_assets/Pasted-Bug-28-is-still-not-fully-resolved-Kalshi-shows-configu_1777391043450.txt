@@ -1,0 +1,106 @@
+Bug #28 is still not fully resolved. Kalshi shows
+configured in /settings and /trading Overview but
+/briefing still shows "Execute via PAPER" and
+displays "Kalshi not configured" banner.
+
+The backend fix was correct — GET /api/trading/accounts
+now reads per-user credentials properly. The problem
+is in the frontend briefing page.
+
+Fix in artifacts/alpha-lens/src/pages/briefing.tsx:
+
+STEP 1 — Audit the platform status check
+
+Find where briefing.tsx determines which platform
+to show on the Execute Live Trade button.
+
+Check for any of these problems:
+
+a) The briefing page may be checking platform
+   status using a hardcoded value, env var check,
+   or a different API call than GET /api/trading/accounts.
+   Fix: use ONLY GET /api/trading/accounts with the
+   user's auth token.
+
+b) The briefing page may be calling GET /api/trading/accounts
+   without sending the auth cookie or Bearer token.
+   Fix: ensure the API call includes credentials.
+   If using fetch directly, add: credentials: 'include'
+   If using the React Query hook, ensure the hook
+   includes the auth header automatically.
+
+c) The briefing page may be caching a stale "not
+   configured" result from a previous session before
+   the user connected Kalshi in Settings.
+   Fix: invalidate the trading accounts query cache
+   when the page loads, or set staleTime: 0 on that
+   query so it always fetches fresh on mount.
+
+d) The component may have a local state variable
+   initialized to false/null for isKalshiConfigured
+   that doesn't update when the API response arrives.
+   Fix: derive the configured state directly from
+   the API response, not from a separate useState.
+
+STEP 2 — Fix the Execute Live Trade button logic
+
+The button label should be derived from the
+GET /api/trading/accounts response:
+
+const { data: accounts } = useGetTradingAccounts();
+
+const primaryPlatform = accounts?.primaryPlatform
+  ?? "paper";
+
+const isLiveTradeAvailable =
+  accounts?.kalshi?.status === "configured" ||
+  accounts?.alpaca?.status === "configured";
+
+Button label:
+  isLiveTradeAvailable
+    ? `Execute via ${primaryPlatform.toUpperCase()}`
+    : "Paper Trade Only"
+
+Show the Execute Live Trade button ONLY when
+isLiveTradeAvailable is true.
+
+STEP 3 — Fix the "Kalshi not configured" banner
+
+If there is a banner on the briefing page that
+shows "Kalshi not configured", it must also read
+from the same GET /api/trading/accounts response.
+
+Replace any hardcoded or env-var-based check with:
+  accounts?.kalshi?.status === "configured"
+
+STEP 4 — Ensure query cache is fresh
+
+In the useGetTradingAccounts hook call in briefing.tsx,
+add staleTime: 0 to ensure it always fetches fresh:
+
+const { data: accounts } = useGetTradingAccounts({
+  query: { staleTime: 0 }
+});
+
+This prevents a stale cached response from showing
+"not configured" after the user has connected Kalshi.
+
+STEP 5 — Test the full flow
+
+After fixing, verify this specific scenario:
+1. User connects Kalshi in /settings
+2. User navigates to /briefing
+3. Briefing page shows "Execute via KALSHI"
+   not "Execute via PAPER"
+4. No "Kalshi not configured" banner appears
+5. Navigate away and back — still shows KALSHI
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify:
+- /settings shows Kalshi: Configured ✓
+- /trading Overview shows Kalshi: Configured ✓
+- /trading Pending tab shows Kalshi: Configured ✓
+- /briefing Execute button shows "Execute via KALSHI" ✓
+- /briefing shows NO "not configured" banner ✓
+- All four pages consistent with each other ✓

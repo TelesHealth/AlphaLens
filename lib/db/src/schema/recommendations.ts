@@ -40,6 +40,7 @@ export const recommendationsTable = pgTable("recommendations", {
   resolutionNote: text("resolution_note"),
   marketPriceAtResolution: doublePrecision("market_price_at_resolution"),
   paperReturn: doublePrecision("paper_return"),
+  resolutionMethod: text("resolution_method"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
