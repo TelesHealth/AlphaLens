@@ -177,7 +177,7 @@ async function fetchBtc100k(): Promise<number | null> {
     }
     const price = priceFromMarket(best);
     if (price == null) {
-      logger.warn("Kalshi: failed to fetch KXBTC (no $100K market)");
+      logger.info("Kalshi KXBTC: no $100K market open yet (BTC at current price) — using default probability");
     } else {
       logger.info(`Kalshi: fetched KXBTC at ${price}% (${best?.ticker ?? "?"})`);
     }
