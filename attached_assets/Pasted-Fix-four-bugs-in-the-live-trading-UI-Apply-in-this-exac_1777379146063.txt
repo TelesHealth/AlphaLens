@@ -1,0 +1,173 @@
+Fix four bugs in the live trading UI.
+Apply in this exact order.
+
+---
+
+BUG #29 — P1 — amountOverride undefined crash on approve
+
+Error: "Cannot read properties of undefined
+(reading 'amountOverride')" when clicking
+Approve on a pending order.
+
+In artifacts/api-server/src/routes/trading.ts,
+find POST /api/trading/pending/:id/approve.
+
+The route is trying to read amountOverride from
+the pending order but the field doesn't exist
+or is undefined.
+
+Fix:
+1. Find where amountOverride is read from the
+   pending order object.
+2. Add a safe fallback:
+   const amountUsd = order.amountOverride
+     ?? order.amountUsd
+     ?? 50;
+   Use amountUsd for the trade execution.
+
+3. If amountOverride column doesn't exist in
+   the pending_orders schema in lib/db/src/schema/,
+   remove all references to it and use amountUsd
+   consistently throughout the approve flow.
+
+4. Check the entire approve route for any other
+   undefined field reads and add null guards.
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify: Queue a pending order via Briefing page,
+go to Trading → Pending tab, click Approve.
+Should succeed with toast "Trade approved"
+not 500 error.
+
+---
+
+BUG #28 — P1 — Inconsistent platform status
+across pages
+
+Kalshi shows "configured" in Settings and
+Trading Overview but "not configured" in
+Trading Pending tab and Briefing cards.
+
+Root cause: Multiple places check platform
+status using different methods:
+- Some read from user_trading_accounts table
+  (correct — per-user)
+- Some read from process.env.KALSHI_EMAIL
+  (wrong — this is the admin fallback only)
+
+Fix in two places:
+
+1. In artifacts/api-server/src/routes/trading.ts,
+   find GET /api/trading/accounts.
+   This endpoint must ALWAYS check the current
+   user's credentials from user_trading_accounts
+   first, before falling back to env vars.
+   The response must reflect the logged-in user's
+   configuration, not the admin env vars.
+
+2. In artifacts/alpha-lens/src/pages/briefing.tsx,
+   find where the Execute Live Trade button checks
+   if a platform is configured.
+   It must call GET /api/trading/accounts and
+   check the response — not hardcode any platform
+   status or check env vars directly.
+
+3. In artifacts/alpha-lens/src/pages/trading.tsx,
+   the Pending tab must use the same
+   GET /api/trading/accounts call to determine
+   platform status — not an independent check.
+
+Single source of truth:
+GET /api/trading/accounts always returns the
+current user's platform status. All UI components
+must use this endpoint. No component should
+independently check platform configuration.
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify:
+- Log in as Charlize
+- Go to Settings — Kalshi shows Configured
+- Go to Trading Overview — Kalshi shows Configured
+- Go to Briefing — Execute Live Trade button
+  shows "Execute via KALSHI" not disabled state
+- Go to Trading Pending — platform shown correctly
+
+---
+
+BUG #30 — P1 — Rejected trades not in history
+
+GET /api/trading/history currently only returns
+trades with status "filled". Rejected trades
+are not included.
+
+In artifacts/api-server/src/routes/trading.ts,
+find GET /api/trading/history.
+
+Fix the query to include rejected trades:
+
+Change the status filter from:
+  WHERE status = 'filled'
+To:
+  WHERE status IN ('filled', 'rejected', 'approved')
+
+Also update the frontend history table in
+artifacts/alpha-lens/src/pages/trading.tsx:
+
+The filter buttons already include All/Filled/
+Rejected etc. Confirm the "Rejected" filter
+button correctly filters by status = 'rejected'.
+
+Show rejected trades with a red "REJECTED" badge
+in the Status column so they are visually distinct
+from filled trades.
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify:
+1. Queue a pending order
+2. Go to Trading Pending tab and click Reject
+3. Go to Trading History tab
+4. Rejected trade should appear with
+   REJECTED status badge
+
+---
+
+BUG #25 — P4 — Exit button still hover-only
+on mobile (persistent — 4th attempt)
+
+Previous fixes applied opacity-100 to dialog.tsx
+and sheet.tsx but the trading confirmation modal
+may use a different component.
+
+Do a comprehensive search across the entire
+frontend for ANY close/dismiss button that has
+hover-dependent visibility:
+
+grep -r "hover:opacity" artifacts/alpha-lens/src/
+grep -r "opacity-0" artifacts/alpha-lens/src/
+grep -r "group-hover" artifacts/alpha-lens/src/
+
+For every result found:
+- If it is a close/dismiss/X button: remove
+  ALL opacity classes and add:
+  min-h-[44px] min-w-[44px]
+  flex items-center justify-center
+- Specifically check the trading confirmation
+  modal added in the Live Trading UI build
+- Check any custom modal or overlay components
+  in the trading.tsx page
+
+The rule: every close button in the entire app
+must have opacity-100 at all times.
+No exceptions.
+
+Run pnpm run typecheck. Zero errors required.
+
+Verify on Chrome DevTools at 375px:
+Open the Briefing page live trade modal.
+Open the Trading pending approval card.
+Open any dialog or sheet.
+ALL X buttons must be immediately visible
+without any hover or interaction.
