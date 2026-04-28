@@ -255,6 +255,16 @@ export const RecommendationUrgency = {
   low: "low",
 } as const;
 
+export type RecommendationOutcome =
+  | (typeof RecommendationOutcome)[keyof typeof RecommendationOutcome]
+  | null;
+
+export const RecommendationOutcome = {
+  correct: "correct",
+  incorrect: "incorrect",
+  partial: "partial",
+} as const;
+
 export interface Recommendation {
   id: number;
   briefingId?: number | null;
@@ -278,6 +288,11 @@ export interface Recommendation {
   confidence: number;
   window?: string;
   urgencyReason?: string;
+  outcome?: RecommendationOutcome;
+  resolutionDate?: string | null;
+  resolutionNote?: string | null;
+  marketPriceAtResolution?: number | null;
+  paperReturn?: number | null;
   createdAt?: string | null;
 }
 
@@ -668,6 +683,57 @@ export interface SmartMoneyResponse {
   source: string;
 }
 
+export type OutcomeUpdateRequestOutcome =
+  (typeof OutcomeUpdateRequestOutcome)[keyof typeof OutcomeUpdateRequestOutcome];
+
+export const OutcomeUpdateRequestOutcome = {
+  correct: "correct",
+  incorrect: "incorrect",
+  partial: "partial",
+} as const;
+
+export interface OutcomeUpdateRequest {
+  outcome: OutcomeUpdateRequestOutcome;
+  resolutionDate: string;
+  resolutionNote: string;
+  marketPriceAtResolution?: number | null;
+  paperReturn?: number | null;
+}
+
+export interface LeaderboardStats {
+  trackRecordStart: string;
+  trackRecordEnd: string;
+  daysElapsed: number;
+  daysRemaining: number;
+  totalCalls: number;
+  resolvedCalls: number;
+  openCalls: number;
+  correctCalls: number;
+  incorrectCalls: number;
+  partialCalls: number;
+  winRate: number;
+  winRateWithPartial: number;
+  avgEdge: number;
+  avgAiProbability: number;
+  totalPaperReturn: number;
+  paperReturnPct: number;
+  highConfidenceWinRate?: number | null;
+  highEdgeWinRate?: number | null;
+}
+
+export interface LeaderboardCalibrationBucket {
+  bucket: string;
+  calls: number;
+  correct: number;
+  rate: number;
+}
+
+export interface LeaderboardResponse {
+  stats: LeaderboardStats;
+  calibration: LeaderboardCalibrationBucket[];
+  recommendations: Recommendation[];
+}
+
 export type ListMarketsParams = {
   sector?: ListMarketsSector;
   sort?: ListMarketsSort;
@@ -708,6 +774,38 @@ export type GetGlobalEventsParams = {
 export type AddToWatchlist200 = {
   status?: string;
 };
+
+export type UpdateRecommendationOutcome200 = {
+  recommendation: Recommendation;
+};
+
+export type GetLeaderboardParams = {
+  /**
+   * @maximum 100
+   */
+  limit?: number;
+  type?: GetLeaderboardType;
+  status?: GetLeaderboardStatus;
+};
+
+export type GetLeaderboardType =
+  (typeof GetLeaderboardType)[keyof typeof GetLeaderboardType];
+
+export const GetLeaderboardType = {
+  trade: "trade",
+  watch: "watch",
+  avoid: "avoid",
+  all: "all",
+} as const;
+
+export type GetLeaderboardStatus =
+  (typeof GetLeaderboardStatus)[keyof typeof GetLeaderboardStatus];
+
+export const GetLeaderboardStatus = {
+  resolved: "resolved",
+  open: "open",
+  all: "all",
+} as const;
 
 export type RemoveFromWatchlist200 = {
   status?: string;

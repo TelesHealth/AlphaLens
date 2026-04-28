@@ -5,6 +5,7 @@
  * Alpha Lens Investment Intelligence API
  * OpenAPI spec version: 1.0.0
  */
+import type { RecommendationOutcome } from "./recommendationOutcome";
 import type { RecommendationType } from "./recommendationType";
 import type { RecommendationUrgency } from "./recommendationUrgency";
 
@@ -31,5 +32,10 @@ export interface Recommendation {
   confidence: number;
   window?: string;
   urgencyReason?: string;
+  outcome?: RecommendationOutcome;
+  resolutionDate?: Date | null;
+  resolutionNote?: string | null;
+  marketPriceAtResolution?: number | null;
+  paperReturn?: number | null;
   createdAt?: Date | null;
 }

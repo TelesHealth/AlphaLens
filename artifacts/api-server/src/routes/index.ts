@@ -10,6 +10,7 @@ import radarRouter from "./radar";
 import uwRouter from "./unusual-whales";
 import authRouter from "./auth";
 import tradingCredentialsRouter from "./trading-credentials";
+import leaderboardRouter from "./leaderboard";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -17,6 +18,7 @@ const router: IRouter = Router();
 // Public
 router.use(healthRouter);
 router.use("/auth", authRouter);
+router.use("/leaderboard", leaderboardRouter);
 
 // Protected — all other API routes require a valid session
 router.use("/markets", requireAuth, marketsRouter);

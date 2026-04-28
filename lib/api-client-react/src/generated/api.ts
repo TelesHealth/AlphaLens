@@ -26,6 +26,7 @@ import type {
   EventsResponse,
   ExecuteTradeRequest,
   GetGlobalEventsParams,
+  GetLeaderboardParams,
   GetRadarAlertsParams,
   GetRadarCongressParams,
   GetRadarCryptoWhalesParams,
@@ -42,10 +43,12 @@ import type {
   GetWhalesMarketTide200,
   GetWhalesStatus200,
   HealthStatus,
+  LeaderboardResponse,
   ListMarketsParams,
   MarketDetailResponse,
   MarketListResponse,
   OpenTradeRequest,
+  OutcomeUpdateRequest,
   PendingOrdersResponse,
   PortfolioResponse,
   PortfolioStatsResponse,
@@ -70,6 +73,7 @@ import type {
   TradeResultResponse,
   TradingAccountsResponse,
   TradingPositionsResponse,
+  UpdateRecommendationOutcome200,
   WatchlistAddRequest,
   WatchlistResponse,
   WhaleFlowSummary,
@@ -1428,6 +1432,191 @@ export const useAddToWatchlist = <
 > => {
   return useMutation(getAddToWatchlistMutationOptions(options));
 };
+
+/**
+ * @summary Update outcome on a recommendation (admin only)
+ */
+export const getUpdateRecommendationOutcomeUrl = (id: number) => {
+  return `/api/recommendations/${id}/outcome`;
+};
+
+export const updateRecommendationOutcome = async (
+  id: number,
+  outcomeUpdateRequest: OutcomeUpdateRequest,
+  options?: RequestInit,
+): Promise<UpdateRecommendationOutcome200> => {
+  return customFetch<UpdateRecommendationOutcome200>(
+    getUpdateRecommendationOutcomeUrl(id),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(outcomeUpdateRequest),
+    },
+  );
+};
+
+export const getUpdateRecommendationOutcomeMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRecommendationOutcome>>,
+    TError,
+    { id: number; data: BodyType<OutcomeUpdateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRecommendationOutcome>>,
+  TError,
+  { id: number; data: BodyType<OutcomeUpdateRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateRecommendationOutcome"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRecommendationOutcome>>,
+    { id: number; data: BodyType<OutcomeUpdateRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateRecommendationOutcome(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRecommendationOutcomeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRecommendationOutcome>>
+>;
+export type UpdateRecommendationOutcomeMutationBody =
+  BodyType<OutcomeUpdateRequest>;
+export type UpdateRecommendationOutcomeMutationError = ErrorType<void>;
+
+/**
+ * @summary Update outcome on a recommendation (admin only)
+ */
+export const useUpdateRecommendationOutcome = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRecommendationOutcome>>,
+    TError,
+    { id: number; data: BodyType<OutcomeUpdateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateRecommendationOutcome>>,
+  TError,
+  { id: number; data: BodyType<OutcomeUpdateRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateRecommendationOutcomeMutationOptions(options));
+};
+
+/**
+ * @summary Public signal accuracy leaderboard
+ */
+export const getGetLeaderboardUrl = (params?: GetLeaderboardParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/leaderboard?${stringifiedParams}`
+    : `/api/leaderboard`;
+};
+
+export const getLeaderboard = async (
+  params?: GetLeaderboardParams,
+  options?: RequestInit,
+): Promise<LeaderboardResponse> => {
+  return customFetch<LeaderboardResponse>(getGetLeaderboardUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLeaderboardQueryKey = (params?: GetLeaderboardParams) => {
+  return [`/api/leaderboard`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetLeaderboardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLeaderboard>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetLeaderboardParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeaderboard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLeaderboardQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLeaderboard>>> = ({
+    signal,
+  }) => getLeaderboard(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLeaderboard>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLeaderboardQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLeaderboard>>
+>;
+export type GetLeaderboardQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Public signal accuracy leaderboard
+ */
+
+export function useGetLeaderboard<
+  TData = Awaited<ReturnType<typeof getLeaderboard>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetLeaderboardParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLeaderboard>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLeaderboardQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Remove asset from watchlist

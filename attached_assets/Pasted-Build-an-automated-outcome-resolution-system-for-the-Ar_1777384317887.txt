@@ -1,0 +1,312 @@
+Build an automated outcome resolution system for
+the Arclion track record. This replaces manual
+Signal Tracker data entry with automatic scoring.
+
+The system runs as a daily cron job at 9:00 AM UTC.
+It checks all open TRADE CALL recommendations and
+attempts to automatically resolve their outcomes.
+
+---
+
+STEP 1 — Add resolution service
+
+Create artifacts/api-server/src/services/
+outcome-resolver.ts
+
+This service contains the resolution logic for
+each asset class.
+
+FUNCTION: resolveKalshiOutcome(recommendation)
+
+  For recommendations where platform = "kalshi":
+
+  1. Extract the Kalshi series ticker from the
+     recommendation title or assetTitle:
+     - "Fed Rate Cut" → KXFED
+     - "US Recession" → KXRECSSNBER
+     - "BTC $100K" → KXBTC
+
+  2. Call Kalshi public API:
+     GET https://api.elections.kalshi.com/
+     trade-api/v2/markets?series_ticker={ticker}
+     &status=finalized
+
+  3. If any market in the series is finalized
+     (status: "finalized"), read the result field:
+     result: "yes" → event occurred
+     result: "no" → event did not occur
+
+  4. Score:
+     - recommendation.direction === "YES" and
+       result === "yes" → outcome: "correct"
+     - recommendation.direction === "YES" and
+       result === "no" → outcome: "incorrect"
+
+  5. Set:
+     resolutionDate: market.close_time
+     resolutionNote: "Kalshi contract resolved:
+       [market title] → [result]"
+     marketPriceAtResolution: 100 if yes, 0 if no
+     paperReturn: calculated from entry price
+       (1 - marketPrice/100) * paperTradeAmount
+       if correct, or -(marketPrice/100) * amount
+       if incorrect
+
+  Return: { resolved: true, outcome, note }
+  If no finalized market found: return
+  { resolved: false }
+
+---
+
+FUNCTION: resolvePolymarketOutcome(recommendation)
+
+  For recommendations where platform = "polymarket":
+
+  1. Use Polymarket's public API to check if
+     the related market has resolved.
+     GET https://clob.polymarket.com/markets
+     Search by title matching recommendation.assetTitle
+
+  2. If market.closed === true and
+     market.winning_side is set:
+     Score same logic as Kalshi above.
+
+  Return: { resolved: true/false, outcome, note }
+
+---
+
+FUNCTION: resolvePriceOutcome(recommendation)
+
+  For equity, crypto, commodity, and FX recommendations:
+
+  1. Check if recommendation's time window has passed.
+     Parse the window field to determine the deadline:
+     - "By [month] [year]" → last day of that month
+     - "1 week" → createdAt + 7 days
+     - "30 days" → createdAt + 30 days
+     - "Near-term" → createdAt + 14 days (default)
+
+  2. If deadline has not passed: return
+     { resolved: false }
+
+  3. If deadline has passed:
+     Fetch current price from the assets table
+     (the platform already has live prices).
+
+     Compare to the marketPrice at time of call
+     (stored in recommendation.marketPrice):
+
+     direction === "LONG" or "YES":
+       current > marketPrice → "correct"
+       current <= marketPrice → "incorrect"
+       current > marketPrice * 0.995 and
+       current < marketPrice * 1.005 → "partial"
+       (within 0.5% = essentially flat)
+
+     direction === "SHORT" or "NO":
+       current < marketPrice → "correct"
+       current >= marketPrice → "incorrect"
+
+  4. Calculate paper return:
+     LONG correct:
+       paperReturn = (current - marketPrice)
+         / marketPrice * paperTradeAmount
+     LONG incorrect:
+       paperReturn = (current - marketPrice)
+         / marketPrice * paperTradeAmount
+       (will be negative)
+
+     Use $100 as default paperTradeAmount if
+     the field is not set.
+
+  5. Set resolutionDate: now()
+     resolutionNote: "[Asset] price at resolution:
+       $[current] vs entry $[marketPrice].
+       Direction was [LONG/SHORT]. Outcome: [result]."
+
+  Return: { resolved: true, outcome, note, paperReturn }
+
+---
+
+FUNCTION: resolveEconomicOutcome(recommendation)
+
+  For macro economic recommendations (CPI, GDP,
+  unemployment, Fed funds rate):
+
+  1. Check if recommendation.assetClass includes
+     "macro" or assetTitle contains keywords like
+     "CPI", "inflation", "GDP", "unemployment",
+     "recession".
+
+  2. Use existing macro-data.ts service to get
+     the latest published figure.
+
+  3. Compare to what was available at time of call
+     (stored in recommendation.marketPrice as
+     the macro value at call time).
+
+  4. Score based on direction:
+     direction "bullish" (expects value to rise):
+       current figure > entry figure → "correct"
+     direction "bearish" (expects value to fall):
+       current figure < entry figure → "correct"
+
+  Return: { resolved: true/false, outcome, note }
+
+---
+
+STEP 2 — Build the daily resolution cron job
+
+In artifacts/api-server/src/services/scheduler.ts,
+add a new cron job that runs daily at 9:00 AM UTC:
+
+  // Daily outcome resolution — 9:00 AM UTC
+  cron.schedule('0 9 * * *', async () => {
+    console.log('Starting daily outcome resolution...');
+    await runOutcomeResolution();
+    console.log('Daily outcome resolution complete.');
+  });
+
+Create runOutcomeResolution() in outcome-resolver.ts:
+
+  export async function runOutcomeResolution() {
+    // 1. Fetch all open TRADE CALL recommendations
+    const openCalls = await db
+      .select()
+      .from(recommendationsTable)
+      .where(
+        and(
+          eq(recommendationsTable.type, "trade"),
+          isNull(recommendationsTable.outcome)
+        )
+      );
+
+    let resolved = 0;
+    let skipped = 0;
+
+    for (const rec of openCalls) {
+      try {
+        let result = { resolved: false };
+
+        // Route to correct resolver
+        if (rec.platform === "kalshi") {
+          result = await resolveKalshiOutcome(rec);
+        } else if (rec.platform === "polymarket") {
+          result = await resolvePolymarketOutcome(rec);
+        } else if (
+          rec.assetClass === "crypto" ||
+          rec.assetClass === "equities" ||
+          rec.assetClass === "commodity" ||
+          rec.assetClass === "fx"
+        ) {
+          result = await resolvePriceOutcome(rec);
+        } else if (rec.assetClass === "macro") {
+          result = await resolveEconomicOutcome(rec);
+        }
+
+        if (result.resolved) {
+          // Update the recommendation in the database
+          await db
+            .update(recommendationsTable)
+            .set({
+              outcome: result.outcome,
+              resolutionDate: result.resolutionDate
+                ?? new Date(),
+              resolutionNote: result.note,
+              marketPriceAtResolution:
+                result.marketPriceAtResolution ?? null,
+              paperReturn: result.paperReturn ?? null,
+            })
+            .where(
+              eq(recommendationsTable.id, rec.id)
+            );
+
+          console.log(`Resolved: rec #${rec.id}
+            ${rec.assetTitle} → ${result.outcome}`);
+          resolved++;
+        } else {
+          skipped++;
+        }
+      } catch (err) {
+        console.error(
+          `Failed to resolve rec #${rec.id}:`, err
+        );
+      }
+    }
+
+    console.log(`Outcome resolution complete:
+      ${resolved} resolved, ${skipped} skipped.`);
+
+    return { resolved, skipped };
+  }
+
+---
+
+STEP 3 — Add manual override endpoint
+
+Keep the existing PATCH /api/recommendations/:id/outcome
+endpoint (admin only) for cases where automated
+scoring cannot determine the outcome or where
+human judgment is needed.
+
+The Manila team uses this endpoint to:
+- Override an automated score they disagree with
+- Score recommendations the automation couldn't
+  resolve (ambiguous timing, partial outcomes)
+- Add detailed resolution notes
+
+---
+
+STEP 4 — Add resolution status to leaderboard API
+
+In GET /api/leaderboard, add a new field to stats:
+
+  autoResolved: N,   // count resolved by automation
+  manualResolved: N, // count resolved by human override
+  pendingResolution: N, // open calls past their window
+    // that need human review
+
+Add a resolutionMethod field to each recommendation
+in the response:
+  "auto" | "manual" | null (still open)
+
+---
+
+STEP 5 — Daily digest to Manila team
+
+After runOutcomeResolution() completes each day,
+generate a simple summary and store it in the DB
+or log it clearly:
+
+  "Daily Resolution Report — [date]
+   Resolved today: N
+   [list each: Asset → CORRECT/INCORRECT/PARTIAL]
+   Still open: N calls
+   Approaching window: N calls (resolve within 7 days)
+   Needs human review: N calls (window passed,
+     auto-resolution failed)"
+
+The Manila team checks this log each morning
+instead of manually looking up outcomes.
+They only need to act on items in the
+'Needs human review' category.
+
+---
+
+Run pnpm run typecheck after all steps.
+Zero errors required.
+
+Verify:
+
+1. pnpm run typecheck — zero errors
+2. Trigger manual resolution run via:
+   POST /api/recommendations/resolve-outcomes
+   (add this as an admin-only endpoint that calls
+   runOutcomeResolution() immediately)
+3. Check console output shows resolution log
+4. Check a recommendation that should be resolvable
+   has its outcome field updated in the DB
+5. GET /api/leaderboard — stats reflect the
+   newly resolved call
+6. Scheduler logs show the daily resolution cron
+   is registered alongside existing jobs

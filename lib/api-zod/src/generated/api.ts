@@ -441,6 +441,11 @@ export const GetBriefingResponse = zod.object({
         confidence: zod.number(),
         window: zod.string().optional(),
         urgencyReason: zod.string().optional(),
+        outcome: zod.enum(["correct", "incorrect", "partial"]).nullish(),
+        resolutionDate: zod.date().nullish(),
+        resolutionNote: zod.string().nullish(),
+        marketPriceAtResolution: zod.number().nullish(),
+        paperReturn: zod.number().nullish(),
         createdAt: zod.date().nullish(),
       }),
     )
@@ -525,6 +530,139 @@ export const AddToWatchlistBody = zod.object({
 
 export const AddToWatchlistResponse = zod.object({
   status: zod.string().optional(),
+});
+
+/**
+ * @summary Update outcome on a recommendation (admin only)
+ */
+export const UpdateRecommendationOutcomeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateRecommendationOutcomeBody = zod.object({
+  outcome: zod.enum(["correct", "incorrect", "partial"]),
+  resolutionDate: zod.date(),
+  resolutionNote: zod.string(),
+  marketPriceAtResolution: zod.number().nullish(),
+  paperReturn: zod.number().nullish(),
+});
+
+export const UpdateRecommendationOutcomeResponse = zod.object({
+  recommendation: zod.object({
+    id: zod.number(),
+    briefingId: zod.number().nullish(),
+    type: zod.enum(["trade", "watch", "avoid"]),
+    urgency: zod.enum(["high", "medium", "low"]).optional(),
+    title: zod.string(),
+    assetId: zod.number().nullish(),
+    assetTitle: zod.string().optional(),
+    assetClass: zod.string().optional(),
+    sector: zod.string().optional(),
+    region: zod.string().optional(),
+    direction: zod.string().optional(),
+    aiProbability: zod.number().nullish(),
+    marketPrice: zod.number().nullish(),
+    edge: zod.number().nullish(),
+    headline: zod.string().optional(),
+    why: zod.array(zod.string()).optional(),
+    historicalContext: zod.string().optional(),
+    bearCase: zod.string().optional(),
+    entryTrigger: zod.string().optional(),
+    confidence: zod.number(),
+    window: zod.string().optional(),
+    urgencyReason: zod.string().optional(),
+    outcome: zod.enum(["correct", "incorrect", "partial"]).nullish(),
+    resolutionDate: zod.date().nullish(),
+    resolutionNote: zod.string().nullish(),
+    marketPriceAtResolution: zod.number().nullish(),
+    paperReturn: zod.number().nullish(),
+    createdAt: zod.date().nullish(),
+  }),
+});
+
+/**
+ * @summary Public signal accuracy leaderboard
+ */
+export const getLeaderboardQueryLimitDefault = 50;
+export const getLeaderboardQueryLimitMax = 100;
+
+export const getLeaderboardQueryTypeDefault = `all`;
+export const getLeaderboardQueryStatusDefault = `all`;
+
+export const GetLeaderboardQueryParams = zod.object({
+  limit: zod.coerce
+    .number()
+    .max(getLeaderboardQueryLimitMax)
+    .default(getLeaderboardQueryLimitDefault),
+  type: zod
+    .enum(["trade", "watch", "avoid", "all"])
+    .default(getLeaderboardQueryTypeDefault),
+  status: zod
+    .enum(["resolved", "open", "all"])
+    .default(getLeaderboardQueryStatusDefault),
+});
+
+export const GetLeaderboardResponse = zod.object({
+  stats: zod.object({
+    trackRecordStart: zod.string(),
+    trackRecordEnd: zod.string(),
+    daysElapsed: zod.number(),
+    daysRemaining: zod.number(),
+    totalCalls: zod.number(),
+    resolvedCalls: zod.number(),
+    openCalls: zod.number(),
+    correctCalls: zod.number(),
+    incorrectCalls: zod.number(),
+    partialCalls: zod.number(),
+    winRate: zod.number(),
+    winRateWithPartial: zod.number(),
+    avgEdge: zod.number(),
+    avgAiProbability: zod.number(),
+    totalPaperReturn: zod.number(),
+    paperReturnPct: zod.number(),
+    highConfidenceWinRate: zod.number().nullish(),
+    highEdgeWinRate: zod.number().nullish(),
+  }),
+  calibration: zod.array(
+    zod.object({
+      bucket: zod.string(),
+      calls: zod.number(),
+      correct: zod.number(),
+      rate: zod.number(),
+    }),
+  ),
+  recommendations: zod.array(
+    zod.object({
+      id: zod.number(),
+      briefingId: zod.number().nullish(),
+      type: zod.enum(["trade", "watch", "avoid"]),
+      urgency: zod.enum(["high", "medium", "low"]).optional(),
+      title: zod.string(),
+      assetId: zod.number().nullish(),
+      assetTitle: zod.string().optional(),
+      assetClass: zod.string().optional(),
+      sector: zod.string().optional(),
+      region: zod.string().optional(),
+      direction: zod.string().optional(),
+      aiProbability: zod.number().nullish(),
+      marketPrice: zod.number().nullish(),
+      edge: zod.number().nullish(),
+      headline: zod.string().optional(),
+      why: zod.array(zod.string()).optional(),
+      historicalContext: zod.string().optional(),
+      bearCase: zod.string().optional(),
+      entryTrigger: zod.string().optional(),
+      confidence: zod.number(),
+      window: zod.string().optional(),
+      urgencyReason: zod.string().optional(),
+      outcome: zod.enum(["correct", "incorrect", "partial"]).nullish(),
+      resolutionDate: zod.date().nullish(),
+      resolutionNote: zod.string().nullish(),
+      marketPriceAtResolution: zod.number().nullish(),
+      paperReturn: zod.number().nullish(),
+      createdAt: zod.date().nullish(),
+    }),
+  ),
 });
 
 /**

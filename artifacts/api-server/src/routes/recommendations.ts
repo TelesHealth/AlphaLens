@@ -11,8 +11,80 @@ import {
   scanForRecommendations,
   getCurrentBriefing,
 } from "../services/recommendations";
+import { requireAdmin } from "../middlewares/auth";
 
 const router: IRouter = Router();
+
+const VALID_OUTCOMES = new Set(["correct", "incorrect", "partial"]);
+
+router.patch("/:id/outcome", requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+
+    const {
+      outcome,
+      resolutionDate,
+      resolutionNote,
+      marketPriceAtResolution,
+      paperReturn,
+    } = req.body ?? {};
+
+    if (!outcome || !VALID_OUTCOMES.has(outcome)) {
+      res
+        .status(400)
+        .json({ error: "outcome must be one of: correct, incorrect, partial" });
+      return;
+    }
+    if (!resolutionDate) {
+      res.status(400).json({ error: "resolutionDate is required" });
+      return;
+    }
+    const parsedDate = new Date(resolutionDate);
+    if (Number.isNaN(parsedDate.getTime())) {
+      res.status(400).json({ error: "resolutionDate must be a valid ISO date" });
+      return;
+    }
+    if (typeof resolutionNote !== "string" || resolutionNote.trim().length === 0) {
+      res.status(400).json({ error: "resolutionNote is required" });
+      return;
+    }
+
+    const [existing] = await db
+      .select({ id: recommendationsTable.id })
+      .from(recommendationsTable)
+      .where(eq(recommendationsTable.id, id))
+      .limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "Recommendation not found" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(recommendationsTable)
+      .set({
+        outcome,
+        resolutionDate: parsedDate,
+        resolutionNote,
+        marketPriceAtResolution:
+          typeof marketPriceAtResolution === "number"
+            ? marketPriceAtResolution
+            : null,
+        paperReturn:
+          typeof paperReturn === "number" ? paperReturn : null,
+      })
+      .where(eq(recommendationsTable.id, id))
+      .returning();
+
+    res.json({ recommendation: updated });
+  } catch (e: any) {
+    req.log.error({ err: e }, "Error updating recommendation outcome");
+    res.status(500).json({ error: e.message });
+  }
+});
 
 router.get("/briefing", async (req, res) => {
   try {

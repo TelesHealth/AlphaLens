@@ -13,6 +13,7 @@ import {
   Settings as SettingsIcon,
   ShieldCheck,
   TrendingUp,
+  BarChart2,
 } from "lucide-react";
 import { useState } from "react";
 import { clsx, type ClassValue } from "clsx";
@@ -54,6 +55,7 @@ export function Layout({ children }: { children: ReactNode }) {
     badge?: number;
   }> = [
     { href: "/briefing", label: "Briefing", icon: Zap },
+    { href: "/leaderboard", label: "Track Record", icon: BarChart2 },
     { href: "/", label: "Scanner", icon: Activity },
     { href: "/coach", label: "AI Coach", icon: MessageSquare },
     { href: "/portfolio", label: "Portfolio", icon: Briefcase },

@@ -17,6 +17,7 @@ import Login from "@/pages/login";
 import Register from "@/pages/register";
 import Settings from "@/pages/settings";
 import TradingPage from "@/pages/trading";
+import LeaderboardPage from "@/pages/leaderboard";
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
@@ -62,6 +63,10 @@ function Router() {
   if (location === "/register") {
     if (!loading && user) return <Redirect to="/briefing" />;
     return <Register />;
+  }
+  // Public marketing page — accessible without authentication
+  if (location === "/leaderboard") {
+    return <LeaderboardPage />;
   }
 
   return (

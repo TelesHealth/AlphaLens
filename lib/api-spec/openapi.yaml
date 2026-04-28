@@ -330,6 +330,74 @@ paths:
                   status:
                     type: string
 
+  /recommendations/{id}/outcome:
+    patch:
+      operationId: updateRecommendationOutcome
+      tags: [recommendations]
+      summary: Update outcome on a recommendation (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OutcomeUpdateRequest"
+      responses:
+        "200":
+          description: Updated recommendation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recommendation:
+                    $ref: "#/components/schemas/Recommendation"
+                required:
+                  - recommendation
+        "401":
+          description: Authentication required
+        "403":
+          description: Admin access required
+        "404":
+          description: Recommendation not found
+
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Public signal accuracy leaderboard
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [trade, watch, avoid, all]
+            default: all
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [resolved, open, all]
+            default: all
+      responses:
+        "200":
+          description: Leaderboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaderboardResponse"
+
   /recommendations/watchlist/{id}:
     delete:
       operationId: removeFromWatchlist
@@ -1315,6 +1383,23 @@ components:
           type: string
         urgencyReason:
           type: string
+        outcome:
+          type: string
+          enum: [correct, incorrect, partial]
+          nullable: true
+        resolutionDate:
+          type: string
+          format: date-time
+          nullable: true
+        resolutionNote:
+          type: string
+          nullable: true
+        marketPriceAtResolution:
+          type: number
+          nullable: true
+        paperReturn:
+          type: number
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -2069,3 +2154,115 @@ components:
         source:
           type: string
       required: [total, source]
+
+    OutcomeUpdateRequest:
+      type: object
+      properties:
+        outcome:
+          type: string
+          enum: [correct, incorrect, partial]
+        resolutionDate:
+          type: string
+          format: date-time
+        resolutionNote:
+          type: string
+        marketPriceAtResolution:
+          type: number
+          nullable: true
+        paperReturn:
+          type: number
+          nullable: true
+      required:
+        - outcome
+        - resolutionDate
+        - resolutionNote
+
+    LeaderboardStats:
+      type: object
+      properties:
+        trackRecordStart:
+          type: string
+        trackRecordEnd:
+          type: string
+        daysElapsed:
+          type: integer
+        daysRemaining:
+          type: integer
+        totalCalls:
+          type: integer
+        resolvedCalls:
+          type: integer
+        openCalls:
+          type: integer
+        correctCalls:
+          type: integer
+        incorrectCalls:
+          type: integer
+        partialCalls:
+          type: integer
+        winRate:
+          type: number
+        winRateWithPartial:
+          type: number
+        avgEdge:
+          type: number
+        avgAiProbability:
+          type: number
+        totalPaperReturn:
+          type: number
+        paperReturnPct:
+          type: number
+        highConfidenceWinRate:
+          type: number
+          nullable: true
+        highEdgeWinRate:
+          type: number
+          nullable: true
+      required:
+        - trackRecordStart
+        - trackRecordEnd
+        - daysElapsed
+        - daysRemaining
+        - totalCalls
+        - resolvedCalls
+        - openCalls
+        - correctCalls
+        - incorrectCalls
+        - partialCalls
+        - winRate
+        - winRateWithPartial
+        - avgEdge
+        - avgAiProbability
+        - totalPaperReturn
+        - paperReturnPct
+
+    LeaderboardCalibrationBucket:
+      type: object
+      properties:
+        bucket:
+          type: string
+        calls:
+          type: integer
+        correct:
+          type: integer
+        rate:
+          type: number
+      required: [bucket, calls, correct, rate]
+
+    LeaderboardResponse:
+      type: object
+      properties:
+        stats:
+          $ref: "#/components/schemas/LeaderboardStats"
+        calibration:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardCalibrationBucket"
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Recommendation"
+      required:
+        - stats
+        - calibration
+        - recommendations

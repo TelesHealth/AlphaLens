@@ -36,6 +36,10 @@ export const recommendationsTable = pgTable("recommendations", {
   urgencyReason: text("urgency_reason").default(""),
   sources: jsonb("sources").default([]),
   outcome: text("outcome"),
+  resolutionDate: timestamp("resolution_date"),
+  resolutionNote: text("resolution_note"),
+  marketPriceAtResolution: doublePrecision("market_price_at_resolution"),
+  paperReturn: doublePrecision("paper_return"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
