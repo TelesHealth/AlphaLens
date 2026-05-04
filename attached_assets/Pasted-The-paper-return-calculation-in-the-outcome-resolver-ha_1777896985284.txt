@@ -1,0 +1,63 @@
+The paper return calculation in the outcome resolver
+has two problems that need fixing.
+
+PROBLEM 1 — marketPrice field stores AI probability
+not asset price for equity/commodity recommendations.
+
+For TRADE CALL recommendations on equities,
+commodities, crypto, and FX:
+  marketPrice stores the AI probability (0-100)
+  NOT the asset dollar price.
+
+The paper return calculation needs the ACTUAL asset
+price at time of call, not the AI probability.
+
+Fix in artifacts/api-server/src/services/
+outcome-resolver.ts, in resolvePriceOutcome():
+
+When calculating paper return, do NOT use
+recommendation.marketPrice as the entry price.
+
+Instead, look up the actual asset price at the
+time the recommendation was created:
+  1. Find the asset by matching recommendation.assetTitle
+     or recommendation.assetId against the assets table
+  2. For historical price, use the recommendation.createdAt
+     timestamp to find the closest price reading
+
+If historical price lookup is not possible (no price
+history table), use the current asset price from the
+assets table as a proxy and note this is approximate.
+
+Update the resolutionNote to clearly state:
+"Entry price: $X (USO at call time), Exit price: $Y,
+Direction: LONG/SHORT, Return: +/-$Z"
+
+PROBLEM 2 — 8 of 11 resolved calls have no price data.
+
+When the auto-resolver scores a call as correct or
+incorrect without populating price data, the paper
+return remains null and is excluded from totals.
+
+Fix: for every resolved call, attempt to populate
+marketPriceAtResolution even if the paper return
+cannot be accurately calculated. Use the current
+asset price from the assets table as a minimum.
+
+Log a warning when paper return cannot be calculated:
+console.warn("Paper return not calculated for rec
+#${id} — missing entry price data")
+
+PROBLEM 3 — Report paper return as "estimated" when
+entry price data is incomplete.
+
+In GET /api/leaderboard, add a field to stats:
+  paperReturnReliability: "verified" | "estimated" | "unavailable"
+
+Set to "estimated" when any resolved calls have
+null paper return.
+Set to "verified" only when ALL resolved calls
+have complete price data.
+Currently set to: "estimated"
+
+Run pnpm run typecheck. Zero errors required.
