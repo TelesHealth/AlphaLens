@@ -82,6 +82,13 @@ router.get("/", async (req, res) => {
         ? round1((totalPaperReturn / capitalDeployed) * 100)
         : 0;
 
+    const paperReturnReliability: "verified" | "estimated" | "unavailable" =
+      resolvedCalls === 0
+        ? "unavailable"
+        : resolvedTrades.every((r) => r.outcome == null || typeof r.paperReturn === "number")
+          ? "verified"
+          : "estimated";
+
     const highConfResolved = resolvedTrades.filter(
       (r) => typeof r.confidence === "number" && r.confidence > 75,
     );
@@ -207,6 +214,7 @@ router.get("/", async (req, res) => {
         paperReturnPct,
         highConfidenceWinRate,
         highEdgeWinRate,
+        paperReturnReliability,
         autoResolved,
         manualResolved,
         pendingResolution,

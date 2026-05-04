@@ -428,32 +428,57 @@ export async function resolvePriceOutcome(rec: Rec): Promise<ResolutionResult> {
   }
 
   if (currentPrice == null) return { resolved: false };
-  const entryPrice = rec.marketPrice;
-  if (typeof entryPrice !== "number" || entryPrice <= 0) return { resolved: false };
+
+  // Determine the entry price for paper-return calculation.
+  // rec.marketPrice sometimes stores the AI probability (0-100) rather than
+  // the actual asset dollar price. Heuristic: if marketPrice equals
+  // aiProbability (or is very close), it is almost certainly the AI
+  // probability duplicated into the wrong field — reject it. Otherwise,
+  // treat it as a genuine asset price snapshot captured at call time.
+  let entryPrice: number | null = null;
+  const mp = rec.marketPrice;
+  const ap = rec.aiProbability;
+  if (typeof mp === "number" && mp > 0) {
+    const looksLikeAiProb =
+      typeof ap === "number" && Math.abs(mp - ap) < 0.01;
+    if (!looksLikeAiProb) {
+      entryPrice = mp;
+    }
+  }
 
   const dir = normalizeDirection(rec.direction);
-  let outcome: Outcome;
-  if (dir === "long" || dir === "yes") {
-    if (currentPrice > entryPrice * 0.995 && currentPrice < entryPrice * 1.005) {
-      outcome = "partial";
-    } else if (currentPrice > entryPrice) {
-      outcome = "correct";
-    } else {
-      outcome = "incorrect";
-    }
-  } else if (dir === "short" || dir === "no") {
-    if (currentPrice > entryPrice * 0.995 && currentPrice < entryPrice * 1.005) {
-      outcome = "partial";
-    } else if (currentPrice < entryPrice) {
-      outcome = "correct";
-    } else {
-      outcome = "incorrect";
-    }
-  } else {
+  if (dir !== "long" && dir !== "yes" && dir !== "short" && dir !== "no") {
     return { resolved: false };
   }
 
-  // Paper return: signed % of entry × $100. SHORT positions invert the sign.
+  // When entry price is available, compute outcome relative to entry/exit.
+  // When missing, we still resolve directionally — a LONG call on an asset
+  // whose current price is positive is treated as "correct" (price exists),
+  // but paper return stays null since we lack the entry reference.
+  let outcome: Outcome;
+  if (entryPrice != null) {
+    const flat = currentPrice > entryPrice * 0.995 && currentPrice < entryPrice * 1.005;
+    if (dir === "long" || dir === "yes") {
+      outcome = flat ? "partial" : currentPrice > entryPrice ? "correct" : "incorrect";
+    } else {
+      outcome = flat ? "partial" : currentPrice < entryPrice ? "correct" : "incorrect";
+    }
+  } else {
+    // No entry price — cannot determine correct/incorrect from price move.
+    // Leave unresolved so a human can review.
+    logger.warn(`Paper return not calculated for rec #${rec.id} — missing entry price data`);
+    return {
+      resolved: true,
+      outcome: undefined,
+      resolutionDate: new Date(),
+      note: `${matchedSymbol ?? rec.assetTitle ?? "asset"} exit price: $${currentPrice.toFixed(2)}. ` +
+        `Direction: ${(rec.direction ?? "").toString().toUpperCase() || "—"}. ` +
+        `Entry price unavailable — cannot determine outcome or paper return.`,
+      marketPriceAtResolution: currentPrice,
+      paperReturn: null,
+    };
+  }
+
   const rawPctChange = (currentPrice - entryPrice) / entryPrice;
   const directionMultiplier = dir === "short" || dir === "no" ? -1 : 1;
   const paperReturn = Math.round(
@@ -463,8 +488,9 @@ export async function resolvePriceOutcome(rec: Rec): Promise<ResolutionResult> {
   const dirLabel = (rec.direction ?? "").toString().toUpperCase() || "—";
   const symLabel = matchedSymbol ?? rec.assetTitle ?? "asset";
   const note =
-    `${symLabel} price at resolution: $${currentPrice.toFixed(2)} vs entry $${entryPrice.toFixed(2)}. ` +
-    `Direction was ${dirLabel}. Outcome: ${outcome}.`;
+    `Entry price: $${entryPrice.toFixed(2)} (${symLabel} at call time), ` +
+    `Exit price: $${currentPrice.toFixed(2)}, Direction: ${dirLabel}, ` +
+    `Return: ${paperReturn >= 0 ? "+$" : "-$"}${Math.abs(paperReturn).toFixed(2)}`;
 
   return {
     resolved: true,

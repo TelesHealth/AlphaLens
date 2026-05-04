@@ -2243,6 +2243,9 @@ components:
         highEdgeWinRate:
           type: number
           nullable: true
+        paperReturnReliability:
+          type: string
+          enum: [verified, estimated, unavailable]
         autoResolved:
           type: integer
         manualResolved:
@@ -2302,6 +2305,7 @@ components:
         - avgAiProbability
         - totalPaperReturn
         - paperReturnPct
+        - paperReturnReliability
         - byType
 
     LeaderboardCalibrationBucket:

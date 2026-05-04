@@ -654,6 +654,7 @@ export const GetLeaderboardResponse = zod.object({
     paperReturnPct: zod.number(),
     highConfidenceWinRate: zod.number().nullish(),
     highEdgeWinRate: zod.number().nullish(),
+    paperReturnReliability: zod.enum(["verified", "estimated", "unavailable"]),
     autoResolved: zod.number().optional(),
     manualResolved: zod.number().optional(),
     pendingResolution: zod.number().optional(),

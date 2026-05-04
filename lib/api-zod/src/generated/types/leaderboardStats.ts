@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { LeaderboardStatsByType } from "./leaderboardStatsByType";
+import type { LeaderboardStatsPaperReturnReliability } from "./leaderboardStatsPaperReturnReliability";
 
 export interface LeaderboardStats {
   trackRecordStart: string;
@@ -26,6 +27,7 @@ export interface LeaderboardStats {
   paperReturnPct: number;
   highConfidenceWinRate?: number | null;
   highEdgeWinRate?: number | null;
+  paperReturnReliability: LeaderboardStatsPaperReturnReliability;
   autoResolved?: number;
   manualResolved?: number;
   pendingResolution?: number;

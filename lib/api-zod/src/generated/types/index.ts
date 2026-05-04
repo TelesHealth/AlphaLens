@@ -45,6 +45,7 @@ export * from "./leaderboardStatsByType";
 export * from "./leaderboardStatsByTypeAvoid";
 export * from "./leaderboardStatsByTypeTrade";
 export * from "./leaderboardStatsByTypeWatch";
+export * from "./leaderboardStatsPaperReturnReliability";
 export * from "./listMarketsParams";
 export * from "./listMarketsSector";
 export * from "./listMarketsSort";

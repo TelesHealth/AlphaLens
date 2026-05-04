@@ -710,6 +710,15 @@ export interface OutcomeUpdateRequest {
   paperReturn?: number | null;
 }
 
+export type LeaderboardStatsPaperReturnReliability =
+  (typeof LeaderboardStatsPaperReturnReliability)[keyof typeof LeaderboardStatsPaperReturnReliability];
+
+export const LeaderboardStatsPaperReturnReliability = {
+  verified: "verified",
+  estimated: "estimated",
+  unavailable: "unavailable",
+} as const;
+
 export type LeaderboardStatsByTypeTrade = {
   total: number;
   resolved: number;
@@ -754,6 +763,7 @@ export interface LeaderboardStats {
   paperReturnPct: number;
   highConfidenceWinRate?: number | null;
   highEdgeWinRate?: number | null;
+  paperReturnReliability: LeaderboardStatsPaperReturnReliability;
   autoResolved?: number;
   manualResolved?: number;
   pendingResolution?: number;
