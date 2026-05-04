@@ -5,6 +5,7 @@
  * Alpha Lens Investment Intelligence API
  * OpenAPI spec version: 1.0.0
  */
+import type { LeaderboardStatsByType } from "./leaderboardStatsByType";
 
 export interface LeaderboardStats {
   trackRecordStart: string;
@@ -28,4 +29,5 @@ export interface LeaderboardStats {
   autoResolved?: number;
   manualResolved?: number;
   pendingResolution?: number;
+  byType: LeaderboardStatsByType;
 }

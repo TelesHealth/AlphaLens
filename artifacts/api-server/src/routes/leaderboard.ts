@@ -29,26 +29,24 @@ router.get("/", async (req, res) => {
       .from(recommendationsTable)
       .orderBy(desc(recommendationsTable.createdAt));
 
-    const resolvedAll = all.filter((r) => r.outcome != null);
-    const openAll = all.filter((r) => r.outcome == null);
+    const trades = all.filter((r) => r.type === "trade");
+    const watches = all.filter((r) => r.type === "watch");
+    const avoids = all.filter((r) => r.type === "avoid");
 
-    const correctCalls = resolvedAll.filter((r) => r.outcome === "correct").length;
-    const incorrectCalls = resolvedAll.filter((r) => r.outcome === "incorrect").length;
-    const partialCalls = resolvedAll.filter((r) => r.outcome === "partial").length;
+    const resolvedTrades = trades.filter((r) => r.outcome != null);
+    const openTrades = trades.filter((r) => r.outcome == null);
 
-    const totalCalls = all.length;
-    const resolvedCalls = resolvedAll.length;
-    const openCalls = openAll.length;
+    const correctCalls = resolvedTrades.filter((r) => r.outcome === "correct").length;
+    const incorrectCalls = resolvedTrades.filter((r) => r.outcome === "incorrect").length;
+    const partialCalls = resolvedTrades.filter((r) => r.outcome === "partial").length;
 
-    const autoResolved = resolvedAll.filter((r) => r.resolutionMethod === "auto").length;
-    const manualResolved = resolvedAll.filter((r) => r.resolutionMethod === "manual").length;
-    // pendingResolution: open `trade` calls flagged "needs-review" by the same
-    // categorizer the resolver uses for its daily digest. This includes both
-    // (a) price/macro recs whose declared window has already passed, and
-    // (b) Kalshi/Polymarket recs older than 60 days with no parseable window.
-    // Sharing the helper guarantees this stat cannot drift from the digest.
-    const pendingResolution = openAll.filter((r) => {
-      if (r.type !== "trade") return false;
+    const totalCalls = trades.length;
+    const resolvedCalls = resolvedTrades.length;
+    const openCalls = openTrades.length;
+
+    const autoResolved = resolvedTrades.filter((r) => r.resolutionMethod === "auto").length;
+    const manualResolved = resolvedTrades.filter((r) => r.resolutionMethod === "manual").length;
+    const pendingResolution = openTrades.filter((r) => {
       return categorizeUnresolved(r, derivePlatform(r)) === "needs-review";
     }).length;
 
@@ -59,10 +57,10 @@ router.get("/", async (req, res) => {
         ? round1(((correctCalls + partialCalls * 0.5) / resolvedCalls) * 100)
         : 0;
 
-    const edgeValues = all
+    const edgeValues = trades
       .map((r) => r.edge)
       .filter((v): v is number => typeof v === "number");
-    const probValues = all
+    const probValues = trades
       .map((r) => r.aiProbability)
       .filter((v): v is number => typeof v === "number");
     const avgEdge =
@@ -74,22 +72,17 @@ router.get("/", async (req, res) => {
         ? round1(probValues.reduce((a, b) => a + b, 0) / probValues.length)
         : 0;
 
-    const paperReturns = resolvedAll
+    const paperReturns = resolvedTrades
       .map((r) => r.paperReturn)
       .filter((v): v is number => typeof v === "number");
     const totalPaperReturn = round1(paperReturns.reduce((a, b) => a + b, 0));
-    // Paper return % is total return as % of capital deployed — assumes a hypothetical
-    // $100 paper trade per RESOLVED call (a resolved call with null paperReturn
-    // contributes $0 to the numerator but still occupies $100 of deployed capital,
-    // so it correctly drags the percentage toward zero rather than inflating it).
     const capitalDeployed = resolvedCalls * 100;
     const paperReturnPct =
       capitalDeployed > 0
         ? round1((totalPaperReturn / capitalDeployed) * 100)
         : 0;
 
-    // High-confidence subset (confidence > 75)
-    const highConfResolved = resolvedAll.filter(
+    const highConfResolved = resolvedTrades.filter(
       (r) => typeof r.confidence === "number" && r.confidence > 75,
     );
     const highConfidenceWinRate =
@@ -101,7 +94,7 @@ router.get("/", async (req, res) => {
           )
         : null;
 
-    const highEdgeResolved = resolvedAll.filter(
+    const highEdgeResolved = resolvedTrades.filter(
       (r) => typeof r.edge === "number" && r.edge > 20,
     );
     const highEdgeWinRate =
@@ -113,14 +106,13 @@ router.get("/", async (req, res) => {
           )
         : null;
 
-    // Calibration buckets by AI probability
     const buckets: Array<{ key: string; min: number; max: number }> = [
       { key: "60-69%", min: 60, max: 70 },
       { key: "70-79%", min: 70, max: 80 },
       { key: "80%+", min: 80, max: 101 },
     ];
     const calibration = buckets.map((b) => {
-      const inBucket = resolvedAll.filter(
+      const inBucket = resolvedTrades.filter(
         (r) =>
           typeof r.aiProbability === "number" &&
           r.aiProbability >= b.min &&
@@ -131,6 +123,32 @@ router.get("/", async (req, res) => {
         inBucket.length > 0 ? round1((correct / inBucket.length) * 100) : 0;
       return { bucket: b.key, calls: inBucket.length, correct, rate };
     });
+
+    const resolvedWatches = watches.filter((r) => r.outcome != null);
+    const resolvedAvoids = avoids.filter((r) => r.outcome != null);
+    const correctAvoids = resolvedAvoids.filter((r) => r.outcome === "correct").length;
+
+    const byType = {
+      trade: {
+        total: trades.length,
+        resolved: resolvedTrades.length,
+        correct: correctCalls,
+        winRate,
+      },
+      watch: {
+        total: watches.length,
+        resolved: resolvedWatches.length,
+      },
+      avoid: {
+        total: avoids.length,
+        resolved: resolvedAvoids.length,
+        correct: correctAvoids,
+        winRate:
+          resolvedAvoids.length > 0
+            ? round1((correctAvoids / resolvedAvoids.length) * 100)
+            : 0,
+      },
+    };
 
     // Day count
     const now = new Date();
@@ -192,6 +210,7 @@ router.get("/", async (req, res) => {
         autoResolved,
         manualResolved,
         pendingResolution,
+        byType,
       },
       calibration,
       recommendations,

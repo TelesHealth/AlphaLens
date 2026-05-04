@@ -2249,6 +2249,42 @@ components:
           type: integer
         pendingResolution:
           type: integer
+        byType:
+          type: object
+          properties:
+            trade:
+              type: object
+              properties:
+                total:
+                  type: integer
+                resolved:
+                  type: integer
+                correct:
+                  type: integer
+                winRate:
+                  type: number
+              required: [total, resolved, correct, winRate]
+            watch:
+              type: object
+              properties:
+                total:
+                  type: integer
+                resolved:
+                  type: integer
+              required: [total, resolved]
+            avoid:
+              type: object
+              properties:
+                total:
+                  type: integer
+                resolved:
+                  type: integer
+                correct:
+                  type: integer
+                winRate:
+                  type: number
+              required: [total, resolved, correct, winRate]
+          required: [trade, watch, avoid]
       required:
         - trackRecordStart
         - trackRecordEnd
@@ -2266,6 +2302,7 @@ components:
         - avgAiProbability
         - totalPaperReturn
         - paperReturnPct
+        - byType
 
     LeaderboardCalibrationBucket:
       type: object

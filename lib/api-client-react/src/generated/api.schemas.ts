@@ -710,6 +710,31 @@ export interface OutcomeUpdateRequest {
   paperReturn?: number | null;
 }
 
+export type LeaderboardStatsByTypeTrade = {
+  total: number;
+  resolved: number;
+  correct: number;
+  winRate: number;
+};
+
+export type LeaderboardStatsByTypeWatch = {
+  total: number;
+  resolved: number;
+};
+
+export type LeaderboardStatsByTypeAvoid = {
+  total: number;
+  resolved: number;
+  correct: number;
+  winRate: number;
+};
+
+export type LeaderboardStatsByType = {
+  trade: LeaderboardStatsByTypeTrade;
+  watch: LeaderboardStatsByTypeWatch;
+  avoid: LeaderboardStatsByTypeAvoid;
+};
+
 export interface LeaderboardStats {
   trackRecordStart: string;
   trackRecordEnd: string;
@@ -732,6 +757,7 @@ export interface LeaderboardStats {
   autoResolved?: number;
   manualResolved?: number;
   pendingResolution?: number;
+  byType: LeaderboardStatsByType;
 }
 
 export interface LeaderboardCalibrationBucket {

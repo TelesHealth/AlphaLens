@@ -657,6 +657,24 @@ export const GetLeaderboardResponse = zod.object({
     autoResolved: zod.number().optional(),
     manualResolved: zod.number().optional(),
     pendingResolution: zod.number().optional(),
+    byType: zod.object({
+      trade: zod.object({
+        total: zod.number(),
+        resolved: zod.number(),
+        correct: zod.number(),
+        winRate: zod.number(),
+      }),
+      watch: zod.object({
+        total: zod.number(),
+        resolved: zod.number(),
+      }),
+      avoid: zod.object({
+        total: zod.number(),
+        resolved: zod.number(),
+        correct: zod.number(),
+        winRate: zod.number(),
+      }),
+    }),
   }),
   calibration: zod.array(
     zod.object({
