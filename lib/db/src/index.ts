@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/node-postgres";
-const { Pool } = pg;
+import { Pool } from 'pg'
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
