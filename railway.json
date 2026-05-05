@@ -1,7 +1,7 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "buildCommand": "pnpm install --no-frozen-lockfile && pnpm -r run build""
+    "buildCommand": "pnpm install --no-frozen-lockfile && pnpm -r run build"
   },
   "deploy": {
     "startCommand": "ls -R && node artifacts/api-server/dist/index.js",
