@@ -1,0 +1,5 @@
+{
+  "install": {
+    "cmd": "echo 'Skipping automatic install phase'"
+  }
+}
