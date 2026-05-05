@@ -87,6 +87,7 @@ export * from "./recommendationEdgeChangeAlertDirection";
 export * from "./recommendationEdgeType";
 export * from "./recommendationOutcome";
 export * from "./recommendationResolutionMethod";
+export * from "./recommendationTaSignal";
 export * from "./recommendationType";
 export * from "./recommendationUrgency";
 export * from "./refreshResponse";

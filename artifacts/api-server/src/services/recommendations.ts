@@ -15,6 +15,13 @@ import {
   fetchCongressionalTrades,
 } from "./unusual-whales";
 import { fetchMacroContext } from "./macro-data";
+import { getPriceHistory } from "./market-data";
+import {
+  getTechnicalSignals,
+  type TechnicalSignals,
+} from "./technical-analysis";
+
+const taSignalCache: Map<string, TechnicalSignals> = new Map();
 
 const AGENT_SYSTEM_PROMPT = `You are the Arclion proactive trading intelligence agent.
 
@@ -412,6 +419,11 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
       aiProbability: aiProb,
       marketPrice: marketPriceField,
       assetPriceAtCall,
+      taSignal: isPrediction
+        ? null
+        : (matchedAsset?.symbol &&
+            taSignalCache.get(matchedAsset.symbol.toUpperCase())) ||
+          null,
       sources: buildSources(matchedAsset, smartMoneySummary, macroIncluded),
     });
   }
@@ -509,6 +521,42 @@ async function generateRecommendations(
 
   const macroContext = await fetchMacroContext();
 
+  // Build TA context for non-prediction assets that have enough price history.
+  const taResults = await Promise.all(
+    assets.map(async (a) => {
+      const sector = (a.sector ?? "").toLowerCase();
+      if (sector === "prediction" || !a.symbol) return null;
+      try {
+        const prices = await getPriceHistory(a.symbol, 60);
+        if (prices.length < 50) return null;
+        const sig = getTechnicalSignals(a.symbol, prices);
+        if (!sig) return null;
+        return { symbol: a.symbol, name: a.name, signals: sig };
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const nextTaCache = new Map<string, TechnicalSignals>();
+  const taLines: string[] = [];
+  for (const t of taResults) {
+    if (!t) continue;
+    nextTaCache.set(t.symbol.toUpperCase(), t.signals);
+    const s = t.signals;
+    taLines.push(
+      `\nTECHNICAL ANALYSIS for ${t.symbol}:
+  RSI(14): ${s.rsi ? s.rsi.value.toFixed(1) + " → " + s.rsi.signal : "n/a"}
+  MACD: ${s.macd?.signal ?? "n/a"}
+  Moving Averages: ${s.movingAverages?.signal ?? "n/a"}
+  Bollinger Bands: ${s.bollingerBands ? s.bollingerBands.signal + " (Band width: " + s.bollingerBands.bandWidth.toFixed(3) + ")" : "n/a"}
+  Overall TA signal: ${s.overallTASignal} (${s.taBullishCount} bullish / ${s.taBearishCount} bearish / ${s.taNeutralCount} neutral indicators)`,
+    );
+  }
+  const taContext = taLines.length > 0 ? "\n" + taLines.join("") : "";
+  // Atomic swap — only replace cache once population is complete.
+  taSignalCache.clear();
+  for (const [k, v] of nextTaCache) taSignalCache.set(k, v);
+
   const prompt = `Today is ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}.
 
 SCORED ASSETS:
@@ -518,9 +566,9 @@ RECENT SIGNALS:
 ${signalSummary || "None available yet"}
 
 GLOBAL EVENTS:
-${eventSummary || "None available yet"}${macroContext}${smartMoneySummary}
+${eventSummary || "None available yet"}${macroContext}${smartMoneySummary}${taContext}
 
-Identify the best trade calls and watches. Cross-reference assets with events and signals.${smartMoneySummary ? " Pay close attention to smart money signals — large institutional options bets and congressional trades often foreshadow major moves." : ""}`;
+Identify the best trade calls and watches. Cross-reference assets with events and signals.${smartMoneySummary ? " Pay close attention to smart money signals — large institutional options bets and congressional trades often foreshadow major moves." : ""}${taContext ? " Use the technical analysis data to corroborate or challenge the fundamental/macro thesis. If TA and macro agree → higher confidence. If TA and macro conflict → flag in the bearCase and reduce confidence. Never ignore a strong TA signal that contradicts the AI's direction." : ""}`;
 
   try {
     const response = await anthropic.messages.create({

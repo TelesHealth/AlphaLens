@@ -563,6 +563,129 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
             </div>
           )}
 
+          {rec.taSignal &&
+            rec.assetClass !== "prediction" &&
+            (() => {
+              const ta = rec.taSignal as {
+                rsi?: { value?: number; signal?: string } | null;
+                macd?: { signal?: string } | null;
+                movingAverages?: { signal?: string } | null;
+                bollingerBands?: {
+                  signal?: string;
+                  bandWidth?: number;
+                } | null;
+                overallTASignal?: string;
+                taBullishCount?: number;
+                taBearishCount?: number;
+                taNeutralCount?: number;
+              };
+              const bullSet = new Set([
+                "oversold",
+                "bullish_crossover",
+                "building_momentum_up",
+                "strong_uptrend",
+                "golden_cross",
+                "below_lower_band",
+              ]);
+              const bearSet = new Set([
+                "overbought",
+                "bearish_crossover",
+                "building_momentum_down",
+                "strong_downtrend",
+                "death_cross",
+                "above_upper_band",
+              ]);
+              const dot = (sig?: string) => {
+                if (!sig) return "bg-muted-foreground/40";
+                if (bullSet.has(sig)) return "bg-success";
+                if (bearSet.has(sig)) return "bg-destructive";
+                return "bg-muted-foreground/60";
+              };
+              const indicators: { label: string; sig?: string; tip: string }[] =
+                [
+                  {
+                    label: "RSI",
+                    sig: ta.rsi?.signal,
+                    tip: `RSI: ${ta.rsi?.value ?? "n/a"} → ${ta.rsi?.signal ?? "n/a"}`,
+                  },
+                  {
+                    label: "MACD",
+                    sig: ta.macd?.signal,
+                    tip: `MACD: ${ta.macd?.signal ?? "n/a"}`,
+                  },
+                  {
+                    label: "MA",
+                    sig: ta.movingAverages?.signal,
+                    tip: `Moving averages: ${ta.movingAverages?.signal ?? "n/a"}`,
+                  },
+                  {
+                    label: "BB",
+                    sig: ta.bollingerBands?.signal,
+                    tip: `Bollinger Bands: ${ta.bollingerBands?.signal ?? "n/a"}`,
+                  },
+                ];
+              const overall = ta.overallTASignal ?? "mixed";
+              const overallStyle: Record<string, { cls: string; label: string }> = {
+                strongly_bullish: {
+                  cls: "bg-success/20 text-success border-success/40",
+                  label: "TA: Strong Buy",
+                },
+                bullish: {
+                  cls: "bg-success/10 text-success border-success/30",
+                  label: "TA: Bullish",
+                },
+                bearish: {
+                  cls: "bg-destructive/10 text-destructive border-destructive/30",
+                  label: "TA: Bearish",
+                },
+                strongly_bearish: {
+                  cls: "bg-destructive/20 text-destructive border-destructive/40",
+                  label: "TA: Strong Sell",
+                },
+                mixed: {
+                  cls: "bg-secondary/40 text-muted-foreground border-border",
+                  label: "TA: Mixed",
+                },
+              };
+              const ov = overallStyle[overall] ?? overallStyle.mixed;
+              return (
+                <div className="rounded-md border border-border/50 bg-secondary/20 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <div className="text-[10px] font-mono text-muted-foreground">
+                        TECHNICAL SIGNALS
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {indicators.map((ind) => (
+                          <div
+                            key={ind.label}
+                            className="flex items-center gap-1"
+                            title={ind.tip}
+                          >
+                            <span
+                              className={cn("w-2 h-2 rounded-full", dot(ind.sig))}
+                            />
+                            <span className="text-[10px] font-mono text-muted-foreground">
+                              {ind.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        "text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border",
+                        ov.cls,
+                      )}
+                      title={`${ta.taBullishCount ?? 0} bullish / ${ta.taBearishCount ?? 0} bearish / ${ta.taNeutralCount ?? 0} neutral`}
+                    >
+                      {ov.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             {rec.historicalContext && (
               <div>

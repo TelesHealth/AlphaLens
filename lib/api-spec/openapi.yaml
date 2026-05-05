@@ -1416,6 +1416,10 @@ components:
           type: string
           format: date-time
           nullable: true
+        taSignal:
+          type: object
+          nullable: true
+          additionalProperties: true
         edgeChangeAlert:
           type: object
           nullable: true

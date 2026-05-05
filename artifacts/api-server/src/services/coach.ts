@@ -8,6 +8,8 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc, sql, isNull, and } from "drizzle-orm";
 import { fetchMacroContext } from "./macro-data";
+import { getPriceHistory } from "./market-data";
+import { getTechnicalSignals } from "./technical-analysis";
 
 const COACH_PROMPT = `You are Arclion's elite AI trading coach, an investment intelligence platform.
 
@@ -105,6 +107,30 @@ async function buildAssetContext(assetId: number): Promise<string> {
     if (asset.sector) lines.push(`Sector: ${asset.sector}`);
     if (asset.region) lines.push(`Region: ${asset.region}`);
     if (asset.aiSummary) lines.push(`AI summary: ${asset.aiSummary}`);
+
+    // Add technical analysis if asset is not a prediction market.
+    const sectorLower = (asset.sector ?? "").toLowerCase();
+    if (sectorLower !== "prediction" && asset.symbol) {
+      try {
+        const prices = await getPriceHistory(asset.symbol, 60);
+        if (prices.length >= 50) {
+          const sig = getTechnicalSignals(asset.symbol, prices);
+          if (sig) {
+            lines.push(`\nCURRENT TECHNICAL PICTURE for ${asset.name}:`);
+            if (sig.rsi)
+              lines.push(`  RSI: ${sig.rsi.value} → ${sig.rsi.signal}`);
+            if (sig.macd) lines.push(`  MACD: ${sig.macd.signal}`);
+            if (sig.movingAverages)
+              lines.push(`  Moving averages: ${sig.movingAverages.signal}`);
+            if (sig.bollingerBands)
+              lines.push(`  Bollinger Bands: ${sig.bollingerBands.signal}`);
+            lines.push(`  Overall: ${sig.overallTASignal}`);
+          }
+        }
+      } catch {
+        // TA optional
+      }
+    }
 
     try {
       const recentSignals = await db

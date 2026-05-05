@@ -444,6 +444,7 @@ export const GetBriefingResponse = zod.object({
         confidenceRationale: zod.string().nullish(),
         edgePrevious: zod.number().nullish(),
         edgeChangedAt: zod.date().nullish(),
+        taSignal: zod.record(zod.string(), zod.unknown()).nullish(),
         edgeChangeAlert: zod
           .object({
             hasAlert: zod.boolean().optional(),
@@ -625,6 +626,7 @@ export const UpdateRecommendationOutcomeResponse = zod.object({
     confidenceRationale: zod.string().nullish(),
     edgePrevious: zod.number().nullish(),
     edgeChangedAt: zod.date().nullish(),
+    taSignal: zod.record(zod.string(), zod.unknown()).nullish(),
     edgeChangeAlert: zod
       .object({
         hasAlert: zod.boolean().optional(),
@@ -757,6 +759,7 @@ export const GetLeaderboardResponse = zod.object({
       confidenceRationale: zod.string().nullish(),
       edgePrevious: zod.number().nullish(),
       edgeChangedAt: zod.date().nullish(),
+      taSignal: zod.record(zod.string(), zod.unknown()).nullish(),
       edgeChangeAlert: zod
         .object({
           hasAlert: zod.boolean().optional(),

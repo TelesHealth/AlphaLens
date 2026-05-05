@@ -22,6 +22,76 @@ const YAHOO_MAP: Record<string, string> = {
   EURUSD: "EURUSD=X",
 };
 
+const PRICE_HISTORY_TTL_MS = 60 * 60 * 1000;
+const priceHistoryCache: Map<
+  string,
+  { fetchedAt: number; prices: number[] }
+> = new Map();
+
+export async function getPriceHistory(
+  ticker: string,
+  days: number = 60,
+): Promise<number[]> {
+  const key = `${ticker.toUpperCase()}:${days}`;
+  const cached = priceHistoryCache.get(key);
+  if (cached && Date.now() - cached.fetchedAt < PRICE_HISTORY_TTL_MS) {
+    return cached.prices;
+  }
+
+  const symbol = ticker.toUpperCase();
+  const cgId = CRYPTO_MAP[symbol];
+  let prices: number[] = [];
+
+  try {
+    if (cgId) {
+      const res = await fetchWithTimeout(
+        `${COINGECKO_BASE}/coins/${cgId}/market_chart?vs_currency=usd&days=${days}`,
+      );
+      if (!res.ok) {
+        logger.warn(
+          { status: res.status, ticker },
+          "Price history: CoinGecko error",
+        );
+        return cached?.prices ?? [];
+      }
+      const data = (await res.json()) as { prices?: [number, number][] };
+      prices = (data.prices ?? [])
+        .map((p) => p[1])
+        .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    } else {
+      const yahooSym = YAHOO_MAP[symbol] ?? symbol;
+      const range = days <= 30 ? "1mo" : days <= 90 ? "3mo" : "6mo";
+      const res = await fetchWithTimeout(
+        `${YAHOO_BASE}/${yahooSym}?interval=1d&range=${range}`,
+      );
+      if (!res.ok) {
+        logger.warn(
+          { status: res.status, ticker },
+          "Price history: Yahoo error",
+        );
+        return cached?.prices ?? [];
+      }
+      const data = (await res.json()) as any;
+      const closes: (number | null)[] =
+        data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+      prices = closes.filter(
+        (v): v is number => typeof v === "number" && Number.isFinite(v),
+      );
+    }
+  } catch (e: any) {
+    logger.warn(
+      { err: e.message, ticker },
+      "Price history: fetch failed",
+    );
+    return cached?.prices ?? [];
+  }
+
+  if (prices.length > 0) {
+    priceHistoryCache.set(key, { fetchedAt: Date.now(), prices });
+  }
+  return prices;
+}
+
 interface PriceUpdate {
   currentPrice: number;
   priceChange24h: number;

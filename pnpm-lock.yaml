@@ -374,6 +374,9 @@ importers:
 
   artifacts/api-server:
     dependencies:
+      '@debut/indicators':
+        specifier: ^1.4.2
+        version: 1.4.2
       '@workspace/api-zod':
         specifier: workspace:*
         version: link:../../lib/api-zod
@@ -807,6 +810,9 @@ packages:
 
   '@date-fns/tz@1.4.1':
     resolution: {integrity: sha512-P5LUNhtbj6YfI3iJjw5EL9eUAG6OitD0W3fWQcpQjDRc/QIsL0tRNuO1PcDvPccWL1fSTXXdE1ds+l95DV/OFA==}
+
+  '@debut/indicators@1.4.2':
+    resolution: {integrity: sha512-faXG6vk5bmBO9DRKT88N+kAPH4f7uq3n/8qh82yAb7fEZ83dpK66p96HDaEVBG507TCLZSfXjtaV4jVarrjXTA==}
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
@@ -3738,6 +3744,8 @@ snapshots:
       commander: 14.0.3
 
   '@date-fns/tz@1.4.1': {}
+
+  '@debut/indicators@1.4.2': {}
 
   '@drizzle-team/brocli@0.10.2': {}
 

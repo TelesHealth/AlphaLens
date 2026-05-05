@@ -264,6 +264,8 @@ export const RecommendationEdgeType = {
   directional_conviction: "directional_conviction",
 } as const;
 
+export type RecommendationTaSignal = { [key: string]: unknown } | null;
+
 export type RecommendationEdgeChangeAlertDirection =
   (typeof RecommendationEdgeChangeAlertDirection)[keyof typeof RecommendationEdgeChangeAlertDirection];
 
@@ -325,6 +327,7 @@ export interface Recommendation {
   confidenceRationale?: string | null;
   edgePrevious?: number | null;
   edgeChangedAt?: string | null;
+  taSignal?: RecommendationTaSignal;
   edgeChangeAlert?: RecommendationEdgeChangeAlert;
   headline?: string;
   why?: string[];

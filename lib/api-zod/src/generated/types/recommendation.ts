@@ -9,6 +9,7 @@ import type { RecommendationEdgeChangeAlert } from "./recommendationEdgeChangeAl
 import type { RecommendationEdgeType } from "./recommendationEdgeType";
 import type { RecommendationOutcome } from "./recommendationOutcome";
 import type { RecommendationResolutionMethod } from "./recommendationResolutionMethod";
+import type { RecommendationTaSignal } from "./recommendationTaSignal";
 import type { RecommendationType } from "./recommendationType";
 import type { RecommendationUrgency } from "./recommendationUrgency";
 
@@ -36,6 +37,7 @@ export interface Recommendation {
   confidenceRationale?: string | null;
   edgePrevious?: number | null;
   edgeChangedAt?: Date | null;
+  taSignal?: RecommendationTaSignal;
   edgeChangeAlert?: RecommendationEdgeChangeAlert;
   headline?: string;
   why?: string[];
