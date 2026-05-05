@@ -30,7 +30,7 @@ function setAuthCookie(res: any, token: string) {
   res.cookie(TOKEN_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "none",
     maxAge: SEVEN_DAYS_MS,
     path: "/",
   });
