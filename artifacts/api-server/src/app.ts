@@ -26,7 +26,19 @@ app.use(
     },
   }),
 );
-app.use(cors({ origin: true, credentials: true }));
+
+const allowedOrigins = [
+   'https://arclion.ai',
+   'https://www.arclion.ai',
+   process.env.FRONTEND_URL,
+   'http://localhost:5173',
+ ].filter(Boolean);
+
+ app.use(cors({
+   origin: allowedOrigins,
+   credentials: true
+ }));
+
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
