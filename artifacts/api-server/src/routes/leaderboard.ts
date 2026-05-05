@@ -20,9 +20,10 @@ function round1(n: number): number {
 
 router.get("/", async (req, res) => {
   try {
-    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 2000);
     const typeFilter = (req.query.type as string | undefined) ?? "all";
     const statusFilter = (req.query.status as string | undefined) ?? "all";
+    
 
     const all = await db
       .select()
