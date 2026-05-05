@@ -4,7 +4,7 @@
     "buildCommand": "pnpm install --no-frozen-lockfile && pnpm -r run build"
   },
   "deploy": {
-    "startCommand": "ls -R && node artifacts/api-server/dist/index.js",
+    "startCommand": "node --enable-source-maps artifacts/api-server/dist/index.mjs",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
