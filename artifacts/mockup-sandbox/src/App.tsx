@@ -88,7 +88,7 @@ function PreviewRenderer({
 }
 
 function getBasePath(): string {
-  return import.meta.env.BASE_URL.replace(/\/$/, "");
+  return import.meta.env.VITE_API_URL.replace(/\/$/, "");
 }
 
 function getPreviewExamplePath(): string {
