@@ -264,6 +264,24 @@ export const RecommendationEdgeType = {
   directional_conviction: "directional_conviction",
 } as const;
 
+export type RecommendationEdgeChangeAlertDirection =
+  (typeof RecommendationEdgeChangeAlertDirection)[keyof typeof RecommendationEdgeChangeAlertDirection];
+
+export const RecommendationEdgeChangeAlertDirection = {
+  widening: "widening",
+  narrowing: "narrowing",
+} as const;
+
+export type RecommendationEdgeChangeAlert = {
+  hasAlert?: boolean;
+  direction?: RecommendationEdgeChangeAlertDirection;
+  change?: number;
+  previousEdge?: number;
+  currentEdge?: number;
+  minutesAgo?: number;
+  message?: string;
+} | null;
+
 export type RecommendationOutcome =
   | (typeof RecommendationOutcome)[keyof typeof RecommendationOutcome]
   | null;
@@ -303,6 +321,11 @@ export interface Recommendation {
   convictionScore?: number | null;
   edgeCalculatedAt?: string | null;
   edgeAgeMinutes?: number | null;
+  edgeExplanation?: string | null;
+  confidenceRationale?: string | null;
+  edgePrevious?: number | null;
+  edgeChangedAt?: string | null;
+  edgeChangeAlert?: RecommendationEdgeChangeAlert;
   headline?: string;
   why?: string[];
   historicalContext?: string;

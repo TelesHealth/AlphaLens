@@ -1,7 +1,12 @@
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { db } from "@workspace/db";
-import { assetsTable, signalsTable, dailyBriefingsTable } from "@workspace/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import {
+  assetsTable,
+  signalsTable,
+  dailyBriefingsTable,
+  recommendationsTable,
+} from "@workspace/db/schema";
+import { eq, desc, sql, isNull, and } from "drizzle-orm";
 import { fetchMacroContext } from "./macro-data";
 
 const COACH_PROMPT = `You are Arclion's elite AI trading coach, an investment intelligence platform.
@@ -162,6 +167,45 @@ async function buildMarketSnapshot(question: string): Promise<string> {
   }
 }
 
+async function buildTopOpportunities(): Promise<string> {
+  try {
+    const openRecs = await db
+      .select()
+      .from(recommendationsTable)
+      .where(
+        and(
+          isNull(recommendationsTable.outcome),
+          eq(recommendationsTable.type, "trade"),
+        ),
+      )
+      .orderBy(sql`${recommendationsTable.convictionScore} DESC NULLS LAST`)
+      .limit(3);
+
+    if (openRecs.length === 0) return "";
+
+    const lines: string[] = ["TOP OPPORTUNITIES (by conviction score):"];
+    openRecs.forEach((r, i) => {
+      const conv =
+        typeof r.convictionScore === "number"
+          ? r.convictionScore.toFixed(1)
+          : "N/A";
+      const edge =
+        typeof r.edge === "number"
+          ? `${r.edge >= 0 ? "+" : ""}${r.edge.toFixed(1)}`
+          : "N/A";
+      lines.push(
+        `${i + 1}. ${r.assetTitle || r.title}: conviction ${conv}, edge ${edge}`,
+      );
+      if (r.edgeExplanation && r.edgeExplanation.trim().length > 0) {
+        lines.push(`   ${r.edgeExplanation.trim()}`);
+      }
+    });
+    return lines.join("\n");
+  } catch {
+    return "";
+  }
+}
+
 async function buildLatestBriefing(): Promise<string> {
   try {
     const [b] = await db
@@ -189,13 +233,22 @@ export async function getCoachAnalysis(input: CoachInput) {
   if (input.assetId != null) {
     assetContext = await buildAssetContext(input.assetId);
   }
-  const [marketSnapshot, briefingLine, macroContext] = await Promise.all([
-    buildMarketSnapshot(input.question),
-    buildLatestBriefing(),
-    fetchMacroContext(),
-  ]);
+  const [marketSnapshot, topOpportunities, briefingLine, macroContext] =
+    await Promise.all([
+      buildMarketSnapshot(input.question),
+      buildTopOpportunities(),
+      buildLatestBriefing(),
+      fetchMacroContext(),
+    ]);
   const macroBlock = macroContext.replace(/^\n+/, "").trim();
-  const contextParts = [marketSnapshot, briefingLine, assetContext, macroBlock, input.context]
+  const contextParts = [
+    marketSnapshot,
+    topOpportunities,
+    briefingLine,
+    assetContext,
+    macroBlock,
+    input.context,
+  ]
     .filter(Boolean)
     .join("\n\n");
   const prompt = contextParts

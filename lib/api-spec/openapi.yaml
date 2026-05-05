@@ -1403,6 +1403,38 @@ components:
         edgeAgeMinutes:
           type: integer
           nullable: true
+        edgeExplanation:
+          type: string
+          nullable: true
+        confidenceRationale:
+          type: string
+          nullable: true
+        edgePrevious:
+          type: number
+          nullable: true
+        edgeChangedAt:
+          type: string
+          format: date-time
+          nullable: true
+        edgeChangeAlert:
+          type: object
+          nullable: true
+          properties:
+            hasAlert:
+              type: boolean
+            direction:
+              type: string
+              enum: [widening, narrowing]
+            change:
+              type: number
+            previousEdge:
+              type: number
+            currentEdge:
+              type: number
+            minutesAgo:
+              type: integer
+            message:
+              type: string
         headline:
           type: string
         why:

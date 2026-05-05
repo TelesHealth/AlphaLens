@@ -200,11 +200,18 @@ export default function Scanner() {
                           <div className="text-xs text-muted-foreground mt-1 font-mono">Mkt: {market.marketProbability}%</div>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-center">
+                      <td
+                        className="px-6 py-4 text-center"
+                        title={
+                          market.edge != null
+                            ? `${market.sector === "prediction" ? "Probability gap" : "Directional edge"}: AI ${market.aiProbability ?? "—"}% vs market ${market.marketProbability ?? "—"}% (${market.edge > 0 ? "+" : ""}${market.edge.toFixed(1)} pts)`
+                            : undefined
+                        }
+                      >
                         {market.edge != null ? (
                           <>
                             <div className={cn(
-                              "inline-flex px-2.5 py-1 rounded font-mono text-sm font-bold border",
+                              "inline-flex px-2.5 py-1 rounded font-mono text-sm font-bold border cursor-help",
                               market.edge >= 4
                                 ? "bg-success/20 text-success border-success/40 text-glow-success"
                                 : market.edge > 0

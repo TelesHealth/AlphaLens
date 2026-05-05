@@ -1,0 +1,298 @@
+Add technical analysis signals to Arclion's
+recommendation engine using the talib library.
+This adds TA context to every AI recommendation,
+improving edge accuracy for equity and crypto assets.
+
+---
+
+STEP 1 — Install talib
+
+In artifacts/api-server:
+  pnpm add talib
+
+Note: talib requires native compilation. If it
+fails to install, try:
+  pnpm add @debut/indicators
+
+@debut/indicators is a pure JavaScript alternative
+that covers RSI, MACD, EMA, SMA, and Bollinger Bands
+with no native compilation needed. Use whichever
+installs successfully.
+
+---
+
+STEP 2 — Create technical analysis service
+
+Create artifacts/api-server/src/services/
+technical-analysis.ts
+
+This service calculates TA signals for any asset
+given its price history.
+
+FUNCTION: getTechnicalSignals(ticker, prices)
+
+Input:
+  ticker: string (e.g. "GLD", "BTC", "SPY")
+  prices: number[] (array of closing prices,
+    oldest first, minimum 50 data points)
+
+Calculations (implement all):
+
+1. RSI (14-period)
+   rsi = calculateRSI(prices, 14)
+   interpretation:
+     rsi > 70 → "overbought" (bearish signal)
+     rsi < 30 → "oversold" (bullish signal)
+     30-70 → "neutral"
+
+2. MACD (12, 26, 9)
+   { macd, signal, histogram } = calculateMACD(prices)
+   interpretation:
+     macd > signal → "bullish_crossover"
+     macd < signal → "bearish_crossover"
+     histogram > 0 and increasing → "building_momentum_up"
+     histogram < 0 and decreasing → "building_momentum_down"
+
+3. Simple Moving Averages
+   sma20 = average of last 20 prices
+   sma50 = average of last 50 prices
+   currentPrice = prices[prices.length - 1]
+   interpretation:
+     currentPrice > sma20 > sma50 → "strong_uptrend"
+     currentPrice < sma20 < sma50 → "strong_downtrend"
+     sma20 > sma50 → "golden_cross" (bullish)
+     sma20 < sma50 → "death_cross" (bearish)
+
+4. Bollinger Bands (20-period, 2 std dev)
+   { upper, middle, lower } = calculateBollingerBands(prices)
+   interpretation:
+     currentPrice > upper → "above_upper_band" (overbought)
+     currentPrice < lower → "below_lower_band" (oversold)
+     currentPrice near middle → "at_mean"
+   bandWidth = (upper - lower) / middle
+   bandWidth < 0.1 → "low_volatility_squeeze"
+     (often precedes large move)
+
+5. Volume trend (if volume data available)
+   Skip if no volume data — mark as "no_volume_data"
+
+Return object:
+{
+  ticker,
+  timestamp: ISO string,
+  rsi: { value: number, signal: string },
+  macd: { value: number, signalLine: number,
+    histogram: number, signal: string },
+  movingAverages: {
+    sma20: number, sma50: number,
+    signal: string
+  },
+  bollingerBands: {
+    upper: number, middle: number, lower: number,
+    bandWidth: number, signal: string
+  },
+  overallTASignal: string,
+  taBullishCount: number,  // how many indicators are bullish
+  taBearishCount: number,  // how many are bearish
+  taNeutralCount: number
+}
+
+Calculate overallTASignal:
+  If taBullishCount >= 3 → "strongly_bullish"
+  If taBullishCount == 2 → "bullish"
+  If taBearishCount >= 3 → "strongly_bearish"
+  If taBearishCount == 2 → "bearish"
+  Otherwise → "mixed"
+
+On any calculation error: return null for that
+indicator, log a warning, continue with others.
+Never throw — always return a result.
+
+---
+
+STEP 3 — Get price history for TA calculation
+
+TA requires historical price data (50+ data points).
+Yahoo Finance (already integrated) provides this.
+
+In artifacts/api-server/src/services/market-data.ts,
+add a function:
+
+  async function getPriceHistory(
+    ticker: string,
+    days: number = 60
+  ): Promise<number[]>
+
+  Use Yahoo Finance historical data endpoint:
+  https://query1.finance.yahoo.com/v8/finance/chart/
+    {ticker}?interval=1d&range=3mo
+
+  Parse the closing prices from the response:
+    result.chart.result[0].indicators.quote[0].close
+
+  Return the array of closing prices, oldest first.
+  Filter out any null values.
+
+  Cache for 1 hour — price history doesn't need
+  to be fetched more than once per hour.
+
+For crypto tickers (BTC, ETH, SOL):
+  CoinGecko has a price history endpoint:
+  GET https://api.coingecko.com/api/v3/coins/
+    {id}/market_chart?vs_currency=usd&days=60
+
+  Map Arclion ticker to CoinGecko id:
+    BTC → bitcoin
+    ETH → ethereum
+    SOL → solana
+
+---
+
+STEP 4 — Wire TA signals into recommendations
+
+In artifacts/api-server/src/services/
+recommendations.ts, in the AI scan function:
+
+For each asset being evaluated that is an equity,
+crypto, or commodity (NOT prediction markets):
+
+  1. Get price history: getPriceHistory(ticker)
+  2. If price history has 50+ data points:
+     Calculate: getTechnicalSignals(ticker, prices)
+  3. Build a TA context string for Claude:
+
+  const taContext = signals ? `
+TECHNICAL ANALYSIS for ${ticker}:
+  RSI(14): ${signals.rsi.value.toFixed(1)}
+    → ${signals.rsi.signal}
+  MACD: ${signals.macd.signal}
+  Moving Averages: ${signals.movingAverages.signal}
+  Bollinger Bands: ${signals.bollingerBands.signal}
+    (Band width: ${signals.bollingerBands.bandWidth.toFixed(3)})
+  Overall TA signal: ${signals.overallTASignal}
+  (${signals.taBullishCount} bullish /
+   ${signals.taBearishCount} bearish /
+   ${signals.taNeutralCount} neutral indicators)
+` : 'Technical analysis: insufficient price history';
+
+  4. Inject taContext into the Claude prompt
+     alongside the existing macro context,
+     Unusual Whales data, and asset data.
+
+  5. The Claude prompt instruction should include:
+     "Use the technical analysis data to corroborate
+     or challenge the fundamental/macro thesis.
+     If TA and macro agree → higher confidence.
+     If TA and macro conflict → flag in the bearCase
+     and reduce confidence. Never ignore a strong
+     TA signal that contradicts the AI's direction."
+
+  6. Also save the TA signals to the recommendation:
+     Add taSignal field to recommendations table:
+     taSignal: jsonb nullable
+     Store the full getTechnicalSignals() result.
+
+     Run: pnpm --filter @workspace/db run push
+
+---
+
+STEP 5 — Add TA to the AI Coach context
+
+In artifacts/api-server/src/services/coach.ts,
+when a user asks about a specific asset:
+
+  1. Get price history for that asset
+  2. Calculate TA signals
+  3. Include in the coach context:
+
+  "CURRENT TECHNICAL PICTURE for [asset]:
+   RSI: [value] → [signal]
+   MACD: [signal]
+   Moving averages: [signal]
+   Bollinger Bands: [signal]
+   Overall: [overallTASignal]"
+
+This means when a user asks "Is BTC a good buy
+right now?" the Coach answers with both the AI
+probability view AND the current TA picture.
+
+---
+
+STEP 6 — Show TA in the briefing UI
+
+In artifacts/alpha-lens/src/pages/briefing.tsx,
+in the expanded "Show analysis" section of each
+recommendation card, add a TA summary row:
+
+  If rec.taSignal exists and asset is not prediction:
+    Show a small TA indicator bar:
+
+    Label: "Technical signals"
+    Display: colored dots for each indicator
+      Green dot = bullish indicator
+      Red dot = bearish indicator
+      Gray dot = neutral indicator
+
+    Show: RSI · MACD · MA · BB
+    Each as a colored dot with tooltip
+    showing the specific value and signal.
+
+    Overall TA signal as a badge:
+      "strongly_bullish" → green badge "TA: Strong Buy"
+      "bullish" → light green badge "TA: Bullish"
+      "bearish" → red badge "TA: Bearish"
+      "strongly_bearish" → dark red badge "TA: Strong Sell"
+      "mixed" → gray badge "TA: Mixed"
+
+    Note: For prediction market assets (FED-CUT,
+    US-REC, BTC-100K) do NOT show TA signals —
+    technical analysis doesn't apply to event
+    probability contracts.
+
+---
+
+VERIFICATION
+
+After all changes:
+
+1. pnpm run typecheck — zero errors
+
+2. Test price history fetch:
+   In a test script, call getPriceHistory("GLD")
+   Should return 60+ closing prices as an array of
+   numbers. Log the first and last 3 values.
+
+3. Test TA calculation:
+   Call getTechnicalSignals("GLD", prices)
+   Should return RSI between 0-100, MACD values,
+   SMA20, SMA50, Bollinger Bands, and overallTASignal.
+   Log all values to confirm they're sensible.
+
+4. Trigger a recommendations scan:
+   POST /api/recommendations/scan
+   Check server console for TA context being
+   injected into the Claude prompt.
+   Look for: "TECHNICAL ANALYSIS for GLD:"
+
+5. GET /api/recommendations/briefing
+   Each equity/crypto recommendation should have
+   taSignal field with RSI, MACD, MA, BB values.
+   Prediction market recommendations (FED-CUT etc.)
+   should NOT have taSignal.
+
+6. Ask AI Coach: "Is Gold a good buy right now?"
+   Response should reference TA signals (RSI, trend)
+   alongside macro context.
+
+7. In the briefing UI, expand a GLD or BTC card.
+   "Show analysis" section should show TA indicator
+   dots and overall TA badge.
+
+8. Verify TA-macro alignment in reasoning:
+   If overallTASignal is "bullish" and the
+   recommendation direction is LONG, the
+   edgeExplanation should reference TA confirmation.
+   If they conflict, the bearCase should flag it.
+
+Run pnpm run typecheck. Zero errors required.
+Report all files changed.

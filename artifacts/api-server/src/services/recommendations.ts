@@ -32,6 +32,8 @@ For EACH recommendation provide:
 - Execution window
 - Urgency: high (act today) | medium (this week) | low (developing)
 - Bear case: what could make this wrong
+- Edge explanation: ONE sentence (max 40 words) that directly explains the edge number. Start with the market price, then the AI probability, then the specific data that justifies the gap. Example format: "The market prices [event] at [X]% while macro data ([source]: [value]) and [source] data suggest [Y]% probability, creating a [Z]-point mispricing."
+- Confidence rationale: ONE sentence (max 30 words) explaining why confidence is high or low for this call. Reference the specific data sources that agree or conflict. Example: "High confidence — BLS unemployment trend, BEA GDP deceleration, and Kalshi market pricing all support this direction independently."
 
 RULES:
 - Max 3 TRADE CALLS per briefing
@@ -56,7 +58,9 @@ Return JSON array only. Each object:
   "entryTrigger": "Specific price/event that confirms trade (for WATCH)",
   "confidence": 75,
   "window": "2-3 weeks",
-  "urgencyReason": "Why this urgency level"
+  "urgencyReason": "Why this urgency level",
+  "edgeExplanation": "One sentence explaining the edge number with market price, AI probability, and supporting data sources",
+  "confidenceRationale": "One sentence explaining why confidence is high or low, citing specific data sources"
 }
 
 Return ONLY valid JSON array. No markdown. No preamble. No trailing commas. No single quotes. All property names must be double-quoted.`;
@@ -100,6 +104,8 @@ interface RawRecommendation {
   confidence: number;
   window: string;
   urgencyReason: string;
+  edgeExplanation?: string;
+  confidenceRationale?: string;
 }
 
 interface RawEvent {
@@ -362,6 +368,22 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
     const confidenceWeight = (rec.confidence ?? 60) / 100;
     const convictionScore = Math.round(edge * confidenceWeight * 10) / 10;
 
+    const rawEdgeExp = (rec.edgeExplanation ?? "").trim();
+    const edgeExplanation =
+      rawEdgeExp.length > 0
+        ? rawEdgeExp
+        : `The AI assigns ${aiProb.toFixed(1)}% probability vs market's ${
+            marketPriceField != null ? marketPriceField.toFixed(1) : "N/A"
+          }${isPrediction ? "%" : ""}, a ${edge.toFixed(1)}-point ${
+            isPrediction ? "gap" : "directional edge"
+          }.`;
+
+    const rawConfRat = (rec.confidenceRationale ?? "").trim();
+    const confidenceRationale =
+      rawConfRat.length > 0
+        ? rawConfRat
+        : "Confidence based on available macro and market data.";
+
     await db.insert(recommendationsTable).values({
       briefingId: briefing.id,
       type: rec.type,
@@ -385,6 +407,8 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
       edgeType,
       convictionScore,
       edgeCalculatedAt: new Date(),
+      edgeExplanation,
+      confidenceRationale,
       aiProbability: aiProb,
       marketPrice: marketPriceField,
       assetPriceAtCall,
@@ -580,12 +604,53 @@ export async function getCurrentBriefing() {
     .limit(8);
 
   const now = Date.now();
-  const recsWithAge = recs.map((r) => ({
-    ...r,
-    edgeAgeMinutes: r.edgeCalculatedAt
+  const recsWithAge = recs.map((r) => {
+    const edgeAgeMinutes = r.edgeCalculatedAt
       ? Math.floor((now - new Date(r.edgeCalculatedAt).getTime()) / 60000)
-      : null,
-  }));
+      : null;
+
+    let edgeChangeAlert:
+      | {
+          hasAlert: true;
+          direction: "widening" | "narrowing";
+          change: number;
+          previousEdge: number;
+          currentEdge: number;
+          minutesAgo: number;
+          message: string;
+        }
+      | undefined;
+
+    if (
+      typeof r.edgePrevious === "number" &&
+      r.edgeChangedAt &&
+      typeof r.edge === "number"
+    ) {
+      const minutesAgo = Math.floor(
+        (now - new Date(r.edgeChangedAt).getTime()) / 60000,
+      );
+      if (minutesAgo <= 120) {
+        const change = Math.round((r.edge - r.edgePrevious) * 10) / 10;
+        const direction = change > 0 ? "widening" : "narrowing";
+        const sign = change > 0 ? "+" : "";
+        edgeChangeAlert = {
+          hasAlert: true,
+          direction,
+          change,
+          previousEdge: r.edgePrevious,
+          currentEdge: r.edge,
+          minutesAgo,
+          message: `Edge ${direction}: was ${r.edgePrevious.toFixed(1)} pts, now ${r.edge.toFixed(1)} pts (${sign}${change} in last ${minutesAgo} min)`,
+        };
+      }
+    }
+
+    return {
+      ...r,
+      edgeAgeMinutes,
+      ...(edgeChangeAlert ? { edgeChangeAlert } : {}),
+    };
+  });
 
   return {
     ...briefing,

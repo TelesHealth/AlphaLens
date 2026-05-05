@@ -374,16 +374,66 @@ async function refreshRecommendationEdges(): Promise<void> {
     const newConvictionScore =
       Math.round(newEdge * confidenceWeight * 10) / 10;
 
+    // Track significant edge changes (>= 5 pts) for the alert system.
+    const previousEdge = rec.edge;
+    const edgeChange =
+      typeof previousEdge === "number" ? Math.abs(newEdge - previousEdge) : 0;
+    const isSignificantChange =
+      typeof previousEdge === "number" && edgeChange >= 5;
+
+    const updateValues: {
+      edge: number;
+      edgeType: "probability_gap" | "directional_conviction";
+      convictionScore: number;
+      edgeCalculatedAt: Date;
+      marketPrice: number | null;
+      assetPriceAtCall: number | null;
+      edgePrevious?: number;
+      edgeChangedAt?: Date;
+    } = {
+      edge: newEdge,
+      edgeType: newEdgeType,
+      convictionScore: newConvictionScore,
+      edgeCalculatedAt: new Date(),
+      marketPrice: newMarketPrice,
+      assetPriceAtCall: newAssetPriceAtCall,
+    };
+
+    if (isSignificantChange && previousEdge != null) {
+      updateValues.edgePrevious = previousEdge;
+      updateValues.edgeChangedAt = new Date();
+      const delta = newEdge - previousEdge;
+      logger.info(
+        `Edge change: rec #${rec.id} ${rec.assetTitle} edge moved from ${previousEdge.toFixed(1)} to ${newEdge.toFixed(1)} (${delta > 0 ? "+" : ""}${delta.toFixed(1)})`,
+      );
+    }
+
+    // Backfill explanation fields for legacy recs created before these
+    // columns existed. New recs already have richer Claude-authored text.
+    const setExt = updateValues as typeof updateValues & {
+      edgeExplanation?: string;
+      confidenceRationale?: string;
+    };
+    if (!rec.edgeExplanation || rec.edgeExplanation.trim().length === 0) {
+      const mpStr =
+        newMarketPrice != null
+          ? newMarketPrice.toFixed(1) + (isPrediction ? "%" : "")
+          : "N/A";
+      setExt.edgeExplanation = `The AI assigns ${aiProb.toFixed(1)}% probability vs market's ${mpStr}, a ${newEdge.toFixed(1)}-point ${
+        isPrediction ? "gap" : "directional edge"
+      }.`;
+    }
+    if (
+      !rec.confidenceRationale ||
+      rec.confidenceRationale.trim().length === 0
+    ) {
+      setExt.confidenceRationale =
+        "Confidence based on available macro and market data.";
+    }
+
     await db
       .update(recommendationsTable)
-      .set({
-        edge: newEdge,
-        edgeType: newEdgeType,
-        convictionScore: newConvictionScore,
-        edgeCalculatedAt: new Date(),
-        marketPrice: newMarketPrice,
-        assetPriceAtCall: newAssetPriceAtCall,
-      })
+      .set(updateValues)
       .where(eq(recommendationsTable.id, rec.id));
     updated++;
   }

@@ -339,6 +339,46 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec.headline}</ReactMarkdown>
                 </div>
               )}
+              {rec.edgeChangeAlert?.hasAlert &&
+                rec.edgeChangeAlert.previousEdge != null &&
+                rec.edgeChangeAlert.currentEdge != null && (
+                <div
+                  className={cn(
+                    "mt-2 flex items-start gap-2 rounded-md border px-2.5 py-1.5",
+                    rec.edgeChangeAlert.direction === "widening"
+                      ? "bg-success/10 border-success/30 text-success"
+                      : "bg-warning/10 border-warning/30 text-warning",
+                  )}
+                  title={rec.edgeChangeAlert.message}
+                >
+                  {rec.edgeChangeAlert.direction === "widening" ? (
+                    <TrendingUp className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  ) : (
+                    <TrendingDown className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  )}
+                  <div className="text-[11px] leading-tight">
+                    <div className="font-semibold">
+                      {rec.edgeChangeAlert.direction === "widening"
+                        ? "Edge widening — opportunity growing"
+                        : "Edge narrowing — market closing the gap"}
+                    </div>
+                    <div className="font-mono text-[10px] opacity-80">
+                      Was {rec.edgeChangeAlert.previousEdge.toFixed(1)} pts → now{" "}
+                      {rec.edgeChangeAlert.currentEdge.toFixed(1)} pts (
+                      {rec.edgeChangeAlert.minutesAgo ?? 0} min ago)
+                    </div>
+                  </div>
+                </div>
+              )}
+              {rec.edgeExplanation && (
+                <div
+                  className="text-xs text-muted-foreground italic mt-1.5 line-clamp-2"
+                  title={rec.edgeExplanation}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {rec.edgeExplanation}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
@@ -490,6 +530,17 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               </div>
             )}
           </div>
+
+          {rec.confidenceRationale && (
+            <div className="rounded-md border border-border/50 bg-secondary/20 px-3 py-2">
+              <div className="text-[10px] font-mono text-muted-foreground mb-1">
+                WHY THIS CONFIDENCE LEVEL
+              </div>
+              <div className="text-xs text-foreground/80">
+                {rec.confidenceRationale}
+              </div>
+            </div>
+          )}
 
           {rec.why && rec.why.length > 0 && (
             <div>
