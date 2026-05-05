@@ -335,6 +335,33 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
         recTitle.includes(a.symbol.toLowerCase())
     );
 
+    const assetClass = rec.sector ?? "";
+    const isPrediction = assetClass === "prediction";
+    const aiProb = matchedAsset?.aiProbability ?? 0;
+    const dirUpper = (rec.direction ?? "").toUpperCase();
+    const isShort = dirUpper === "SHORT" || dirUpper === "NO";
+
+    let marketPriceField: number | null = null;
+    let assetPriceAtCall: number | null = null;
+    let edge: number;
+    let edgeType: "probability_gap" | "directional_conviction";
+
+    if (isPrediction) {
+      marketPriceField =
+        matchedAsset?.marketProbability ?? matchedAsset?.currentPrice ?? null;
+      assetPriceAtCall = null;
+      edge = aiProb - (marketPriceField ?? 0);
+      edgeType = "probability_gap";
+    } else {
+      marketPriceField = matchedAsset?.currentPrice ?? null;
+      assetPriceAtCall = marketPriceField;
+      edge = isShort ? 50 - aiProb : aiProb - 50;
+      edgeType = "directional_conviction";
+    }
+
+    const confidenceWeight = (rec.confidence ?? 60) / 100;
+    const convictionScore = Math.round(edge * confidenceWeight * 10) / 10;
+
     await db.insert(recommendationsTable).values({
       briefingId: briefing.id,
       type: rec.type,
@@ -342,7 +369,7 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
       title: rec.title,
       assetId: matchedAsset?.id ?? null,
       assetTitle: rec.assetTitle ?? "",
-      assetClass: rec.sector ?? "",
+      assetClass,
       sector: rec.sector ?? "",
       region: rec.region ?? matchedAsset?.region ?? "Global",
       direction: rec.direction,
@@ -354,9 +381,13 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
       confidence: rec.confidence,
       window: rec.window,
       urgencyReason: rec.urgencyReason,
-      edge: matchedAsset?.edge ?? matchedAsset?.alphaScore ?? 0,
-      aiProbability: matchedAsset?.aiProbability ?? 0,
-      marketPrice: matchedAsset?.marketProbability ?? matchedAsset?.currentPrice ?? 0,
+      edge,
+      edgeType,
+      convictionScore,
+      edgeCalculatedAt: new Date(),
+      aiProbability: aiProb,
+      marketPrice: marketPriceField,
+      assetPriceAtCall,
       sources: buildSources(matchedAsset, smartMoneySummary, macroIncluded),
     });
   }
@@ -537,7 +568,10 @@ export async function getCurrentBriefing() {
     .select()
     .from(recommendationsTable)
     .where(eq(recommendationsTable.briefingId, briefing.id))
-    .orderBy(desc(recommendationsTable.confidence));
+    .orderBy(
+      desc(recommendationsTable.convictionScore),
+      desc(recommendationsTable.confidence),
+    );
 
   const events = await db
     .select()
@@ -545,9 +579,17 @@ export async function getCurrentBriefing() {
     .orderBy(desc(globalEventsTable.scannedAt))
     .limit(8);
 
+  const now = Date.now();
+  const recsWithAge = recs.map((r) => ({
+    ...r,
+    edgeAgeMinutes: r.edgeCalculatedAt
+      ? Math.floor((now - new Date(r.edgeCalculatedAt).getTime()) / 60000)
+      : null,
+  }));
+
   return {
     ...briefing,
-    recommendations: recs,
+    recommendations: recsWithAge,
     globalEvents: events,
   };
 }

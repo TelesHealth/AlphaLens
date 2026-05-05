@@ -430,19 +430,24 @@ export async function resolvePriceOutcome(rec: Rec): Promise<ResolutionResult> {
   if (currentPrice == null) return { resolved: false };
 
   // Determine the entry price for paper-return calculation.
-  // rec.marketPrice sometimes stores the AI probability (0-100) rather than
-  // the actual asset dollar price. Heuristic: if marketPrice equals
-  // aiProbability (or is very close), it is almost certainly the AI
-  // probability duplicated into the wrong field — reject it. Otherwise,
-  // treat it as a genuine asset price snapshot captured at call time.
+  // Prefer assetPriceAtCall (the dedicated snapshot of the asset's dollar
+  // price at the moment the recommendation was made). Fall back to
+  // marketPrice if assetPriceAtCall is not populated (older records). When
+  // falling back, reject values that look like the AI probability (which
+  // was historically duplicated into marketPrice for non-prediction assets).
   let entryPrice: number | null = null;
-  const mp = rec.marketPrice;
-  const ap = rec.aiProbability;
-  if (typeof mp === "number" && mp > 0) {
-    const looksLikeAiProb =
-      typeof ap === "number" && Math.abs(mp - ap) < 0.01;
-    if (!looksLikeAiProb) {
-      entryPrice = mp;
+  const apc = (rec as { assetPriceAtCall?: number | null }).assetPriceAtCall;
+  if (typeof apc === "number" && apc > 0) {
+    entryPrice = apc;
+  } else {
+    const mp = rec.marketPrice;
+    const ap = rec.aiProbability;
+    if (typeof mp === "number" && mp > 0) {
+      const looksLikeAiProb =
+        typeof ap === "number" && Math.abs(mp - ap) < 0.01;
+      if (!looksLikeAiProb) {
+        entryPrice = mp;
+      }
     }
   }
 

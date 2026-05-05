@@ -255,6 +255,15 @@ export const RecommendationUrgency = {
   low: "low",
 } as const;
 
+export type RecommendationEdgeType =
+  | (typeof RecommendationEdgeType)[keyof typeof RecommendationEdgeType]
+  | null;
+
+export const RecommendationEdgeType = {
+  probability_gap: "probability_gap",
+  directional_conviction: "directional_conviction",
+} as const;
+
 export type RecommendationOutcome =
   | (typeof RecommendationOutcome)[keyof typeof RecommendationOutcome]
   | null;
@@ -288,7 +297,12 @@ export interface Recommendation {
   direction?: string;
   aiProbability?: number | null;
   marketPrice?: number | null;
+  assetPriceAtCall?: number | null;
   edge?: number | null;
+  edgeType?: RecommendationEdgeType;
+  convictionScore?: number | null;
+  edgeCalculatedAt?: string | null;
+  edgeAgeMinutes?: number | null;
   headline?: string;
   why?: string[];
   historicalContext?: string;
@@ -759,6 +773,9 @@ export interface LeaderboardStats {
   winRateWithPartial: number;
   avgEdge: number;
   avgAiProbability: number;
+  avgConvictionScore?: number;
+  highConvictionWinRate?: number | null;
+  lowConvictionWinRate?: number | null;
   totalPaperReturn: number;
   paperReturnPct: number;
   highConfidenceWinRate?: number | null;

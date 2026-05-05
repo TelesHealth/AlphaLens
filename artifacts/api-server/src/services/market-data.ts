@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
-import { assetsTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { assetsTable, recommendationsTable } from "@workspace/db/schema";
+import { eq, isNull } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { fetchAllPredictionPrices } from "./kalshi-markets";
 
@@ -296,6 +296,99 @@ async function doRefresh(bypassCache: boolean): Promise<number> {
   }
 
   logger.info({ updated, total: allAssets.length }, "Market data refresh complete");
-  
+
+  await refreshRecommendationEdges();
+
   return updated;
+}
+
+async function refreshRecommendationEdges(): Promise<void> {
+  const openRecs = await db
+    .select()
+    .from(recommendationsTable)
+    .where(isNull(recommendationsTable.outcome));
+
+  if (openRecs.length === 0) {
+    logger.info("Edge refresh: no open recommendations to update");
+    return;
+  }
+
+  const allAssets = await db.select().from(assetsTable);
+  const byId = new Map(allAssets.map((a) => [a.id, a]));
+  const byTitle = new Map(
+    allAssets.map((a) => [a.name.toLowerCase(), a] as const),
+  );
+  const bySymbol = new Map(
+    allAssets.map((a) => [a.symbol.toLowerCase(), a] as const),
+  );
+
+  let updated = 0;
+  for (const rec of openRecs) {
+    let asset = rec.assetId != null ? byId.get(rec.assetId) : undefined;
+    if (!asset) {
+      const t = (rec.assetTitle ?? "").toLowerCase();
+      asset = byTitle.get(t) ?? bySymbol.get(t);
+      if (!asset) {
+        for (const a of allAssets) {
+          if (
+            t.includes(a.name.toLowerCase()) ||
+            t.includes(a.symbol.toLowerCase())
+          ) {
+            asset = a;
+            break;
+          }
+        }
+      }
+    }
+    if (!asset) continue;
+
+    const isPrediction = rec.assetClass === "prediction";
+    const aiProb = rec.aiProbability ?? 0;
+    let newEdge = rec.edge ?? 0;
+    let newMarketPrice: number | null = rec.marketPrice ?? null;
+    let newAssetPriceAtCall: number | null = rec.assetPriceAtCall ?? null;
+    const newEdgeType: "probability_gap" | "directional_conviction" =
+      isPrediction ? "probability_gap" : "directional_conviction";
+
+    if (isPrediction) {
+      const mp = asset.marketProbability ?? asset.currentPrice ?? null;
+      newMarketPrice = mp;
+      newEdge = aiProb - (mp ?? 0);
+    } else {
+      newMarketPrice = asset.currentPrice ?? null;
+      // Backfill assetPriceAtCall for legacy recs that pre-date the field;
+      // for newly-created recs this is already set at insert-time.
+      if (newAssetPriceAtCall == null) {
+        newAssetPriceAtCall = newMarketPrice;
+      }
+      // Recompute directional edge if it's missing (legacy backfill);
+      // otherwise leave it as-is since aiProbability doesn't change.
+      if (rec.edge == null) {
+        const dirUpper = (rec.direction ?? "").toUpperCase();
+        const isShort = dirUpper === "SHORT" || dirUpper === "NO";
+        newEdge = isShort ? 50 - aiProb : aiProb - 50;
+      }
+    }
+
+    const confidenceWeight = (rec.confidence ?? 60) / 100;
+    const newConvictionScore =
+      Math.round(newEdge * confidenceWeight * 10) / 10;
+
+    await db
+      .update(recommendationsTable)
+      .set({
+        edge: newEdge,
+        edgeType: newEdgeType,
+        convictionScore: newConvictionScore,
+        edgeCalculatedAt: new Date(),
+        marketPrice: newMarketPrice,
+        assetPriceAtCall: newAssetPriceAtCall,
+      })
+      .where(eq(recommendationsTable.id, rec.id));
+    updated++;
+  }
+
+  logger.info(
+    `Edge refresh: updated ${updated} of ${openRecs.length} open recommendations`,
+  );
 }

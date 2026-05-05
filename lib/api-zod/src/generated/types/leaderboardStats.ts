@@ -23,6 +23,9 @@ export interface LeaderboardStats {
   winRateWithPartial: number;
   avgEdge: number;
   avgAiProbability: number;
+  avgConvictionScore?: number;
+  highConvictionWinRate?: number | null;
+  lowConvictionWinRate?: number | null;
   totalPaperReturn: number;
   paperReturnPct: number;
   highConfidenceWinRate?: number | null;

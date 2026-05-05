@@ -381,14 +381,80 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
 
       {expanded && (
         <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3 animate-in slide-in-from-top-2 duration-200">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {rec.marketPrice != null && (
-              <div className="bg-secondary/30 rounded-lg p-3">
-                <div className="text-[10px] font-mono text-muted-foreground mb-1">
-                  MARKET PRICE
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {rec.convictionScore != null && (
+              <div
+                className="bg-primary/10 border border-primary/30 rounded-lg p-3 col-span-2 sm:col-span-1 row-span-2 sm:row-span-1 flex flex-col justify-between"
+                title="Edge × Confidence — combined high-signal score"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-mono text-muted-foreground">
+                    CONVICTION
+                  </div>
+                  {(() => {
+                    const m = rec.edgeAgeMinutes;
+                    if (m == null) return null;
+                    const dot =
+                      m < 30
+                        ? "bg-success shadow-[0_0_6px_rgba(34,197,94,0.7)]"
+                        : m < 120
+                          ? "bg-warning"
+                          : "bg-muted-foreground/60";
+                    const label =
+                      m < 30
+                        ? "Live"
+                        : m < 120
+                          ? `${m} min ago`
+                          : `${Math.floor(m / 60)} hr ago`;
+                    return (
+                      <span
+                        className="flex items-center gap-1 text-[9px] font-mono text-muted-foreground"
+                        title={`Edge calculated ${label.toLowerCase()}`}
+                      >
+                        <span className={cn("w-1.5 h-1.5 rounded-full", dot)} />
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </div>
-                <div className="text-sm font-mono font-bold">
-                  {formatCurrency(rec.marketPrice)}
+                <div
+                  className={cn(
+                    "text-2xl font-mono font-bold mt-1",
+                    rec.convictionScore > 15
+                      ? "text-success"
+                      : rec.convictionScore > 0
+                        ? "text-primary"
+                        : "text-destructive",
+                  )}
+                >
+                  {rec.convictionScore > 0 ? "+" : ""}
+                  {rec.convictionScore.toFixed(1)}
+                </div>
+              </div>
+            )}
+            {rec.edge != null && (
+              <div
+                className="bg-secondary/30 rounded-lg p-3"
+                title={
+                  rec.edgeType === "probability_gap"
+                    ? "AI probability vs market contract price"
+                    : "AI directional confidence above neutral baseline"
+                }
+              >
+                <div className="text-[10px] font-mono text-muted-foreground mb-1">
+                  {rec.edgeType === "probability_gap"
+                    ? "PROBABILITY GAP"
+                    : "DIRECTIONAL EDGE"}
+                </div>
+                <div
+                  className={cn(
+                    "text-sm font-mono font-bold",
+                    rec.edge > 0 ? "text-success" : "text-destructive",
+                  )}
+                >
+                  {rec.edge > 0 ? "+" : ""}
+                  {rec.edge.toFixed(1)}
+                  {rec.edgeType === "probability_gap" ? "%" : " pts"}
                 </div>
               </div>
             )}
@@ -398,23 +464,28 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   AI PROBABILITY
                 </div>
                 <div className="text-sm font-mono font-bold">
-                  {(rec.aiProbability * 100).toFixed(1)}%
+                  {rec.aiProbability > 1
+                    ? rec.aiProbability.toFixed(1)
+                    : (rec.aiProbability * 100).toFixed(1)}
+                  %
                 </div>
               </div>
             )}
-            {rec.edge != null && (
+            {rec.marketPrice != null && (
               <div className="bg-secondary/30 rounded-lg p-3">
                 <div className="text-[10px] font-mono text-muted-foreground mb-1">
-                  EDGE
+                  {rec.assetClass === "prediction"
+                    ? "MARKET PROBABILITY"
+                    : rec.assetClass === "fx"
+                      ? "CURRENT RATE"
+                      : "CURRENT PRICE"}
                 </div>
-                <div
-                  className={cn(
-                    "text-sm font-mono font-bold",
-                    rec.edge > 0 ? "text-success" : "text-destructive"
-                  )}
-                >
-                  {rec.edge > 0 ? "+" : ""}
-                  {rec.edge.toFixed(1)}%
+                <div className="text-sm font-mono font-bold">
+                  {rec.assetClass === "prediction"
+                    ? `${rec.marketPrice.toFixed(1)}%`
+                    : rec.assetClass === "fx"
+                      ? rec.marketPrice.toFixed(4)
+                      : formatCurrency(rec.marketPrice)}
                 </div>
               </div>
             )}

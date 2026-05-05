@@ -156,7 +156,7 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
       </div>
 
       {/* Hero number — Win Rate (largest element) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] gap-0 px-6 pt-6 pb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1fr] gap-0 px-6 pt-6 pb-6">
         <div className="lg:border-r lg:border-border/60 lg:pr-6 mb-6 lg:mb-0">
           <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">
             Win Rate
@@ -201,6 +201,16 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
           valueClass={moneyColor(totalReturn)}
         />
         <StatTile label="Avg Edge" value={`${fmtNumber(stats.avgEdge)} pts`} />
+        <StatTile
+          label="Avg Conviction"
+          value={fmtNumber(stats.avgConvictionScore)}
+          sub={
+            stats.highConvictionWinRate != null ||
+            stats.lowConvictionWinRate != null
+              ? `Hi >15: ${fmtPct(stats.highConvictionWinRate)} · Lo <10: ${fmtPct(stats.lowConvictionWinRate)}`
+              : undefined
+          }
+        />
       </div>
     </div>
   );
@@ -435,6 +445,21 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
           >
             {fmtNumber(rec.edge)}
           </span>
+          {rec.convictionScore != null && (
+            <div
+              className={cn(
+                "text-[10px] font-mono mt-0.5",
+                rec.convictionScore > 15
+                  ? "text-success"
+                  : rec.convictionScore > 0
+                    ? "text-primary"
+                    : "text-muted-foreground/70",
+              )}
+              title="Conviction score (edge × confidence)"
+            >
+              c:{fmtNumber(rec.convictionScore)}
+            </div>
+          )}
         </div>
         <div className="hidden md:block md:col-span-1 text-right font-mono text-xs text-muted-foreground">
           {fmtNumber(rec.confidence, 0)}

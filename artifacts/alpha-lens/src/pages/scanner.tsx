@@ -202,18 +202,23 @@ export default function Scanner() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         {market.edge != null ? (
-                          <div className={cn(
-                            "inline-flex px-2.5 py-1 rounded font-mono text-sm font-bold border",
-                            market.edge >= 4
-                              ? "bg-success/20 text-success border-success/40 text-glow-success"
-                              : market.edge > 0
-                                ? "bg-primary/20 text-primary border-primary/30 text-glow-primary"
-                                : market.edge < 0
-                                  ? "bg-destructive/10 text-destructive border-destructive/30"
-                                  : "text-muted-foreground border-transparent"
-                          )}>
-                            {market.edge > 0 ? "+" : ""}{market.edge.toFixed(1)}%
-                          </div>
+                          <>
+                            <div className={cn(
+                              "inline-flex px-2.5 py-1 rounded font-mono text-sm font-bold border",
+                              market.edge >= 4
+                                ? "bg-success/20 text-success border-success/40 text-glow-success"
+                                : market.edge > 0
+                                  ? "bg-primary/20 text-primary border-primary/30 text-glow-primary"
+                                  : market.edge < 0
+                                    ? "bg-destructive/10 text-destructive border-destructive/30"
+                                    : "text-muted-foreground border-transparent"
+                            )}>
+                              {market.edge > 0 ? "+" : ""}{market.edge.toFixed(1)}%
+                            </div>
+                            <div className="text-[9px] font-mono text-muted-foreground mt-1 tracking-wider">
+                              {market.sector === "prediction" ? "PROB GAP" : "DIRECTIONAL"}
+                            </div>
+                          </>
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>
                       <td className="px-6 py-4">

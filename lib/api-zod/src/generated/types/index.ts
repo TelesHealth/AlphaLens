@@ -82,6 +82,7 @@ export * from "./radarStatusResponseSources";
 export * from "./radarThresholdsResponse";
 export * from "./radarThresholdsResponseThresholds";
 export * from "./recommendation";
+export * from "./recommendationEdgeType";
 export * from "./recommendationOutcome";
 export * from "./recommendationResolutionMethod";
 export * from "./recommendationType";

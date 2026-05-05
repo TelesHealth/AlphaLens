@@ -114,6 +114,43 @@ router.get("/", async (req, res) => {
           )
         : null;
 
+    const convictionValues = resolvedTrades
+      .map((r) => r.convictionScore)
+      .filter((v): v is number => typeof v === "number");
+    const avgConvictionScore =
+      convictionValues.length > 0
+        ? round1(
+            convictionValues.reduce((a, b) => a + b, 0) /
+              convictionValues.length,
+          )
+        : 0;
+
+    const highConvictionResolved = resolvedTrades.filter(
+      (r) => typeof r.convictionScore === "number" && r.convictionScore > 15,
+    );
+    const highConvictionWinRate =
+      highConvictionResolved.length > 0
+        ? round1(
+            (highConvictionResolved.filter((r) => r.outcome === "correct")
+              .length /
+              highConvictionResolved.length) *
+              100,
+          )
+        : null;
+
+    const lowConvictionResolved = resolvedTrades.filter(
+      (r) => typeof r.convictionScore === "number" && r.convictionScore < 10,
+    );
+    const lowConvictionWinRate =
+      lowConvictionResolved.length > 0
+        ? round1(
+            (lowConvictionResolved.filter((r) => r.outcome === "correct")
+              .length /
+              lowConvictionResolved.length) *
+              100,
+          )
+        : null;
+
     const buckets: Array<{ key: string; min: number; max: number }> = [
       { key: "60-69%", min: 60, max: 70 },
       { key: "70-79%", min: 70, max: 80 },
@@ -170,7 +207,8 @@ router.get("/", async (req, res) => {
     );
     const daysRemaining = Math.max(0, TRACK_RECORD_TOTAL_DAYS - daysElapsed);
 
-    // Sort + filter recommendations: resolved first (newest resolution), then open (newest createdAt)
+    // Sort + filter recommendations: resolved first (newest resolution),
+    // then open ordered by convictionScore (highest first), then createdAt
     const sorted = [...all].sort((a, b) => {
       const aResolved = a.outcome != null;
       const bResolved = b.outcome != null;
@@ -181,6 +219,9 @@ router.get("/", async (req, res) => {
         const bTime = b.resolutionDate ? new Date(b.resolutionDate).getTime() : 0;
         return bTime - aTime;
       }
+      const aConv = typeof a.convictionScore === "number" ? a.convictionScore : -Infinity;
+      const bConv = typeof b.convictionScore === "number" ? b.convictionScore : -Infinity;
+      if (aConv !== bConv) return bConv - aConv;
       const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return bTime - aTime;
@@ -215,6 +256,9 @@ router.get("/", async (req, res) => {
         paperReturnPct,
         highConfidenceWinRate,
         highEdgeWinRate,
+        avgConvictionScore,
+        highConvictionWinRate,
+        lowConvictionWinRate,
         paperReturnReliability,
         autoResolved,
         manualResolved,

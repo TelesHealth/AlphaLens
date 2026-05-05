@@ -1383,8 +1383,25 @@ components:
         marketPrice:
           type: number
           nullable: true
+        assetPriceAtCall:
+          type: number
+          nullable: true
         edge:
           type: number
+          nullable: true
+        edgeType:
+          type: string
+          enum: [probability_gap, directional_conviction]
+          nullable: true
+        convictionScore:
+          type: number
+          nullable: true
+        edgeCalculatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        edgeAgeMinutes:
+          type: integer
           nullable: true
         headline:
           type: string
@@ -2233,6 +2250,14 @@ components:
           type: number
         avgAiProbability:
           type: number
+        avgConvictionScore:
+          type: number
+        highConvictionWinRate:
+          type: number
+          nullable: true
+        lowConvictionWinRate:
+          type: number
+          nullable: true
         totalPaperReturn:
           type: number
         paperReturnPct:

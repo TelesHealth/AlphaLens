@@ -5,6 +5,7 @@
  * Alpha Lens Investment Intelligence API
  * OpenAPI spec version: 1.0.0
  */
+import type { RecommendationEdgeType } from "./recommendationEdgeType";
 import type { RecommendationOutcome } from "./recommendationOutcome";
 import type { RecommendationResolutionMethod } from "./recommendationResolutionMethod";
 import type { RecommendationType } from "./recommendationType";
@@ -24,7 +25,12 @@ export interface Recommendation {
   direction?: string;
   aiProbability?: number | null;
   marketPrice?: number | null;
+  assetPriceAtCall?: number | null;
   edge?: number | null;
+  edgeType?: RecommendationEdgeType;
+  convictionScore?: number | null;
+  edgeCalculatedAt?: Date | null;
+  edgeAgeMinutes?: number | null;
   headline?: string;
   why?: string[];
   historicalContext?: string;

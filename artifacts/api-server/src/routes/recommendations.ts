@@ -148,7 +148,10 @@ router.get("/recommendations", async (req, res) => {
     let query = db
       .select()
       .from(recommendationsTable)
-      .orderBy(desc(recommendationsTable.confidence))
+      .orderBy(
+        desc(recommendationsTable.convictionScore),
+        desc(recommendationsTable.confidence),
+      )
       .limit(limit);
 
     const recs = await query;
@@ -158,7 +161,15 @@ router.get("/recommendations", async (req, res) => {
       return true;
     });
 
-    res.json({ recommendations: filtered });
+    const now = Date.now();
+    const withAge = filtered.map((r) => ({
+      ...r,
+      edgeAgeMinutes: r.edgeCalculatedAt
+        ? Math.floor((now - new Date(r.edgeCalculatedAt).getTime()) / 60000)
+        : null,
+    }));
+
+    res.json({ recommendations: withAge });
   } catch (e: any) {
     req.log.error({ err: e }, "Error listing recommendations");
     res.status(500).json({ error: e.message });
