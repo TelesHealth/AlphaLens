@@ -32,7 +32,7 @@ const allowedOrigins = [
    'https://www.arclion.ai',
    process.env.FRONTEND_URL,
    'http://localhost:5173',
- ].filter(Boolean);
+].filter((origin): origin is string => Boolean(origin));
 
  app.use(cors({
    origin: allowedOrigins,
