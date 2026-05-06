@@ -92,7 +92,7 @@ export default function Settings() {
     setAccountsLoading(true);
     setAccountsError(null);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}api/user/trading-accounts`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/user/trading-accounts`, {
         credentials: "include",
       });
       const data = await res.json().catch(() => ({}));
@@ -126,7 +126,7 @@ export default function Settings() {
     }
     setPwLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}api/auth/change-password`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/change-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -178,7 +178,7 @@ export default function Settings() {
         }
         credentials[f.key] = v;
       }
-      const res = await fetch(`${import.meta.env.VITE_API_URL}api/user/trading-accounts`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/user/trading-accounts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -206,7 +206,7 @@ export default function Settings() {
     setAccountsError(null);
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}api/user/trading-accounts/${pendingDisconnect}`,
+        `${import.meta.env.VITE_API_URL}/api/user/trading-accounts/${pendingDisconnect}`,
         { method: "DELETE", credentials: "include" },
       );
       if (!res.ok) {

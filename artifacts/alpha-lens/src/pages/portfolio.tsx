@@ -137,7 +137,7 @@ export default function Portfolio() {
             <div className="overflow-x-auto">
               {portfolio.openTrades.length === 0 ? (
                 <div className="p-12 flex flex-col items-center justify-center text-center">
-                  <img src={`${import.meta.env.VITE_API_URL}images/empty-portfolio.png`} alt="Empty" className="w-32 h-32 opacity-50 mb-4 mix-blend-screen" />
+                  <img src={`${import.meta.env.VITE_API_URL}/images/empty-portfolio.png`} alt="Empty" className="w-32 h-32 opacity-50 mb-4 mix-blend-screen" />
                   <p className="text-muted-foreground">No active trades. Visit the Scanner to find opportunities.</p>
                 </div>
               ) : (

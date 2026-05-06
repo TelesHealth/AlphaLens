@@ -48,9 +48,9 @@ export default function RecCard({ rec }: { rec: Rec }) {
   const edgeStr = rec.edge != null ? `${rec.edge > 0 ? '+' : ''}${rec.edge.toFixed(1)} pts` : '—'
 
   async function addToWatchlist() {
-    const BASE = process.env.NEXT_PUBLIC_API_URL || ''
+    const BASE = import.meta.env.VITE_API_URL || ''
     try {
-      await fetch(`${BASE}/api/recommendations/watchlist`, {
+      await fetch(`${BASE}api/recommendations/watchlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
