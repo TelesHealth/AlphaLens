@@ -50,7 +50,7 @@ export default function RecCard({ rec }: { rec: Rec }) {
   async function addToWatchlist() {
     const BASE = import.meta.env.VITE_API_URL || ''
     try {
-      await fetch(`${BASE}api/recommendations/watchlist`, {
+      await fetch(`${BASE}/api/recommendations/watchlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
