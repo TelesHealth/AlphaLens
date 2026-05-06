@@ -14,6 +14,8 @@ export const pool = new Pool({
      : false
  });
 
+console.log("DEBUG: DATABASE_URL starts with:", process.env.DATABASE_URL?.substring(0, 10));
+
 export const db = drizzle(pool);
 
 
