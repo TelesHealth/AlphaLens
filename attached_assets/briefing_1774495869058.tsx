@@ -81,7 +81,7 @@ export default function BriefingPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE}api/recommendations/briefing`)
+      const res = await fetch(`${BASE}/api/recommendations/briefing`)
       const data = await res.json()
       setBriefing(data)
       setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }))
@@ -94,7 +94,7 @@ export default function BriefingPage() {
 
   const loadHistory = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE}api/recommendations/history`)
+      const res = await fetch(`${BASE}/api/recommendations/history`)
       const data = await res.json()
       setHistory(data.history || [])
     } catch (e) {
@@ -116,7 +116,7 @@ export default function BriefingPage() {
   async function triggerScan() {
     setScanning(true)
     try {
-      await fetch(`${BASE}api/recommendations/scan`, { method: 'POST' })
+      await fetch(`${BASE}/api/recommendations/scan`, { method: 'POST' })
       // Poll for results after 60 seconds
       setTimeout(async () => {
         await load()
