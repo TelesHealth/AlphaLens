@@ -15,7 +15,11 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 // Module-level configuration
 // ---------------------------------------------------------------------------
 
-let _baseUrl: string | null = process.env.NEXT_PUBLIC_API_URL;
+let _baseUrl: string | null = 
+  (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : null) || 
+  (import.meta.env?.VITE_API_URL) || 
+  null;
+
 let _authTokenGetter: AuthTokenGetter | null = null;
 
 /**
