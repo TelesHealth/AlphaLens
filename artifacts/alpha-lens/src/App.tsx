@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
 import NotFound from "@/pages/not-found";
+import { setAuthTokenGetter } from "../../lib/api-client-react/custom-fetch";
 
 import Scanner from "@/pages/scanner";
 import MarketDetail from "@/pages/market-detail";
@@ -90,6 +91,13 @@ function Router() {
 }
 
 function App() {
+
+  useEffect(() => {
+    setAuthTokenGetter(() => {
+      const token = localStorage.getItem("arclion_token");
+      return token ? token : null;
+    });
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
