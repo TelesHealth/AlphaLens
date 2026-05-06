@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
 import NotFound from "@/pages/not-found";
-import { setAuthTokenGetter } from "../lib/api-client-react/custom-fetch";
+import { setAuthTokenGetter } from "../../../lib/api-client-react/custom-fetch";
 
 import Scanner from "@/pages/scanner";
 import MarketDetail from "@/pages/market-detail";
