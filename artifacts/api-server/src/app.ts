@@ -15,7 +15,7 @@ const allowedOrigins = [
 ].filter((origin): origin is string => Boolean(origin));
 
  app.use(cors({
-   origin: allowedOrigins,
+   origin: process.env.FRONTEND_URL,
    credentials: true
  }));
 
