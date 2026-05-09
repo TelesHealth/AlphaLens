@@ -1,0 +1,89 @@
+Fix the paper return calculation for the 11
+resolved recommendations that have incorrect
+entry prices.
+
+Background: The marketPrice field on older
+recommendations stored the AI probability
+percentage (e.g. 48) instead of the actual
+asset dollar price. This made paper return
+calculations wrong — comparing 48 (probability)
+to 147 (oil barrel price).
+
+The assetPriceAtCall field was added to the
+schema in a recent update. New recommendations
+now populate it correctly. The 11 legacy
+resolved recommendations need to be backfilled.
+
+STEP 1 — Find the 11 resolved recommendations
+
+Query the recommendations table for:
+  outcome IS NOT NULL
+  AND (assetPriceAtCall IS NULL
+    OR assetPriceAtCall < 10)
+
+These are the legacy resolved calls with
+missing or incorrect entry prices.
+
+Log each one: id, assetTitle, direction,
+marketPrice, assetPriceAtCall, outcome
+
+STEP 2 — Look up correct entry prices
+
+For each resolved recommendation, fetch the
+current asset price from the assets table
+as a proxy entry price:
+
+  SELECT currentPrice FROM assets
+  WHERE name ILIKE '%' || rec.assetTitle || '%'
+  OR symbol ILIKE '%' || rec.assetTitle || '%'
+
+This is approximate — we don't have the exact
+historical price at call time, but current price
+is better than using 48 (AI probability) as
+the entry price.
+
+STEP 3 — Recalculate paper return
+
+For each resolved recommendation with a
+corrected entry price:
+
+  const entryPrice = matchedAsset.currentPrice;
+  const exitPrice = rec.marketPriceAtResolution;
+  const paperTradeAmount = 100; // default $100
+
+  if direction is LONG or YES:
+    paperReturn = (exitPrice - entryPrice)
+      / entryPrice * paperTradeAmount
+
+  if direction is SHORT or NO:
+    paperReturn = (entryPrice - exitPrice)
+      / entryPrice * paperTradeAmount
+
+  Round to 2 decimal places.
+
+STEP 4 — Update the database
+
+For each resolved recommendation:
+  UPDATE recommendations SET
+    assetPriceAtCall = entryPrice,
+    paperReturn = recalculatedReturn
+  WHERE id = rec.id
+
+STEP 5 — Log the corrections
+
+After updating, log a summary:
+  "Paper return backfill complete:
+   N recommendations updated
+   Previous total: $X
+   Corrected total: $Y"
+
+Also update the leaderboard stats by calling
+GET /api/leaderboard after the updates to
+confirm the new totalPaperReturn figure.
+
+Run pnpm run typecheck. Zero errors required.
+
+Report:
+- Which recommendations were updated
+- The old vs new paperReturn for each
+- The new totalPaperReturn on the leaderboard
