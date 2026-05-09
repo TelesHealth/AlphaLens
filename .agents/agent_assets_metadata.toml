@@ -18,3 +18,9 @@ id = "kggBJiUN5VZO8xsxO3vsN"
 uri = "file://attached_assets/ARCLION_AUDIT_REPORT_2026-04-28.md"
 type = "text"
 title = "ARCLION Pre-UAT Audit Report — April 28, 2026"
+
+[[outputs]]
+id = "0xT_MKxxoslQGM3vmWoxP"
+uri = "file://ARCLION.md"
+type = "text"
+title = "ARCLION — Platform Capabilities & Architecture"
