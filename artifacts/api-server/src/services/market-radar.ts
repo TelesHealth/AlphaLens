@@ -697,6 +697,11 @@ export function getRadarStatus() {
       tier: "free",
       note: "BEA — GDP growth rate. Quarterly data, 24h cache.",
     },
+    danelfin: {
+      status: process.env.DANELFIN_API_KEY ? "active" : "not_configured",
+      tier: "paid",
+      note: "Danelfin AI stock scores (1-10). US equities and ETFs only. Daily update.",
+    },
   };
 
   const activeCount = Object.values(sources).filter((s) => s.status === "active").length;

@@ -15,9 +15,13 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 // Module-level configuration
 // ---------------------------------------------------------------------------
 
-let _baseUrl: string | null = 
-  (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : null) || 
-  (import.meta.env?.VITE_API_URL) || 
+const _globalAny = globalThis as unknown as {
+  process?: { env?: Record<string, string | undefined> };
+};
+const _importMetaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+let _baseUrl: string | null =
+  _globalAny.process?.env?.NEXT_PUBLIC_API_URL ||
+  _importMetaEnv?.VITE_API_URL ||
   null;
 
 let _authTokenGetter: AuthTokenGetter | null = null;

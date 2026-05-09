@@ -82,6 +82,7 @@ export * from "./radarStatusResponseSources";
 export * from "./radarThresholdsResponse";
 export * from "./radarThresholdsResponseThresholds";
 export * from "./recommendation";
+export * from "./recommendationDanelfinScore";
 export * from "./recommendationEdgeChangeAlert";
 export * from "./recommendationEdgeChangeAlertDirection";
 export * from "./recommendationEdgeType";

@@ -21,8 +21,15 @@ import {
   type TechnicalSignals,
 } from "./technical-analysis";
 import { buildLearningContext } from "./adaptive-learning";
+import {
+  getDanelfinScores,
+  isDanelfinEligible,
+  formatDanelfinContext,
+  type DanelfinScore,
+} from "./danelfin";
 
 const taSignalCache: Map<string, TechnicalSignals> = new Map();
+const danelfinCache: Map<string, DanelfinScore | null> = new Map();
 
 const AGENT_SYSTEM_PROMPT = `You are the Arclion proactive trading intelligence agent.
 
@@ -49,6 +56,7 @@ RULES:
 - Always cite specific historical analog with year
 - Never force a recommendation if no strong opportunity exists
 - When smart money signals are provided, cross-reference them with asset data. A large options bet on an asset where AI also shows edge is a high-conviction signal.
+- Danelfin is an independent AI system scoring US-listed stocks and ETFs 1-10 across Overall, Technical, Fundamental, Sentiment, and Low Risk. When a Danelfin score is provided: score >= 7 with bullish direction → increase confidence by up to 10 points. Score <= 3 with bullish direction → flag the conflict in bearCase and reduce confidence. Never ignore a conflicting Danelfin signal.
 
 Return JSON array only. Each object:
 {
@@ -234,6 +242,7 @@ function buildSources(
   matchedAsset: typeof assetsTable.$inferSelect | undefined,
   smartMoneySummary: string,
   macroIncluded: boolean,
+  danelfinUsed: boolean = false,
 ): string[] {
   const sources = new Set<string>();
   if (matchedAsset) {
@@ -256,6 +265,9 @@ function buildSources(
     sources.add("BLS");
     sources.add("BEA");
     sources.add("NY Fed");
+  }
+  if (danelfinUsed) {
+    sources.add("Danelfin");
   }
   return Array.from(sources);
 }
@@ -425,7 +437,18 @@ Congress:\n${congressLines.join("\n") || "  - None detected"}`;
         : (matchedAsset?.symbol &&
             taSignalCache.get(matchedAsset.symbol.toUpperCase())) ||
           null,
-      sources: buildSources(matchedAsset, smartMoneySummary, macroIncluded),
+      danelfinScore:
+        matchedAsset?.symbol && isDanelfinEligible(matchedAsset.sector)
+          ? danelfinCache.get(matchedAsset.symbol.toUpperCase()) ?? null
+          : null,
+      sources: buildSources(
+        matchedAsset,
+        smartMoneySummary,
+        macroIncluded,
+        matchedAsset?.symbol
+          ? !!danelfinCache.get(matchedAsset.symbol.toUpperCase())
+          : false,
+      ),
     });
   }
 
@@ -558,6 +581,35 @@ async function generateRecommendations(
   taSignalCache.clear();
   for (const [k, v] of nextTaCache) taSignalCache.set(k, v);
 
+  // Danelfin AI scores for US equities/ETFs only (skip crypto/FX/prediction).
+  const danelfinTickers = assets
+    .filter((a) => isDanelfinEligible(a.sector) && !!a.symbol)
+    .map((a) => a.symbol!.toUpperCase());
+  const danelfinMap = danelfinTickers.length
+    ? await getDanelfinScores(danelfinTickers)
+    : new Map<string, DanelfinScore | null>();
+  const nextDanelfinCache = new Map<string, DanelfinScore | null>();
+  const danelfinLines: string[] = [];
+  for (const ticker of danelfinTickers) {
+    const score = danelfinMap.get(ticker) ?? null;
+    nextDanelfinCache.set(ticker, score);
+    danelfinLines.push("\n" + formatDanelfinContext(ticker, score));
+  }
+  const danelfinContext =
+    danelfinLines.length > 0
+      ? "\n\nDANELFIN AI SCORES (independent stock-rating AI, 1-10 scale):" +
+        danelfinLines.join("")
+      : "";
+  danelfinCache.clear();
+  for (const [k, v] of nextDanelfinCache) danelfinCache.set(k, v);
+  const danelfinHits = Array.from(nextDanelfinCache.values()).filter(
+    (v) => v !== null,
+  ).length;
+  logger.info(
+    { eligible: danelfinTickers.length, withScore: danelfinHits },
+    `Danelfin: fetched ${danelfinHits}/${danelfinTickers.length} scores`,
+  );
+
   const learning = await buildLearningContext();
   logger.info(
     {
@@ -577,7 +629,7 @@ RECENT SIGNALS:
 ${signalSummary || "None available yet"}
 
 GLOBAL EVENTS:
-${eventSummary || "None available yet"}${macroContext}${smartMoneySummary}${taContext}${learningBlock}
+${eventSummary || "None available yet"}${macroContext}${smartMoneySummary}${taContext}${danelfinContext}${learningBlock}
 
 Identify the best trade calls and watches. Cross-reference assets with events and signals.${smartMoneySummary ? " Pay close attention to smart money signals — large institutional options bets and congressional trades often foreshadow major moves." : ""}${taContext ? " Use the technical analysis data to corroborate or challenge the fundamental/macro thesis. If TA and macro agree → higher confidence. If TA and macro conflict → flag in the bearCase and reduce confidence. Never ignore a strong TA signal that contradicts the AI's direction." : ""}`;
 

@@ -35,6 +35,7 @@ export const recommendationsTable = pgTable("recommendations", {
   edgePrevious: doublePrecision("edge_previous"),
   edgeChangedAt: timestamp("edge_changed_at"),
   taSignal: jsonb("ta_signal"),
+  danelfinScore: jsonb("danelfin_score"),
   headline: text("headline").default(""),
   why: jsonb("why").default([]),
   historicalContext: text("historical_context").default(""),

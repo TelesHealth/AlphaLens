@@ -1403,6 +1403,27 @@ components:
         edgeAgeMinutes:
           type: integer
           nullable: true
+        danelfinScore:
+          type: object
+          nullable: true
+          description: Danelfin AI stock score (US equities and ETFs only).
+          properties:
+            ticker:
+              type: string
+            date:
+              type: string
+            aiScore:
+              type: number
+            technical:
+              type: number
+            fundamental:
+              type: number
+            sentiment:
+              type: number
+            lowRisk:
+              type: number
+            signal:
+              type: string
         edgeExplanation:
           type: string
           nullable: true

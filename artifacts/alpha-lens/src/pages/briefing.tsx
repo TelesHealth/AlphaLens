@@ -686,6 +686,90 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               );
             })()}
 
+          {rec.danelfinScore &&
+            rec.assetClass !== "prediction" &&
+            rec.assetClass !== "crypto" &&
+            rec.assetClass !== "fx" &&
+            (() => {
+              const ds = rec.danelfinScore as {
+                aiScore?: number;
+                technical?: number;
+                fundamental?: number;
+                sentiment?: number;
+                lowRisk?: number;
+                signal?: string;
+              };
+              const ai = ds.aiScore ?? 0;
+              const signal = ds.signal ?? "hold";
+              const style =
+                signal === "strong_buy"
+                  ? {
+                      cls: "bg-success/20 text-success border-success/40",
+                      label: "Danelfin: Strong Buy",
+                    }
+                  : signal === "buy"
+                    ? {
+                        cls: "bg-success/10 text-success border-success/30",
+                        label: "Danelfin: Buy",
+                      }
+                    : signal === "neutral"
+                      ? {
+                          cls: "bg-secondary/40 text-muted-foreground border-border",
+                          label: "Danelfin: Neutral",
+                        }
+                      : signal === "strong_sell"
+                        ? {
+                            cls: "bg-destructive/20 text-destructive border-destructive/40",
+                            label: "Danelfin: Strong Sell",
+                          }
+                        : signal === "sell"
+                          ? {
+                              cls: "bg-destructive/15 text-destructive border-destructive/30",
+                              label: "Danelfin: Sell",
+                            }
+                          : {
+                              cls: "bg-warning/15 text-warning border-warning/30",
+                              label: "Danelfin: Hold",
+                            };
+              return (
+                <div className="rounded-md border border-border/50 bg-secondary/20 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <div className="text-[10px] font-mono text-muted-foreground">
+                        DANELFIN AI
+                      </div>
+                      <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+                        <span title="Overall AI score">
+                          AI: <span className="text-foreground">{ds.aiScore ?? "-"}/10</span>
+                        </span>
+                        <span title="Technical score">
+                          T: <span className="text-foreground">{ds.technical ?? "-"}</span>
+                        </span>
+                        <span title="Fundamental score">
+                          F: <span className="text-foreground">{ds.fundamental ?? "-"}</span>
+                        </span>
+                        <span title="Sentiment score">
+                          S: <span className="text-foreground">{ds.sentiment ?? "-"}</span>
+                        </span>
+                        <span title="Low-risk score (higher = lower risk)">
+                          LR: <span className="text-foreground">{ds.lowRisk ?? "-"}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        "text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border",
+                        style.cls,
+                      )}
+                      title={`Danelfin AI score ${ai}/10 → ${ds.signal ?? "n/a"}`}
+                    >
+                      {style.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             {rec.historicalContext && (
               <div>

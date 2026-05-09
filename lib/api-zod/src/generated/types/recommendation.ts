@@ -5,6 +5,7 @@
  * Alpha Lens Investment Intelligence API
  * OpenAPI spec version: 1.0.0
  */
+import type { RecommendationDanelfinScore } from "./recommendationDanelfinScore";
 import type { RecommendationEdgeChangeAlert } from "./recommendationEdgeChangeAlert";
 import type { RecommendationEdgeType } from "./recommendationEdgeType";
 import type { RecommendationOutcome } from "./recommendationOutcome";
@@ -33,6 +34,8 @@ export interface Recommendation {
   convictionScore?: number | null;
   edgeCalculatedAt?: Date | null;
   edgeAgeMinutes?: number | null;
+  /** Danelfin AI stock score (US equities and ETFs only). */
+  danelfinScore?: RecommendationDanelfinScore;
   edgeExplanation?: string | null;
   confidenceRationale?: string | null;
   edgePrevious?: number | null;

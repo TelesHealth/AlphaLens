@@ -264,6 +264,20 @@ export const RecommendationEdgeType = {
   directional_conviction: "directional_conviction",
 } as const;
 
+/**
+ * Danelfin AI stock score (US equities and ETFs only).
+ */
+export type RecommendationDanelfinScore = {
+  ticker?: string;
+  date?: string;
+  aiScore?: number;
+  technical?: number;
+  fundamental?: number;
+  sentiment?: number;
+  lowRisk?: number;
+  signal?: string;
+} | null;
+
 export type RecommendationTaSignal = { [key: string]: unknown } | null;
 
 export type RecommendationEdgeChangeAlertDirection =
@@ -323,6 +337,8 @@ export interface Recommendation {
   convictionScore?: number | null;
   edgeCalculatedAt?: string | null;
   edgeAgeMinutes?: number | null;
+  /** Danelfin AI stock score (US equities and ETFs only). */
+  danelfinScore?: RecommendationDanelfinScore;
   edgeExplanation?: string | null;
   confidenceRationale?: string | null;
   edgePrevious?: number | null;

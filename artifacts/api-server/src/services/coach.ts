@@ -10,6 +10,10 @@ import { eq, desc, sql, isNull, and } from "drizzle-orm";
 import { fetchMacroContext } from "./macro-data";
 import { getPriceHistory } from "./market-data";
 import { getTechnicalSignals } from "./technical-analysis";
+import {
+  getDanelfinScore,
+  isDanelfinEligible,
+} from "./danelfin";
 
 const COACH_PROMPT = `You are Arclion's elite AI trading coach, an investment intelligence platform.
 
@@ -107,6 +111,22 @@ async function buildAssetContext(assetId: number): Promise<string> {
     if (asset.sector) lines.push(`Sector: ${asset.sector}`);
     if (asset.region) lines.push(`Region: ${asset.region}`);
     if (asset.aiSummary) lines.push(`AI summary: ${asset.aiSummary}`);
+
+    // Add Danelfin AI score for US equities and ETFs (not crypto/FX/prediction).
+    if (isDanelfinEligible(asset.sector) && asset.symbol) {
+      try {
+        const score = await getDanelfinScore(asset.symbol);
+        if (score) {
+          lines.push(
+            `\nDANELFIN SCORE for ${asset.symbol}:
+  Overall: ${score.aiScore}/10 (${score.signal})
+  Technical/Fundamental/Sentiment/Low Risk: ${score.technical}/${score.fundamental}/${score.sentiment}/${score.lowRisk}`,
+          );
+        }
+      } catch {
+        // Danelfin optional
+      }
+    }
 
     // Add technical analysis if asset is not a prediction market.
     const sectorLower = (asset.sector ?? "").toLowerCase();

@@ -440,6 +440,19 @@ export const GetBriefingResponse = zod.object({
         convictionScore: zod.number().nullish(),
         edgeCalculatedAt: zod.date().nullish(),
         edgeAgeMinutes: zod.number().nullish(),
+        danelfinScore: zod
+          .object({
+            ticker: zod.string().optional(),
+            date: zod.string().optional(),
+            aiScore: zod.number().optional(),
+            technical: zod.number().optional(),
+            fundamental: zod.number().optional(),
+            sentiment: zod.number().optional(),
+            lowRisk: zod.number().optional(),
+            signal: zod.string().optional(),
+          })
+          .nullish()
+          .describe("Danelfin AI stock score (US equities and ETFs only)."),
         edgeExplanation: zod.string().nullish(),
         confidenceRationale: zod.string().nullish(),
         edgePrevious: zod.number().nullish(),
@@ -622,6 +635,19 @@ export const UpdateRecommendationOutcomeResponse = zod.object({
     convictionScore: zod.number().nullish(),
     edgeCalculatedAt: zod.date().nullish(),
     edgeAgeMinutes: zod.number().nullish(),
+    danelfinScore: zod
+      .object({
+        ticker: zod.string().optional(),
+        date: zod.string().optional(),
+        aiScore: zod.number().optional(),
+        technical: zod.number().optional(),
+        fundamental: zod.number().optional(),
+        sentiment: zod.number().optional(),
+        lowRisk: zod.number().optional(),
+        signal: zod.string().optional(),
+      })
+      .nullish()
+      .describe("Danelfin AI stock score (US equities and ETFs only)."),
     edgeExplanation: zod.string().nullish(),
     confidenceRationale: zod.string().nullish(),
     edgePrevious: zod.number().nullish(),
@@ -755,6 +781,19 @@ export const GetLeaderboardResponse = zod.object({
       convictionScore: zod.number().nullish(),
       edgeCalculatedAt: zod.date().nullish(),
       edgeAgeMinutes: zod.number().nullish(),
+      danelfinScore: zod
+        .object({
+          ticker: zod.string().optional(),
+          date: zod.string().optional(),
+          aiScore: zod.number().optional(),
+          technical: zod.number().optional(),
+          fundamental: zod.number().optional(),
+          sentiment: zod.number().optional(),
+          lowRisk: zod.number().optional(),
+          signal: zod.string().optional(),
+        })
+        .nullish()
+        .describe("Danelfin AI stock score (US equities and ETFs only)."),
       edgeExplanation: zod.string().nullish(),
       confidenceRationale: zod.string().nullish(),
       edgePrevious: zod.number().nullish(),
