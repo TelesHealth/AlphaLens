@@ -725,6 +725,16 @@ export const GetLeaderboardResponse = zod.object({
     lowConvictionWinRate: zod.number().nullish(),
     totalPaperReturn: zod.number(),
     paperReturnPct: zod.number(),
+    paperReturnEligibleCalls: zod
+      .number()
+      .describe(
+        "Resolved calls included in paper return math (have a verified entry price and are not prediction markets).",
+      ),
+    paperReturnExcludedCalls: zod
+      .number()
+      .describe(
+        "Resolved calls excluded from paper return math (legacy rows missing assetPriceAtCall, or prediction-market calls).",
+      ),
     highConfidenceWinRate: zod.number().nullish(),
     highEdgeWinRate: zod.number().nullish(),
     paperReturnReliability: zod.enum(["verified", "estimated", "unavailable"]),

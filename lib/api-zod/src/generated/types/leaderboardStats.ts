@@ -28,6 +28,10 @@ export interface LeaderboardStats {
   lowConvictionWinRate?: number | null;
   totalPaperReturn: number;
   paperReturnPct: number;
+  /** Resolved calls included in paper return math (have a verified entry price and are not prediction markets). */
+  paperReturnEligibleCalls: number;
+  /** Resolved calls excluded from paper return math (legacy rows missing assetPriceAtCall, or prediction-market calls). */
+  paperReturnExcludedCalls: number;
   highConfidenceWinRate?: number | null;
   highEdgeWinRate?: number | null;
   paperReturnReliability: LeaderboardStatsPaperReturnReliability;

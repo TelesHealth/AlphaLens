@@ -73,20 +73,34 @@ router.get("/", async (req, res) => {
         ? round1(probValues.reduce((a, b) => a + b, 0) / probValues.length)
         : 0;
 
-    const paperReturns = resolvedTrades
+    // Paper return is only calculated for resolved calls with a verified
+    // entry price (assetPriceAtCall). Legacy calls predating that field, plus
+    // prediction-market calls (which use probability not price), are excluded
+    // from dollar P&L but still count toward win/loss rate.
+    const paperReturnEligibleTrades = resolvedTrades.filter(
+      (r) =>
+        typeof r.assetPriceAtCall === "number" &&
+        r.assetClass !== "prediction",
+    );
+    const paperReturnEligibleCalls = paperReturnEligibleTrades.length;
+    const paperReturnExcludedCalls = resolvedCalls - paperReturnEligibleCalls;
+
+    const paperReturns = paperReturnEligibleTrades
       .map((r) => r.paperReturn)
       .filter((v): v is number => typeof v === "number");
     const totalPaperReturn = round1(paperReturns.reduce((a, b) => a + b, 0));
-    const capitalDeployed = resolvedCalls * 100;
+    const capitalDeployed = paperReturnEligibleCalls * 100;
     const paperReturnPct =
       capitalDeployed > 0
         ? round1((totalPaperReturn / capitalDeployed) * 100)
         : 0;
 
     const paperReturnReliability: "verified" | "estimated" | "unavailable" =
-      resolvedCalls === 0
+      paperReturnEligibleCalls === 0
         ? "unavailable"
-        : resolvedTrades.every((r) => r.outcome == null || typeof r.paperReturn === "number")
+        : paperReturnEligibleTrades.every(
+              (r) => typeof r.paperReturn === "number",
+            )
           ? "verified"
           : "estimated";
 
@@ -254,6 +268,8 @@ router.get("/", async (req, res) => {
         avgAiProbability,
         totalPaperReturn,
         paperReturnPct,
+        paperReturnEligibleCalls,
+        paperReturnExcludedCalls,
         highConfidenceWinRate,
         highEdgeWinRate,
         avgConvictionScore,

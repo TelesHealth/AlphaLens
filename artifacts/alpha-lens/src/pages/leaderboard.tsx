@@ -194,9 +194,11 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
           label="Paper Return"
           value={fmtMoney(totalReturn)}
           sub={
-            stats.resolvedCalls > 0
-              ? fmtPct(stats.paperReturnPct, { sign: true })
-              : undefined
+            stats.paperReturnEligibleCalls > 0
+              ? `${fmtPct(stats.paperReturnPct, { sign: true })} · based on ${stats.paperReturnEligibleCalls} call${stats.paperReturnEligibleCalls === 1 ? "" : "s"} with verified entry price${stats.paperReturnExcludedCalls > 0 ? ` (${stats.paperReturnExcludedCalls} legacy excluded)` : ""}`
+              : stats.paperReturnExcludedCalls > 0
+                ? `${stats.paperReturnExcludedCalls} legacy call${stats.paperReturnExcludedCalls === 1 ? "" : "s"} excluded — no verified entry price`
+                : undefined
           }
           valueClass={moneyColor(totalReturn)}
         />
