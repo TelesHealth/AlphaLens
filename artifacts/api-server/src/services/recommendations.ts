@@ -20,6 +20,7 @@ import {
   getTechnicalSignals,
   type TechnicalSignals,
 } from "./technical-analysis";
+import { buildLearningContext } from "./adaptive-learning";
 
 const taSignalCache: Map<string, TechnicalSignals> = new Map();
 
@@ -557,6 +558,16 @@ async function generateRecommendations(
   taSignalCache.clear();
   for (const [k, v] of nextTaCache) taSignalCache.set(k, v);
 
+  const learning = await buildLearningContext();
+  logger.info(
+    {
+      stage: learning.stage,
+      resolvedCount: learning.resolvedCount,
+    },
+    `Adaptive learning: Stage ${learning.stage} (${learning.resolvedCount} resolved calls)`,
+  );
+  const learningBlock = learning.context ? `\n\n${learning.context}` : "";
+
   const prompt = `Today is ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}.
 
 SCORED ASSETS:
@@ -566,7 +577,7 @@ RECENT SIGNALS:
 ${signalSummary || "None available yet"}
 
 GLOBAL EVENTS:
-${eventSummary || "None available yet"}${macroContext}${smartMoneySummary}${taContext}
+${eventSummary || "None available yet"}${macroContext}${smartMoneySummary}${taContext}${learningBlock}
 
 Identify the best trade calls and watches. Cross-reference assets with events and signals.${smartMoneySummary ? " Pay close attention to smart money signals — large institutional options bets and congressional trades often foreshadow major moves." : ""}${taContext ? " Use the technical analysis data to corroborate or challenge the fundamental/macro thesis. If TA and macro agree → higher confidence. If TA and macro conflict → flag in the bearCase and reduce confidence. Never ignore a strong TA signal that contradicts the AI's direction." : ""}`;
 
@@ -700,9 +711,13 @@ export async function getCurrentBriefing() {
     };
   });
 
+  const learning = await buildLearningContext();
+
   return {
     ...briefing,
     recommendations: recsWithAge,
     globalEvents: events,
+    learningStage: learning.stage,
+    resolvedCallCount: learning.resolvedCount,
   };
 }
