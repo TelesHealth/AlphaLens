@@ -1089,7 +1089,25 @@ export default function Briefing() {
           toast({ title: "Scan Complete", description: `${count} recommendations generated.` });
         }, 15000);
       },
-      onError: () => {
+      onError: (err: unknown) => {
+        // 409 { status: "scan_already_running" } is *expected* when the user
+        // double-clicks or a cron run is mid-flight — surface it as a neutral
+        // notice, not a red error.
+        const apiErr = err as {
+          status?: number;
+          data?: { status?: string; message?: string } | null;
+        };
+        if (
+          apiErr?.status === 409 &&
+          apiErr?.data?.status === "scan_already_running"
+        ) {
+          toast({
+            title: "Scan in progress",
+            description:
+              apiErr.data.message ?? "Please wait for the current scan to finish.",
+          });
+          return;
+        }
         toast({
           title: "Scan Failed",
           description: "Could not start market scan.",

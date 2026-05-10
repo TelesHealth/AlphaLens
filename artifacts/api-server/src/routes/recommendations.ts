@@ -10,6 +10,7 @@ import { eq, desc, and } from "drizzle-orm";
 import {
   scanForRecommendations,
   getCurrentBriefing,
+  getIsScanRunning,
 } from "../services/recommendations";
 import { runOutcomeResolution } from "../services/outcome-resolver";
 import { requireAdmin } from "../middlewares/auth";
@@ -125,6 +126,18 @@ router.get("/briefing", async (req, res) => {
 
 router.post("/scan", async (req, res) => {
   try {
+    // Check the lock BEFORE responding so a duplicate request is told the truth
+    // (409 + scan_already_running) instead of a misleading 200 / scan_started
+    // that never produces a fresh briefing. Mirrors POST /api/radar/scan.
+    if (getIsScanRunning()) {
+      res.status(409).json({
+        status: "scan_already_running",
+        message:
+          "A scan is already in progress. Please wait for it to complete before starting a new one.",
+      });
+      return;
+    }
+
     res.json({
       status: "scan_started",
       message: "Scanning global markets... results will appear in briefing shortly.",

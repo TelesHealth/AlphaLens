@@ -1,0 +1,130 @@
+Briefing scan button has three issues that need
+fixing. This is a regression — the lock was
+previously fixed in the radar service but the
+briefing scan endpoint reverted.
+
+ISSUE 1 — Wrong lock response message
+
+In artifacts/api-server/src/routes/recommendations.ts,
+find the POST /api/recommendations/scan endpoint.
+
+When a scan is already running, the response should be:
+  { status: "scan_already_running" }
+  HTTP 409 Conflict
+
+Currently it appears to be returning:
+  { status: "scan_started" }
+  HTTP 200
+
+Fix: check the lock state before starting the scan.
+If a scan is already in progress, return 409 with
+{ status: "scan_already_running", message: "A scan
+  is already in progress. Please wait for it to
+  complete before starting a new one." }
+
+The lock pattern should match what was implemented
+in market-radar.ts — a module-level boolean flag
+with a getter function:
+
+  let isScanRunning = false;
+
+  export function getIsScanRunning(): boolean {
+    return isScanRunning;
+  }
+
+  export async function runRecommendationsScan() {
+    if (isScanRunning) {
+      return { status: "scan_already_running" };
+    }
+    isScanRunning = true;
+    try {
+      // existing scan logic
+    } finally {
+      isScanRunning = false;
+    }
+  }
+
+ISSUE 2 — Briefing scan button loading state
+
+In artifacts/alpha-lens/src/pages/briefing.tsx,
+find the manual scan trigger button.
+
+Add loading state:
+
+  const [isScanning, setIsScanning] = useState(false);
+
+  const handleScanClick = async () => {
+    if (isScanning) return;
+    setIsScanning(true);
+    try {
+      await triggerScan();
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+Update the button:
+  <button
+    onClick={handleScanClick}
+    disabled={isScanning}
+    className={`... ${isScanning
+      ? 'opacity-50 cursor-not-allowed'
+      : 'hover:...'}`}
+  >
+    {isScanning ? (
+      <>
+        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        Scanning...
+      </>
+    ) : (
+      <>
+        <RefreshCw className="h-4 w-4 mr-2" />
+        Scan Now
+      </>
+    )}
+  </button>
+
+Import Loader2 and RefreshCw from lucide-react.
+
+ISSUE 3 — Handle scan_already_running response in UI
+
+When the scan endpoint returns
+{ status: "scan_already_running" },
+the button should show a brief message:
+
+  "Scan in progress — please wait"
+
+Show this as a toast notification or as
+temporary button text for 3 seconds,
+then reset to normal state.
+
+Do not show an error — this is expected behavior,
+not an error. Use a neutral or amber toast,
+not a red error toast.
+
+VERIFICATION
+
+1. pnpm run typecheck — zero errors
+
+2. Click Scan Now button once:
+   - Button shows "Scanning..." with spinner
+   - Button is disabled (cannot be clicked again)
+   - After scan completes, button resets to "Scan Now"
+
+3. Click Scan Now twice rapidly:
+   - First click starts scan, button disabled
+   - Second click is blocked by disabled state
+   - Even if second request reaches server,
+     returns 409 { status: "scan_already_running" }
+
+4. Verify in server logs:
+   Two rapid POST /api/recommendations/scan calls
+   First: 200 OK
+   Second: 409 { status: "scan_already_running" }
+
+5. Verify no regression on radar scan lock:
+   POST /api/radar/scan twice rapidly
+   Second should still return
+   { status: "scan_already_running" }
+
+Run pnpm run typecheck. Zero errors required.

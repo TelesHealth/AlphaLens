@@ -224,6 +224,13 @@ function tryRecoverTruncatedArray<T>(text: string): T[] {
 
 let scanLock = false;
 
+// Exposed so HTTP routes can return 409 { status: "scan_already_running" }
+// without starting a duplicate scan. Mirrors the lock pattern in market-radar.ts
+// (getIsRadarScanning) so both engines have a single, consistent gating story.
+export function getIsScanRunning(): boolean {
+  return scanLock;
+}
+
 export async function scanForRecommendations() {
   if (scanLock) {
     logger.warn("E6: Scan already in progress, skipping");
