@@ -1,6 +1,6 @@
 {
-  "buildCommand": "pnpm run build",
-  "outputDirectory": "dist/public",
+  "buildCommand": "pnpm --filter alpha-lens build",
+  "outputDirectory": "artifacts/alpha-lens/dist/public",
   "framework": "vite",
   "rewrites": [
     {
