@@ -19,10 +19,23 @@ const _globalAny = globalThis as unknown as {
   process?: { env?: Record<string, string | undefined> };
 };
 const _importMetaEnv = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-let _baseUrl: string | null =
-  _globalAny.process?.env?.NEXT_PUBLIC_API_URL ||
-  _importMetaEnv?.VITE_API_URL ||
-  null;
+
+// In the browser, the page is *always* served from the same origin as the API
+// (either localhost via Replit's proxy or the public *.replit.dev domain), so
+// any auto-defaulted `VITE_API_URL` / `NEXT_PUBLIC_API_URL` would force every
+// request cross-origin and trigger CORS errors. Those env vars are intended
+// for Expo / non-browser bundles that have to call a remote API server, so we
+// only honor them when there is no `window` (or when running in React Native,
+// where `window` exists but `document` does not). Web bundles get `null`,
+// which keeps every request relative and same-origin.
+const _isBrowser =
+  typeof window !== "undefined" && typeof document !== "undefined";
+
+let _baseUrl: string | null = _isBrowser
+  ? null
+  : _globalAny.process?.env?.NEXT_PUBLIC_API_URL ||
+    _importMetaEnv?.VITE_API_URL ||
+    null;
 
 let _authTokenGetter: AuthTokenGetter | null = null;
 
