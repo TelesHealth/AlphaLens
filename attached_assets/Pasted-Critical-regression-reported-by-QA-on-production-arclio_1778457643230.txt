@@ -1,0 +1,94 @@
+Critical regression reported by QA on production
+(arclion.ai). API calls are broken on deployment.
+
+Root cause: A recent fix changed API calls from
+using the VITE_API_URL environment variable to
+using relative paths (e.g. /api/recommendations
+instead of https://api.arclion.ai/api/recommendations).
+
+Relative paths work in Replit dev (same origin)
+but break on Vercel + Railway deployment where
+the frontend (arclion.ai) and API (api.arclion.ai)
+are on different domains.
+
+FIX — Restore VITE_API_URL usage
+
+In artifacts/alpha-lens/src/, find wherever
+the API base URL is configured. This is likely
+in one of:
+  src/lib/api.ts
+  src/lib/client.ts
+  src/config.ts
+  or the generated API client
+
+Confirm the base URL is set as:
+  const API_BASE = import.meta.env.VITE_API_URL
+    || 'http://localhost:8080';
+
+Every API call must use this base URL, not a
+relative path.
+
+CHECK all files recently changed in the
+custom-fetch.ts fix and the api-client-react
+fixes from the Danelfin integration session.
+
+Specifically — in lib/api-client-react/src/
+custom-fetch.ts, confirm it is constructing
+full URLs using the base URL, not relative paths.
+
+The custom-fetch.ts fix that removed
+process.env and import.meta.env references
+may have inadvertently removed the VITE_API_URL
+injection. Restore it correctly:
+
+  // custom-fetch.ts
+  const baseURL = typeof window !== 'undefined'
+    ? (import.meta.env.VITE_API_URL
+        || 'http://localhost:8080')
+    : (process.env.VITE_API_URL
+        || 'http://localhost:8080');
+
+  export async function customFetch(
+    url: string,
+    options?: RequestInit
+  ): Promise<Response> {
+    const fullURL = url.startsWith('http')
+      ? url
+      : ⁠ ${baseURL}${url} ⁠;
+    return fetch(fullURL, {
+      ...options,
+      credentials: 'include'
+    });
+  }
+
+VERIFICATION
+
+1.⁠ ⁠pnpm run typecheck — zero errors
+
+2.⁠ ⁠In Vercel environment variables confirm:
+   VITE_API_URL = https://api.arclion.ai
+
+3.⁠ ⁠After fix is deployed to Vercel:
+   Open arclion.ai in browser
+   Open browser DevTools → Network tab
+   Log in and load the Briefing page
+   Confirm API calls go to:
+   https://api.arclion.ai/api/recommendations/briefing
+   NOT to:
+   /api/recommendations/briefing
+
+4.⁠ ⁠Confirm login works on arclion.ai
+
+5.⁠ ⁠Confirm Briefing page loads with real data
+
+6.⁠ ⁠Confirm Scanner page loads
+
+7.⁠ ⁠Confirm AI Coach responds
+
+This is a production blocker — fix and deploy
+to Vercel immediately. Run typecheck first,
+then deploy.
+
+Report exactly which files were changed and
+confirm the Network tab shows full URLs
+on arclion.ai after the fix.
