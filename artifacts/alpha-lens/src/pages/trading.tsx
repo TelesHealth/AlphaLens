@@ -200,7 +200,7 @@ function OverviewTab() {
     (t) => t.platform && t.platform.toLowerCase() !== "paper",
   );
 
-  const dailyLimit = 5;
+  const dailyLimit = 10;
   const tradeCount = todayTrades.length;
   const todayPnl = liveTodayTrades.reduce(
     (sum, t) => sum + (Number(t.amountUsd) || 0),
