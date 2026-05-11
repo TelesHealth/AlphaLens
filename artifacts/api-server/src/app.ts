@@ -8,16 +8,25 @@ import { logger } from "./lib/logger";
 const app: Express = express();
 
 const allowedOrigins = [
-   'https://arclion.ai',
-   'https://www.arclion.ai',
-   process.env.FRONTEND_URL,
-   'http://localhost:5173',
+  'https://arclion.ai',
+  'https://www.arclion.ai',
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
 ].filter((origin): origin is string => Boolean(origin));
 
- app.use(cors({
-   origin: process.env.FRONTEND_URL,
-   credentials: true
- }));
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // Allow same-origin / non-browser requests (no Origin header) and any
+      // origin in the allow-list above.
+      if (!origin || allowedOrigins.includes(origin)) {
+        return cb(null, true);
+      }
+      return cb(new Error(`Origin ${origin} not allowed by CORS`));
+    },
+    credentials: true,
+  }),
+);
 
 app.use(
   pinoHttp({
