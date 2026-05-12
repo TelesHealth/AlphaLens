@@ -181,9 +181,18 @@ router.get("/pending", async (req, res) => {
 });
 
 router.post("/pending/:id/approve", async (req, res) => {
+  const userId = req.user!.userId;
+  const id = Number(req.params.id);
+  req.log.info(
+    {
+      orderId: id,
+      userId,
+      bodyKeys: Object.keys(req.body ?? {}),
+      ts: new Date().toISOString(),
+    },
+    "approve: handler entry",
+  );
   try {
-    const userId = req.user!.userId;
-    const id = Number(req.params.id);
     const [order] = await db
       .select()
       .from(pendingOrdersTable)
@@ -191,9 +200,21 @@ router.post("/pending/:id/approve", async (req, res) => {
       .limit(1);
 
     if (!order) {
+      req.log.warn({ orderId: id, userId }, "approve: pending order not found");
       res.status(404).json({ error: "Pending order not found" });
       return;
     }
+
+    req.log.info(
+      {
+        orderId: id,
+        userId,
+        recommendationId: order.recommendationId,
+        currentStatus: order.status,
+        platform: order.platform,
+      },
+      "approve: order loaded",
+    );
 
     if (order.status !== "pending_approval") {
       res.json({ status: order.status, orderId: id, message: `Order already ${order.status}` });
@@ -202,6 +223,10 @@ router.post("/pending/:id/approve", async (req, res) => {
 
     const dailyCount = await getDailyTradeCount(userId);
     if (dailyCount >= RISK.maxDailyTrades) {
+      req.log.warn(
+        { orderId: id, userId, dailyCount, limit: RISK.maxDailyTrades },
+        "approve: daily limit blocked",
+      );
       res.status(400).json({
         error: `Daily trade limit (${RISK.maxDailyTrades}) reached — approval blocked`,
       });
@@ -213,6 +238,7 @@ router.post("/pending/:id/approve", async (req, res) => {
     const amountUsd =
       Number(req.body?.amountOverride ?? order.amountUsd ?? 50) || 50;
 
+    let liveTradeId: number | undefined;
     if (order.recommendationId) {
       const [rec] = await db
         .select()
@@ -220,9 +246,14 @@ router.post("/pending/:id/approve", async (req, res) => {
         .where(eq(recommendationsTable.id, order.recommendationId))
         .limit(1);
 
-      if (rec) {
+      if (!rec) {
+        req.log.warn(
+          { orderId: id, userId, recommendationId: order.recommendationId },
+          "approve: recommendation not found, skipping live_trades insert",
+        );
+      } else {
         const selectedPlatform = (order.platform as any) ?? "paper";
-        await logLiveTrade(
+        liveTradeId = await logLiveTrade(
           rec,
           selectedPlatform,
           amountUsd,
@@ -240,26 +271,47 @@ router.post("/pending/:id/approve", async (req, res) => {
       .set({ status: "approved", approvedAt: new Date() })
       .where(eq(pendingOrdersTable.id, id));
 
+    req.log.info(
+      { orderId: id, userId, liveTradeId, amountUsd },
+      "approve: pending_orders updated to approved",
+    );
+
     res.json({ status: "approved", orderId: id });
   } catch (e: any) {
-    req.log.error({ err: e }, "Error approving order");
+    req.log.error({ err: e?.message, stack: e?.stack, orderId: id, userId }, "approve: handler error");
     res.status(500).json({ error: e.message });
   }
 });
 
 router.post("/pending/:id/reject", async (req, res) => {
+  const userId = req.user!.userId;
+  const id = Number(req.params.id);
+  req.log.info(
+    { orderId: id, userId, ts: new Date().toISOString() },
+    "reject: handler entry",
+  );
   try {
-    const userId = req.user!.userId;
-    const id = Number(req.params.id);
     const [order] = await db
       .select()
       .from(pendingOrdersTable)
       .where(and(eq(pendingOrdersTable.id, id), eq(pendingOrdersTable.userId, userId)))
       .limit(1);
     if (!order) {
+      req.log.warn({ orderId: id, userId }, "reject: pending order not found");
       res.status(404).json({ error: "Pending order not found" });
       return;
     }
+
+    req.log.info(
+      {
+        orderId: id,
+        userId,
+        recommendationId: order.recommendationId,
+        currentStatus: order.status,
+        platform: order.platform,
+      },
+      "reject: order loaded",
+    );
 
     if (order.status !== "pending_approval") {
       res.json({ status: order.status, orderId: id, message: `Order already ${order.status}` });
@@ -268,16 +320,22 @@ router.post("/pending/:id/reject", async (req, res) => {
 
     // Log a row to live_trades with status='rejected' so the rejected order
     // appears in the Trading → History tab (Bug #30).
+    let liveTradeId: number | undefined;
     if (order.recommendationId) {
       const [rec] = await db
         .select()
         .from(recommendationsTable)
         .where(eq(recommendationsTable.id, order.recommendationId))
         .limit(1);
-      if (rec) {
+      if (!rec) {
+        req.log.warn(
+          { orderId: id, userId, recommendationId: order.recommendationId },
+          "reject: recommendation not found, skipping live_trades insert",
+        );
+      } else {
         const selectedPlatform = (order.platform as any) ?? "paper";
         const amountUsd = Number(order.amountUsd ?? 0) || 0;
-        await logLiveTrade(
+        liveTradeId = await logLiveTrade(
           rec,
           selectedPlatform,
           amountUsd,
@@ -289,15 +347,29 @@ router.post("/pending/:id/reject", async (req, res) => {
           "rejected",
         );
       }
+    } else {
+      req.log.warn(
+        { orderId: id, userId },
+        "reject: order has no recommendationId, skipping live_trades insert",
+      );
     }
 
     await db
       .update(pendingOrdersTable)
       .set({ status: "rejected", rejectedAt: new Date() })
       .where(eq(pendingOrdersTable.id, id));
+
+    req.log.info(
+      { orderId: id, userId, liveTradeId },
+      "reject: pending_orders updated to rejected",
+    );
+
     res.json({ status: "rejected", orderId: id });
   } catch (e: any) {
-    req.log.error({ err: e }, "Error rejecting order");
+    req.log.error(
+      { err: e?.message, stack: e?.stack, orderId: id, userId },
+      "reject: handler error",
+    );
     res.status(500).json({ error: e.message });
   }
 });

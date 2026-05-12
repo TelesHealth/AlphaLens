@@ -273,7 +273,7 @@ export async function logLiveTrade(
   orderId?: string,
   userId?: number,
   status: string = "filled",
-) {
+): Promise<number | undefined> {
   const ticker = rec.assetTitle ?? rec.title ?? "";
   const assetIdStr = await resolveAssetIdString(rec);
 
@@ -297,24 +297,54 @@ export async function logLiveTrade(
   const resolvedSize = size ?? (amountUsd > 0 ? amountUsd / resolvedPrice : 0);
   const resolvedOrderId = orderId ?? `ORDER-${Date.now()}-${rec.id}`;
 
-  await db.insert(liveTradesTable).values({
-    userId,
-    recommendationId: rec.id,
-    platform,
-    assetId: assetIdStr,
-    assetTitle: rec.assetTitle ?? rec.title,
-    direction,
-    amountUsd,
-    price: resolvedPrice,
-    size: resolvedSize,
-    status,
-    paperMode: platform === "paper",
-    aiProbability: rec.aiProbability,
-    aiEdge: rec.edge,
-    confidence: rec.confidence,
-    orderId: resolvedOrderId,
-    ticker,
-  });
+  try {
+    const [inserted] = await db
+      .insert(liveTradesTable)
+      .values({
+        userId,
+        recommendationId: rec.id,
+        platform,
+        assetId: assetIdStr,
+        assetTitle: rec.assetTitle ?? rec.title,
+        direction,
+        amountUsd,
+        price: resolvedPrice,
+        size: resolvedSize,
+        status,
+        paperMode: platform === "paper",
+        aiProbability: rec.aiProbability,
+        aiEdge: rec.edge,
+        confidence: rec.confidence,
+        orderId: resolvedOrderId,
+        ticker,
+      })
+      .returning({ id: liveTradesTable.id });
+    logger.info(
+      {
+        liveTradeId: inserted?.id,
+        userId,
+        recommendationId: rec.id,
+        platform,
+        status,
+        amountUsd,
+      },
+      "logLiveTrade: live_trades row inserted",
+    );
+    return inserted?.id;
+  } catch (e: any) {
+    logger.error(
+      {
+        err: e?.message,
+        userId,
+        recommendationId: rec.id,
+        platform,
+        status,
+        amountUsd,
+      },
+      "logLiveTrade: insert failed",
+    );
+    throw e;
+  }
 }
 
 export async function getUserCredentials(
