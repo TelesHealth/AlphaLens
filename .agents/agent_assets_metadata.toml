@@ -30,3 +30,9 @@ id = "K9F_07EiL-IwUdtPO67sC"
 uri = "file://EDGE_CALC_PROJECT_TASK_BRIEF.md"
 type = "text"
 title = "Edge Calc — Project Task Brief (audit + slim plan)"
+
+[[outputs]]
+id = "yF3nfZ5xP9mjdnhU4nNvp"
+uri = "file://UAT_BUILD_DECISION.md"
+type = "text"
+title = "UAT Build Decision Memo — Options A/B/C + recommendation"
