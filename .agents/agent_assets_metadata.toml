@@ -24,3 +24,9 @@ id = "0xT_MKxxoslQGM3vmWoxP"
 uri = "file://ARCLION.md"
 type = "text"
 title = "ARCLION — Platform Capabilities & Architecture"
+
+[[outputs]]
+id = "K9F_07EiL-IwUdtPO67sC"
+uri = "file://EDGE_CALC_PROJECT_TASK_BRIEF.md"
+type = "text"
+title = "Edge Calc — Project Task Brief (audit + slim plan)"
