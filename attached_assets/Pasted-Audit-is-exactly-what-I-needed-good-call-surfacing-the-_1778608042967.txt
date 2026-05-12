@@ -1,0 +1,20 @@
+Audit is exactly what I needed — good call surfacing the 80%-done finding before spinning up the task. Three answers:
+
+1. Scanner scope: Option 3 — drop from scope. The spec is stale (scanner is now a markets-list page, not a recs view). Conviction is already surfaced on Briefing and Leaderboard which is what UAT testers will be exercising. Forcing a Recommendations tab onto Scanner the week of UAT introduces an untested surface for no real product gain. Add a note to POST_UAT_POLISH.md: "Scanner conviction display — spec assumed scanner = recommendations view; scanner now functions as markets/assets discovery. Conviction is surfaced via Briefing + Leaderboard. Revisit post-UAT if user research indicates scanning behavior would benefit from per-market conviction signal; correct implementation would be Option 1 (OpenAPI Market field with backend join), not a duplicate-of-Briefing tab."
+
+2. Brief is tight enough to spin up after one addition (below).
+
+3. Yes — extend refreshRecommendationEdges() for R2. Idempotent forward-running logic is the right shape; a one-shot script leaves us exposed to any future NULL writes.
+
+Before spinning up the Project Task, append this section to the brief verbatim — Project Tasks can't be nudged mid-flight, so the brief is the contract:
+
+## Scope discipline (hard rules for the Project Task agent)
+
+- Only R1 (scanner POST_UAT_POLISH note), R2 (backfill in refreshRecommendationEdges), and R3 (verification) are in scope. Nothing else.
+- If you find additional bugs, gaps, or "while I'm in there" improvements during the work, do NOT fix them. Note them in a new section at the bottom of POST_UAT_POLISH.md titled "Discovered during Edge Calc audit — review post-UAT" with file path + one-line description. Stop there.
+- Do NOT modify the openapi.yaml or regenerate codegen. Both are already in sync per the audit.
+- Do NOT modify schema files. No pnpm db push.
+- Do NOT touch services/recommendations.ts, services/outcome-resolver.ts, routes/recommendations.ts, routes/leaderboard.ts, pages/briefing.tsx, pages/leaderboard.tsx — all confirmed DONE per the audit and out of scope.
+- If R3 verification fails: stop, report the failure with the diff and the failed verification step. Do not attempt remediation beyond reverting your own change.
+
+Once that's appended, spin up the Project Task with the full brief. Confirm the task is created and parked, then stand by on main for any UAT P1 hot-fixes from Charlize's retest.

@@ -50,14 +50,14 @@ This is the full set across all 9 original tasks. **Bold = already merged on `ma
 
 ## Remaining work (proposed slim plan)
 
-### R1: scanner.tsx — convictionScore / edgeType / freshness display
+### R1: Document scanner-conviction descope in POST_UAT_POLISH.md
 - **Blocked By:** []
-- **Files:** `artifacts/alpha-lens/src/pages/scanner.tsx`
-- **Open Question (must resolve before starting — see below):** scanner.tsx currently lists **markets** (`useListMarkets`), not **recommendations**. There is no `convictionScore` on a market. The original spec assumes scanner shows recommendations.
-- **Acceptance (pending scope decision):**
-  - If scope = add conviction column to *markets* via "latest open recommendation for this market": needs new API field on `Market` schema → cascades to OpenAPI + codegen + backend join. Larger scope.
-  - If scope = add a new "Recommendations" subview/tab on the scanner page: contained, ~100 LOC.
-  - If scope = drop scanner from R1: do nothing, mark T008 scanner item as N/A in `POST_UAT_POLISH.md` with rationale.
+- **Files:** `POST_UAT_POLISH.md` (append a new section, do not touch `scanner.tsx`)
+- **Decision (locked):** the original spec assumed Scanner = recommendations view. Scanner is now a markets-list page. Conviction is already surfaced on Briefing and Leaderboard, which is what UAT exercises. Forcing a new Recommendations tab onto Scanner the week of UAT introduces an untested surface for no real product gain.
+- **Change:** append the following section to `POST_UAT_POLISH.md`:
+  > ## Scanner conviction display — descoped
+  > Spec (`ARCLION_EDGE_IMPROVEMENTS_PROMPT_1777988011068.md` Problem 4) assumed scanner = recommendations view. Scanner now functions as a markets list (`useListMarkets`) and has no concept of conviction. Conviction is already prominent on Briefing and Leaderboard. Revisit post-UAT if a "Recommendations" subview on Scanner is desired; until then, treat as N/A.
+- **Acceptance:** the section appears verbatim at the bottom of `POST_UAT_POLISH.md`. **No changes to `scanner.tsx`.**
 
 ### R2: Backfill NULL `edge_type` / `conviction_score` for 116 open recs
 - **Blocked By:** []
@@ -74,21 +74,18 @@ This is the full set across all 9 original tasks. **Bold = already merged on `ma
   4. `GET /api/recommendations/briefing` — assert sample rec has `edgeAgeMinutes`, `edgeType`, `convictionScore`
   5. `GET /api/leaderboard` — assert `avgConvictionScore`, `highConvictionWinRate`, `lowConvictionWinRate` present
 
-**Estimate:** R1 = 1-3 hours depending on scope answer; R2 = 30 min; R3 = 30 min. Total: ½ day, not the multi-day plan implied by T001-T009.
+**Estimate:** R1 = 5 min (doc append); R2 = 30 min; R3 = 30 min. Total: ~1 hour of focused work.
 
 ---
 
-## Open Question (must answer before Project Task spins up)
+## Scope discipline (hard rules for the Project Task agent)
 
-**Scanner scope (R1).** The original spec says "add convictionScore column to the scanner table, sort by convictionScore by default." That assumes the scanner shows recommendations. The current `scanner.tsx` shows the markets/assets list (sectors, AI score, watchlist toggles) — there is no concept of "the conviction for this market" because conviction lives on a *recommendation*, not on a market.
-
-Three live options:
-
-1. **Add a "latest open recommendation conviction" field to `Market`** in OpenAPI; backend joins `recommendations` (where outcome is null, latest by `edgeCalculatedAt`) per market. Highest fidelity to spec. Larger blast radius (OpenAPI + codegen + backend query change).
-2. **Add a "Recommendations" tab to the scanner page** that lists open recs sorted by conviction. Self-contained frontend change; reuses existing `/api/recommendations/recommendations` endpoint.
-3. **Drop scanner from scope.** The spec was written before scanner became a markets-list page. The intent ("see conviction prominently when scanning") is already satisfied by Briefing + Leaderboard. Add a short note to `POST_UAT_POLISH.md` and call it done.
-
-My recommendation: **option 2** (Recommendations tab on scanner). It honors the spec, is the smallest change, and doesn't touch the OpenAPI surface during UAT.
+- Only R1 (scanner POST_UAT_POLISH note), R2 (backfill in refreshRecommendationEdges), and R3 (verification) are in scope. Nothing else.
+- If you find additional bugs, gaps, or "while I'm in there" improvements during the work, do NOT fix them. Note them in a new section at the bottom of `POST_UAT_POLISH.md` titled "Discovered during Edge Calc audit — review post-UAT" with file path + one-line description. Stop there.
+- Do NOT modify `lib/api-spec/openapi.yaml` or regenerate codegen. Both are already in sync per the audit.
+- Do NOT modify schema files. No `pnpm db push`.
+- Do NOT touch `services/recommendations.ts`, `services/outcome-resolver.ts`, `routes/recommendations.ts`, `routes/leaderboard.ts`, `pages/briefing.tsx`, `pages/leaderboard.tsx` — all confirmed DONE per the audit and out of scope.
+- If R3 verification fails: stop, report the failure with the diff and the failed verification step. Do not attempt remediation beyond reverting your own change.
 
 ---
 
@@ -124,10 +121,8 @@ Project Task agents work in an isolated branch off `main` HEAD at task creation 
 
 ---
 
-## What I need from you to lock scope
+## Scope locked — 2026-05-12
 
-1. **Answer the Open Question** above (scanner scope: option 1 / 2 / 3).
-2. **Confirm:** is this brief tight enough to spin up a Project Task with, or do you want anything added/cut?
-3. **Confirm:** R2 scanner backfill in `market-data.ts` is OK to extend the existing function (vs. a one-shot script). My read: extending is correct because the same logic should run forward for any future NULL rows.
-
-Once you confirm, I'll spin up the Project Task with this brief as the prompt and stand by on `main`.
+- Scanner scope decision: **Option 3 (descope)**. R1 reflects this.
+- Backfill placement: **extend `refreshRecommendationEdges`** (idempotent forward-running). R2 reflects this.
+- This brief is the contract. Project Task agent must not exceed it.
