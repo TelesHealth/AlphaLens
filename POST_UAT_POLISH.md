@@ -19,3 +19,6 @@ Context: a tester reported "rejected trade missing from History" during a
 session where they had a platform filter (e.g. `paper`) selected instead of
 `all`. The rejected row was in the response but filtered out by platform.
 Clearer chip labels would have made this self-evident.
+
+## Scanner conviction display — descoped
+Spec (`ARCLION_EDGE_IMPROVEMENTS_PROMPT_1777988011068.md` Problem 4) assumed scanner = recommendations view. Scanner now functions as a markets list (`useListMarkets`) and has no concept of conviction. Conviction is already prominent on Briefing and Leaderboard. Revisit post-UAT if a "Recommendations" subview on Scanner is desired; until then, treat as N/A.

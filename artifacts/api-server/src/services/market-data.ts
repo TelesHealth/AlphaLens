@@ -410,9 +410,30 @@ async function refreshRecommendationEdges(): Promise<void> {
         }
       }
     }
-    if (!asset) continue;
-
     const isPrediction = rec.assetClass === "prediction";
+
+    if (!asset) {
+      // Legacy backfill path: rec has no resolvable asset (typically older
+      // closed-symbol or test rows). Still ensure edge_type / conviction_score
+      // are populated so downstream filters and leaderboard math don't break.
+      if (rec.edgeType == null || rec.convictionScore == null) {
+        const fallbackEdgeType: "probability_gap" | "directional_conviction" =
+          isPrediction ? "probability_gap" : "directional_conviction";
+        const fallbackEdge = rec.edge ?? 0;
+        const fallbackConfidenceWeight = (rec.confidence ?? 60) / 100;
+        const fallbackConvictionScore =
+          Math.round(fallbackEdge * fallbackConfidenceWeight * 10) / 10;
+        await db
+          .update(recommendationsTable)
+          .set({
+            edgeType: fallbackEdgeType,
+            convictionScore: fallbackConvictionScore,
+          })
+          .where(eq(recommendationsTable.id, rec.id));
+        updated++;
+      }
+      continue;
+    }
     const aiProb = rec.aiProbability ?? 0;
     let newEdge = rec.edge ?? 0;
     let newMarketPrice: number | null = rec.marketPrice ?? null;
