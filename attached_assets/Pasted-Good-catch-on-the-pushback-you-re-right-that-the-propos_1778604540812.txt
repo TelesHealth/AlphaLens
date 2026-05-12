@@ -1,0 +1,21 @@
+Good catch on the pushback — you're right that the proposed fixes are wrong (Bug 2's "fix" would hide all `filled` rows from History, which would be a UAT-breaking regression).
+
+But Charlize's observations are real. She copied the literal error string from the browser. Don't close these out — find what she actually hit.
+
+For Bug #29 (P1), the error text "Cannot read properties of undefined (reading 'amountOverride')" was definitely thrown somewhere on the Approve click path. The handler in routes/trading.ts is clean, so look elsewhere:
+
+1. Grep the entire repo for `amountOverride` — every reference, both packages. Frontend, backend, lib/db, lib/api-client-react, the @workspace/api-spec codegen. Charlize uses Macbook + Chrome; this could easily be a client-side TypeError that the UI surfaces as "500 Internal server error" via a generic error toast.
+2. Check if there's a SECOND approve endpoint — legacy `/api/trading/approve`, batch approve, or anything in the codegen client. The route the bug report assumes may not be the one the UI is actually calling.
+3. Check the request validator / Zod schema for the approve endpoint. If a schema references `amountOverride` and the request shape doesn't include it, that's where "undefined" comes from.
+4. Look at the Approve button's onClick in the Pending Trades component. If it does `const { amountOverride } = trade` before `trade` is loaded (e.g., during the optimistic state of a TanStack Query mutation), that throws on the client and would be reported as the same error.
+
+For Bug #30 (P1), the reject handler does log to live_trades and the history endpoint has no status filter — agreed, that's what the code shows. But Charlize repro'd a missing rejected row. Possible real causes:
+
+1. `logLiveTrade` may silently swallow errors when status='rejected' (e.g., NOT NULL on entryPrice or fills column for a row that never executed).
+2. The History tab UI may be filtering client-side — check the History component and TanStack Query select function. The endpoint returning rejected rows isn't enough if the UI hides them.
+3. Check whether the userId on the inserted live_trades row matches the session user. Auth was added recently (Phase 2 V2). If logLiveTrade uses a different userId source than the history query, the row exists but for the wrong user.
+4. Check the timestamp/sort — if the rejected row has a null `executedAt` and history sorts by `executedAt DESC`, it falls off the visible list.
+
+Don't apply the previous report's fixes. Investigate first, then come back with what you actually found. Once you've reproduced the 500 in #29 (paste the actual stack trace) and traced where #30's row goes (DB row exists? what userId? what status? does the UI receive it?), we'll write the real fixes.
+
+UAT starts Monday. Both are P1. Priority order: #29 first (blocks live trading approve flow), then #30.
