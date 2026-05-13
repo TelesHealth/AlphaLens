@@ -108,12 +108,16 @@ export default function MarketDetail() {
       onSuccess: () => {
         setIsTradeModalOpen(false);
         queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
-        const sym = data?.market?.symbol ?? data?.market?.name ?? "asset";
+        const name = data?.market?.name ?? data?.market?.symbol ?? "this asset";
+        const sym = data?.market?.symbol;
+        const assetLabel = sym && sym !== name ? `${name} (${sym})` : name;
+        const dirWord = tradeDirection === "short" ? "short" : "long";
         const entryPx = data?.market?.currentPrice;
-        const entryStr = entryPx != null ? ` @ ${formatCurrency(entryPx)}` : "";
+        const entryClause =
+          entryPx != null ? ` at an entry price of ${formatCurrency(entryPx)}` : "";
         toast({
           title: "Paper trade executed",
-          description: `${tradeDirection.toUpperCase()} ${formatCurrency(tradeAmount)} on ${sym}${entryStr}`,
+          description: `Opened a ${dirWord} paper trade of ${formatCurrency(tradeAmount)} on ${assetLabel}${entryClause}.`,
         });
       },
       onError: (err: any) => toast({ title: "Trade Failed", description: err.message, variant: "destructive" })
