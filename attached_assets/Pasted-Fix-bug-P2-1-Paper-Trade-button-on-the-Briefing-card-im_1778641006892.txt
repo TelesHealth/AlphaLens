@@ -1,0 +1,30 @@
+Fix bug P2-1: Paper Trade button on the Briefing card immediately executes a hard-coded $50 trade with no amount input or confirmation. It must instead open the same amount-entry + confirmation modal that the Scanner page uses.
+
+File contents were not provided to the planner. Before changing anything, open the repo locally and inspect these files to confirm exact symbol names:
+- src/components/BriefingCard.tsx
+- src/components/PaperTradeButton.tsx
+- src/services/paperTrade.ts
+- The Scanner page (likely src/pages/Scanner.tsx or similar) — locate it to see how it currently invokes the paper-trade amount/confirmation modal.
+
+Required changes:
+
+1. src/components/BriefingCard.tsx
+   - Locate the "Paper Trade" button's onClick handler. It currently calls the paper-trade execution service directly (passing a hard-coded amount, likely 50).
+   - Remove the direct execution call and the hard-coded $50 default.
+   - Replace it with the same modal-opening flow used by the Scanner page. Reuse the existing PaperTradeButton component (or the shared amount/confirmation modal it wraps) rather than duplicating logic. Pass through the relevant trade context from the Briefing card (symbol, side, suggested price, etc.) as props — do NOT pass a pre-filled amount that would auto-execute.
+   - If BriefingCard currently imports the execution function from src/services/paperTrade.ts directly, remove that import.
+
+2. src/components/PaperTradeButton.tsx
+   - Verify this component renders a button that opens an amount-entry + confirmation modal (the same one Scanner uses) and only calls the paper-trade execution service after the user enters an amount and clicks Confirm.
+   - If the component currently accepts an `amount` prop or a `skipConfirmation` flag that allows immediate execution, ensure BriefingCard does NOT pass those. If such a bypass path exists and is unused elsewhere, leave it but ensure the Briefing card no longer uses it.
+   - Ensure the modal requires a positive numeric amount before the Confirm button is enabled.
+
+3. src/services/paperTrade.ts
+   - No behavior change required. Verify the execution function signature requires an explicit `amount` parameter (no default value of 50). If a default value exists, remove the default so callers must supply it explicitly. Update any other call sites if needed (search the repo for usages).
+
+Constraints:
+- Do not change the visual placement of the Paper Trade button on the Briefing card; only change what happens on click.
+- Do not refactor unrelated code.
+- The Briefing card and Scanner page must now share the same amount/confirmation flow via PaperTradeButton (or its underlying modal). No code duplication of the modal.
+
+Run pnpm run typecheck. Zero errors required.
