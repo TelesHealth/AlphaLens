@@ -1,0 +1,33 @@
+Fix bug P2-1: BTC-100K conviction score mismatch between briefing summary and trade-calls/analysis view.
+
+File contents were not available to the planner. Before making changes, locate and open these areas in the repo:
+1. The briefing summary component (renders the "highest conviction" pick on the briefing page).
+2. The trade-calls / analysis view component (renders per-asset conviction score, e.g. "-10.1" for BTC-100K).
+3. Any shared conviction-score calculation/service/util/type used by either view.
+
+Investigation steps (do these first, do not skip):
+1. Grep the codebase for: `conviction`, `convictionScore`, `Math.abs`, `sort` near conviction, and `BTC-100K`. Identify every place a conviction score is computed, formatted, or sorted.
+2. Confirm whether the two views share a single source of truth. If they call different endpoints or recompute independently, note that — but DO NOT refactor data flow as part of this fix. Just make the displayed values consistent with the canonical signed value.
+3. Identify the root cause. Based on the reporter's hypothesis and symptoms (a -10.1 value being ranked as "highest"), the cause is almost certainly one of:
+   a. The summary's "top conviction" selection sorts by `Math.abs(score)` or otherwise strips the sign, so a strongly negative score wins the "highest" slot.
+   b. The summary displays `Math.abs(score)` or formats it without the sign, while analysis shows the true signed value.
+   c. A comparator like `(a, b) => b.score - a.score` is accidentally written as `(a, b) => Math.abs(b.score) - Math.abs(a.score)` or reversed.
+
+Required fix:
+- The signed conviction score is the source of truth. "Highest conviction" must mean the largest signed value (most positive), not the largest magnitude.
+- Remove any `Math.abs(...)` wrapping around conviction scores in BOTH the ranking/selection logic of the briefing summary AND any display formatting. Negative scores must remain negative in both views.
+- Ensure the sort/selection comparator in the briefing summary ranks by signed score descending (e.g. `(a, b) => b.convictionScore - a.convictionScore`).
+- Ensure the briefing summary and the trade-calls/analysis view render the SAME numeric value for the same asset. If they pull from different sources, change the briefing summary to read from the same calculation/util the analysis view uses (do not invert: the analysis view is showing the correct -10.1).
+- If a shared formatting util exists (e.g. `formatConviction`), make sure it preserves sign and is used by both views.
+
+Do not change:
+- The conviction score calculation algorithm itself (do not alter the math that produces -10.1).
+- The schema/type of conviction scores (still a signed number).
+- Any unrelated UI or copy.
+
+After the fix, verify manually:
+- BTC-100K shows the same numeric conviction score in both the briefing summary card and the trade-calls/analysis view.
+- The asset shown as "highest conviction" on the summary is the asset with the largest signed (most positive) conviction score across the set, not the largest magnitude.
+- Negative scores render with their minus sign in both places.
+
+Run pnpm run typecheck. Zero errors required.
