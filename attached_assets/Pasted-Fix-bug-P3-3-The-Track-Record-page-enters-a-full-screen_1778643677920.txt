@@ -1,0 +1,34 @@
+Fix bug P3-3: The Track Record page enters a full-screen mode that hides the global side navigation, leaving users with no obvious way to exit or navigate away.
+
+Before making changes, open the repo locally and grep to confirm exact paths/symbols. The intake analysis suggests these files but verify first:
+- `src/pages/TrackRecord.tsx`
+- `src/components/Layout/Sidebar.tsx`
+- `src/components/Layout/AppShell.tsx`
+- `src/styles/fullscreen.css`
+
+Grep for: "fullscreen", "full-screen", "isFullScreen", "TrackRecord", and any CSS rules that set the sidebar to `display: none` or `visibility: hidden` when a fullscreen class is active.
+
+## Required change
+
+Add a visible, always-accessible "Exit full screen" affordance to the Track Record full-screen view. Implement as follows:
+
+1. In `src/pages/TrackRecord.tsx`:
+   - Locate the state/flag that toggles full-screen mode (likely a `useState<boolean>` named something like `isFullScreen` / `fullscreen`).
+   - When full-screen is active, render a fixed-position button in the top-left corner (e.g., `position: fixed; top: 12px; left: 12px; z-index: 1000;`) labeled "Exit full screen" with an `X` or `←` icon (use the icon library already imported in the file — likely `lucide-react`; if `ArrowLeft` or `X` is available, use it).
+   - The button's `onClick` must set the full-screen flag to `false` (call the same setter the existing enter-fullscreen control uses).
+   - Give the button an `aria-label="Exit full screen"` and a visible text label so it is discoverable.
+   - Also wire up the `Escape` key to exit full-screen: add a `useEffect` that registers a `keydown` listener while `isFullScreen` is true and calls the same setter on `event.key === "Escape"`. Clean up the listener on unmount / when the flag flips back.
+
+2. In `src/styles/fullscreen.css` (or wherever the fullscreen class hides the sidebar):
+   - Do NOT change the sidebar-hiding behavior (keeping focus mode is intentional).
+   - Add styles for the new exit button class (e.g., `.trackrecord-fullscreen-exit`) so it sits above the full-screen content: `position: fixed; top: 12px; left: 12px; z-index: 1000;` plus a contrasting background (`background: rgba(0,0,0,0.6); color: #fff; padding: 6px 12px; border-radius: 6px;`) so it remains visible against any chart/background. Include a hover state.
+
+3. Do NOT modify `src/components/Layout/Sidebar.tsx` or `src/components/Layout/AppShell.tsx` unless grep reveals that the fullscreen flag lives in the AppShell (in which case lift the exit button there instead, but keep the same behavior described above). If you do need to touch AppShell, only add the exit button render — do not change sidebar visibility logic.
+
+## Acceptance
+- Entering full-screen on Track Record shows an obvious "Exit full screen" button in the top-left.
+- Clicking the button OR pressing Escape exits full-screen and restores the side navigation.
+- Sidebar still hides while in full-screen (focus mode preserved).
+- No regressions to non-fullscreen Track Record view.
+
+Run pnpm run typecheck. Zero errors required.

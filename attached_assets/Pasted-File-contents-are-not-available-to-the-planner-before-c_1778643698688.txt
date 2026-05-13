@@ -1,0 +1,52 @@
+File contents are not available to the planner — before changing anything, open the repo locally and grep to confirm exact paths/symbols. The file names below are inferred; if the actual paths differ (e.g., `client/src/...` vs `src/...`, or the table component lives elsewhere), apply the same fix to the real files.
+
+## Bug
+Trade History page (a) does not display execution timestamps, and (b) is visually indistinguishable from Open Positions because both views render the same table with the same columns.
+
+## Required changes
+
+### 1. `src/types/Trade.ts`
+Ensure the `Trade` (or equivalent) type carries the timestamps needed for history. If they are missing, add them as optional fields so existing data does not break:
+- `openedAt: string | Date` (timestamp the position was opened)
+- `closedAt?: string | Date` (timestamp the trade was closed/executed out — required for closed trades)
+- `status: 'open' | 'closed'` (if not already present)
+
+If these fields already exist under different names (e.g., `executedAt`, `timestamp`), do NOT rename them — just confirm they're exported and used below.
+
+### 2. `src/components/TradeTable.tsx`
+Make the table column set configurable per view. Add a prop:
+
+```ts
+type TradeTableVariant = 'open' | 'history';
+interface TradeTableProps {
+  trades: Trade[];
+  variant: TradeTableVariant;
+}
+```
+
+Render columns conditionally:
+- `variant === 'open'`: existing columns (symbol, side, size, entry price, current price, unrealized P/L, opened-at, etc.) — do NOT show a "Closed At" column.
+- `variant === 'history'`: show **Closed At** (formatted execution timestamp) and **Opened At** columns prominently. Replace "Current Price" with "Exit Price" and "Unrealized P/L" with "Realized P/L". Remove any action buttons that only make sense for open positions (e.g., "Close Position").
+
+Format timestamps with a readable locale string, e.g.:
+```ts
+new Date(trade.closedAt).toLocaleString()
+```
+Show `—` if a timestamp field is missing.
+
+Default the `variant` prop is required (no default) so callers must opt in.
+
+### 3. `src/pages/OpenPositions.tsx`
+Pass `variant="open"` when rendering `<TradeTable />`. No other changes.
+
+### 4. `src/pages/TradeHistory.tsx`
+- Pass `variant="history"` when rendering `<TradeTable />`.
+- Ensure the trades passed in are filtered to `status === 'closed'` (and sorted by `closedAt` descending) so the history view shows closed trades with their execution times, not open ones.
+- Update the page heading/subheading if needed to clearly say "Trade History" with a short description like "Closed trades with execution timestamps" so it's visually distinct from Open Positions at a glance.
+
+## Out of scope
+- Do not change the data layer / API calls beyond filtering+sorting in the page component.
+- Do not introduce a new shared layout component.
+- Do not touch unrelated pages.
+
+Run pnpm run typecheck. Zero errors required.
