@@ -121,6 +121,9 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
   const [amountUsd, setAmountUsd] = useState<string>("50");
   const [amountErr, setAmountErr] = useState<string | null>(null);
   const [executeErr, setExecuteErr] = useState<string | null>(null);
+  const [paperModalOpen, setPaperModalOpen] = useState(false);
+  const [paperAmountUsd, setPaperAmountUsd] = useState<string>("50");
+  const [paperAmountErr, setPaperAmountErr] = useState<string | null>(null);
   const platformBadge = getPlatformBadge(rec);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -157,8 +160,10 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
       onSuccess: () => {
         toast({
           title: "Paper trade executed",
-          description: `${formatCurrency(Number(amountUsd) || 50)} on ${rec.title}`,
+          description: `${formatCurrency(Number(paperAmountUsd) || 50)} on ${rec.title}`,
         });
+        setPaperModalOpen(false);
+        setPaperAmountErr(null);
         queryClient.invalidateQueries({ queryKey: getGetPortfolioQueryKey() });
         queryClient.invalidateQueries({
           queryKey: getGetPortfolioStatsQueryKey(),
@@ -213,8 +218,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
     },
   });
 
-  function handlePaperTrade() {
-    const amount = Math.max(10, Number(amountUsd) || 50);
+  function openPaperModal() {
     if (recId == null) return;
     if (rec.assetId == null) {
       // Recommendation IDs are not asset IDs — POST /api/portfolio/trade
@@ -228,6 +232,19 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
       });
       return;
     }
+    setPaperAmountErr(null);
+    setPaperAmountUsd("50");
+    setPaperModalOpen(true);
+  }
+
+  function handleConfirmPaper() {
+    const amount = Number(paperAmountUsd);
+    if (!Number.isFinite(amount) || amount < 10) {
+      setPaperAmountErr("Minimum amount is $10");
+      return;
+    }
+    if (recId == null || rec.assetId == null) return;
+    setPaperAmountErr(null);
     const direction: OpenTradeRequestDirection =
       rec.direction === "bearish" || rec.direction === "short" ? "short" : "long";
     paperMutation.mutate({
@@ -812,7 +829,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
         <div className="px-4 pb-4 pt-1 flex flex-col sm:flex-row gap-2 border-t border-border/50">
           <button
             type="button"
-            onClick={handlePaperTrade}
+            onClick={openPaperModal}
             disabled={paperMutation.isPending}
             data-testid={`btn-paper-trade-${recId}`}
             className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/70 border border-border text-sm font-medium transition-colors disabled:opacity-50"
@@ -972,6 +989,99 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 data-testid={`btn-confirm-live-${recId}`}
               >
                 {liveMutation.isPending ? "Submitting…" : "Confirm"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {recId != null && (
+        <Dialog
+          open={paperModalOpen}
+          onOpenChange={(open) => {
+            setPaperModalOpen(open);
+            if (!open) setPaperAmountErr(null);
+          }}
+        >
+          <DialogContent
+            className="max-w-md"
+            data-testid={`paper-trade-modal-${recId}`}
+          >
+            <DialogHeader>
+              <DialogTitle>Paper Trade</DialogTitle>
+              <DialogDescription>
+                Simulated trade with no real funds. Enter the amount to allocate.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">
+                    Asset
+                  </div>
+                  <div className="font-medium leading-snug">{rec.title}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">
+                    Direction
+                  </div>
+                  <div className="font-mono uppercase">
+                    {rec.direction ?? "—"}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor={`paper-amount-input-${recId}`}
+                  className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground"
+                >
+                  Amount (USD, min $10)
+                </label>
+                <Input
+                  id={`paper-amount-input-${recId}`}
+                  type="number"
+                  min={10}
+                  step={5}
+                  value={paperAmountUsd}
+                  onChange={(e) => {
+                    setPaperAmountUsd(e.target.value);
+                    setPaperAmountErr(null);
+                  }}
+                  data-testid={`input-paper-amount-${recId}`}
+                  className="mt-1 font-mono"
+                />
+                {paperAmountErr && (
+                  <div className="text-xs text-destructive mt-1">
+                    {paperAmountErr}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <button
+                type="button"
+                onClick={() => setPaperModalOpen(false)}
+                disabled={paperMutation.isPending}
+                className="px-4 py-2 rounded-lg bg-secondary hover:bg-secondary/70 text-sm font-medium transition-colors disabled:opacity-50"
+                data-testid={`btn-cancel-paper-${recId}`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPaper}
+                disabled={
+                  paperMutation.isPending ||
+                  !Number.isFinite(Number(paperAmountUsd)) ||
+                  Number(paperAmountUsd) < 10
+                }
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors disabled:opacity-50"
+                data-testid={`btn-confirm-paper-${recId}`}
+              >
+                {paperMutation.isPending ? "Submitting…" : "Confirm"}
               </button>
             </DialogFooter>
           </DialogContent>
