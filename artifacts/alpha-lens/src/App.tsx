@@ -67,28 +67,21 @@ function Router() {
     if (!loading && user) return <Redirect to="/briefing" />;
     return <Register />;
   }
-  // Public marketing page — accessible without authentication.
-  // When the visitor is already signed in, wrap in Layout AND CoachProvider
-  // so the AI Coach in-flight mutation/messages survive navigation between
-  // /coach and Track Record (bug #11 — caught in code review).
-  if (location === "/leaderboard") {
-    if (user) {
-      return (
-        <CoachProvider>
-          <Layout>
-            <LeaderboardPage />
-          </Layout>
-        </CoachProvider>
-      );
-    }
+  // /leaderboard is the only route accessible without authentication. For
+  // signed-out visitors we render it bare (no Layout / no CoachProvider).
+  if (location === "/leaderboard" && !user && !loading) {
     return <LeaderboardPage />;
   }
 
+  // Single CoachProvider for ALL authenticated routes — including
+  // /leaderboard. Previously each branch instantiated its own provider, so
+  // navigating /coach → /leaderboard unmounted the in-flight mutation and
+  // wiped messages back to sessionStorage. One shared instance keeps the
+  // mutation alive and the messages identical across navigation. The Layout
+  // is also shared so the chrome doesn't remount (which would briefly drop
+  // the sidebar and trigger duplicate auth/data fetches).
   return (
     <AuthGate>
-      {/* CoachProvider sits above the route Switch so the AI Coach mutation
-          and message history survive when the user navigates between pages.
-          Bug #11: in-flight responses must continue when leaving /coach. */}
       <CoachProvider>
         <Layout>
           <Switch>
@@ -101,6 +94,7 @@ function Router() {
             <Route path="/radar" component={Radar} />
             <Route path="/whales" component={Whales} />
             <Route path="/trading" component={TradingPage} />
+            <Route path="/leaderboard" component={LeaderboardPage} />
             <Route path="/settings" component={Settings} />
             <Route component={NotFound} />
           </Switch>

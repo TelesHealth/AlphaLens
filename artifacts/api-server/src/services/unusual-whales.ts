@@ -111,15 +111,63 @@ export interface CongressTrade {
   member_type: string;
 }
 
+// Unusual Whales changed the /crypto/whales/recent payload in 2026: it no
+// longer returns on-chain transfer data (from/to addresses, chain, tx hash).
+// It now returns large *exchange* whale trades. We normalize the new wire
+// shape into the field names our OpenAPI contract + frontend already use,
+// so no codegen / UI rename is required. The "chain" field is repurposed to
+// carry the venue (exchange) so the existing column has meaningful content.
+interface RawCryptoWhale {
+  id?: string;
+  size?: string | number;
+  total?: string | number;
+  exchange?: string;
+  symbol?: string;
+  pair?: string;
+  price?: string | number;
+  side?: string;
+  whaled_at?: string;
+  // Legacy fields, kept for forward-compat in case UW restores them:
+  amount?: number;
+  usd_value?: number;
+  chain?: string;
+  timestamp?: string;
+  transaction_hash?: string;
+  from_address?: string;
+  to_address?: string;
+}
+
 export interface CryptoWhale {
   pair: string;
   amount: number;
   usd_value: number;
-  from_address: string;
-  to_address: string;
   chain: string;
   timestamp: string;
-  transaction_hash: string;
+  side?: string;
+  price?: number;
+  transaction_hash?: string;
+}
+
+function toNum(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+function normalizeCryptoWhale(raw: RawCryptoWhale): CryptoWhale {
+  return {
+    pair: raw.pair ?? (raw.symbol ? raw.symbol.toUpperCase() : "UNKNOWN"),
+    amount: raw.amount != null ? raw.amount : toNum(raw.size),
+    usd_value: raw.usd_value != null ? raw.usd_value : toNum(raw.total),
+    chain: raw.chain ?? raw.exchange ?? "—",
+    timestamp: raw.timestamp ?? raw.whaled_at ?? new Date().toISOString(),
+    side: raw.side,
+    price: raw.price != null ? toNum(raw.price) : undefined,
+    transaction_hash: raw.transaction_hash,
+  };
 }
 
 export interface RadarAlertCompat {
@@ -214,8 +262,8 @@ export async function getCongressTrades(): Promise<CongressTrade[]> {
 }
 
 export async function getCryptoWhales(): Promise<CryptoWhale[]> {
-  const txns = await uwFetch<CryptoWhale[]>("/crypto/whales/recent");
-  return Array.isArray(txns) ? txns.slice(0, 50) : [];
+  const txns = await uwFetch<RawCryptoWhale[]>("/crypto/whales/recent");
+  return Array.isArray(txns) ? txns.slice(0, 50).map(normalizeCryptoWhale) : [];
 }
 
 export async function fetchOptionsFlowAlerts(): Promise<RadarAlertCompat[]> {
@@ -353,24 +401,34 @@ export async function fetchCryptoWhaleAlerts(): Promise<RadarAlertCompat[]> {
     return [];
   }
   try {
+    // Lowered floor from $1M → $250K because the new exchange-whale feed
+    // surfaces individual trades rather than aggregated on-chain transfers,
+    // so per-event notional is generally smaller. Keeps the feed populated
+    // without becoming noise (typical BTC whale trade is $200K-$2M).
     const txns = await getCryptoWhales();
     return txns
-      .filter((w) => (w.usd_value || 0) >= 1_000_000)
+      .filter((w) => (w.usd_value || 0) >= 250_000)
       .map((w) => {
-        const amtStr = w.usd_value >= 10_000_000
-          ? `$${(w.usd_value / 1_000_000).toFixed(1)}M`
-          : `$${(w.usd_value / 1_000_000).toFixed(2)}M`;
-        const fromAddr = (w.from_address || "").slice(0, 10) + "…";
-        const toAddr = (w.to_address || "").slice(0, 10) + "…";
+        const amtStr = w.usd_value >= 1_000_000
+          ? `$${(w.usd_value / 1_000_000).toFixed(2)}M`
+          : `$${(w.usd_value / 1_000).toFixed(0)}K`;
+        const sideStr = w.side ? ` ${w.side.toUpperCase()}` : "";
+        const venue = w.chain && w.chain !== "—" ? w.chain : "exchange";
+        const priceStr = w.price ? ` at $${w.price.toLocaleString()}` : "";
         return {
           id: md5Short(`uw_whale_${w.transaction_hash || w.pair + w.timestamp}`),
           type: "volume_anomaly",
-          severity: w.usd_value >= 10_000_000 ? "high" : "medium",
+          severity: w.usd_value >= 1_000_000 ? "high" : "medium",
           assetId: "crypto_" + (w.pair || "unknown").toLowerCase(),
           assetLabel: (w.pair || "UNKNOWN").toUpperCase(),
-          title: `Crypto whale: ${amtStr} ${w.pair} on-chain transaction`,
+          title: `Crypto whale:${sideStr} ${amtStr} ${w.pair} on ${venue}`,
+          direction: w.side?.toLowerCase() === "buy"
+            ? "bull"
+            : w.side?.toLowerCase() === "sell"
+              ? "bear"
+              : undefined,
           volumeType: "crypto_whale",
-          note: `${w.pair} on-chain transfer: ${amtStr} from ${fromAddr} to ${toAddr}. Chain: ${w.chain}. ${w.amount} units.`,
+          note: `${w.pair} whale trade: ${w.amount.toLocaleString(undefined, { maximumFractionDigits: 6 })} units${priceStr} (${amtStr} notional)${sideStr ? `, side ${w.side}` : ""}. Venue: ${venue}.`,
           dataSource: "Unusual Whales Crypto",
           chainAssets: [],
           createdAt: w.timestamp || new Date().toISOString(),
