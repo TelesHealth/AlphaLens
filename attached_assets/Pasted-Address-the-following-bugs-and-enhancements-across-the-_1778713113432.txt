@@ -1,0 +1,109 @@
+Address the following bugs and enhancements across the Arclion codebase in a single pass. Work through them in the order listed, as some later items depend on data structures or components established earlier.
+
+---
+
+**1. Market Radar – Live Alerts: clarify filing delay and explain severity levels (P3-4, P3-5)**
+
+In the Live Alerts tab of the Market Radar page (`/radar`):
+
+- Add a visible banner or descriptive subtitle beneath the "Live Alerts" heading that clearly states alerts are based on regulatory filings and reported trades may have occurred days or weeks before the filing date. Example copy: "Alerts are triggered by newly filed reports. The underlying trades may have occurred prior to the filing date."
+- Add a tooltip on every severity badge (e.g. Low, Medium, High, Critical) that explains what that severity level means in the context of market alerts. For example: Medium = notable activity with moderate potential market impact; High = significant activity likely to influence price; etc. Use a consistent tooltip component across all severity indicators site-wide.
+
+---
+
+**2. Market Radar – Live Alerts: add per-alert explanation tooltip (P3-6)**
+
+Still in the Live Alerts tab:
+
+- For each alert card or row, add an info icon (or expand control) that shows a tooltip or popover explaining: why this event was surfaced, whether it is considered bullish or bearish, and how it relates to market sentiment or prediction signals. Derive this text from whatever signal metadata is already available on the alert object; if a field is missing, display a sensible fallback such as "Signal direction not determined."
+
+---
+
+**3. Market Radar – Data Sources: remove upgrade/API key options from end-user view (P2-3)**
+
+In the Data Sources tab of the Market Radar page:
+
+- Remove or conditionally hide any UI elements that expose API key inputs, secret management, or upgrade prompts. These configuration options must not be visible to end users. If an admin-only path is needed, gate it behind an admin role check rather than showing it to all users.
+
+---
+
+**4. Crypto Whales: fix empty data in Crypto Whales tab (P2-1)**
+
+On the `/whales` page, Crypto Whales tab:
+
+- Investigate why the tab renders no data. Check the data-fetching logic (API call, query key, endpoint URL, response parsing) for the Crypto Whales tab specifically versus the other tabs. Fix the root cause — likely a wrong endpoint path, missing query parameter, incorrect response field being read, or a fetch that is never triggered when the tab is selected. Ensure loading and error states are also handled and displayed correctly.
+
+---
+
+**5. Briefing – allow trading for any event, not just Trade Calls (P3-2)**
+
+On the `/briefing` page:
+
+- Every event listed in the Events section must have a "Trade" action available, not only events that also appear in the Trade Calls section. Refactor the condition that gates the trade action so it applies to all events. The trade action should open the same trade entry flow used by Trade Calls, pre-populated with the event's associated asset.
+
+---
+
+**6. Portfolio – entry amount not reflecting actual trade input (P2-2)**
+
+When a paper trade is executed from `/briefing`:
+
+- Trace the paper trade submission through to the portfolio store or state. Ensure the amount entered by the user is saved as the entry amount for that position. Fix any place where a default or placeholder value is written instead of the user-supplied amount. The Open Positions and portfolio views must display the actual amount entered at trade time.
+
+---
+
+**7. Open Positions – add position size column (P3-9)**
+
+On the `/portfolio` page, Open Positions section:
+
+- Add a "Position Size" column (or field in each position card) showing the size of the trade. This value should come from the same trade record used for entry amount (fixed in item 6 above). Display it alongside Entry Amount, Entry Price, and other existing fields.
+
+---
+
+**8. Individual Market Page – improve paper trade toast notification (P3-8)**
+
+When a paper trade is executed from `/market/{market-id}`:
+
+- Update the success toast notification to include the same trade details shown in the `/briefing` trade toast: asset name/ticker, direction (long/short), entry price, amount/size, and any other fields present in the briefing toast. Align the notification content and format between both surfaces.
+
+---
+
+**9. Watchlist – give it a dedicated section (P3-1)**
+
+Currently the Watchlist is only accessible at the bottom of the Briefing page:
+
+- Create a dedicated Watchlist page or a persistent sidebar/nav entry so users can navigate to it directly. Add a link to it in the main navigation. The existing watchlist content and functionality should move to (or be accessible from) this dedicated location. The bottom-of-briefing placement may remain as a summary widget, but the primary home of the Watchlist must be clearly reachable from the nav.
+
+---
+
+**10. Leaderboard – fix Win Rate wrapping in Track Record section (P3-7)**
+
+On the `/leaderboard` page, Track Record section:
+
+- Fix the Win Rate percentage display so it never wraps to a second line at any supported screen size. Use `white-space: nowrap` and reduce font size responsively (e.g. via a smaller `font-size` at smaller breakpoints or `clamp()`) rather than allowing the text to wrap. Verify at common mobile, tablet, and desktop widths.
+
+---
+
+**11. AI Coach – persist response loading across navigation (P3-3)**
+
+On the `/coach` page:
+
+- Lift the AI coach query/response state out of the page component so it survives route changes. Use a global store, context, or persistent layout component to hold in-flight and completed responses. When the user navigates away and returns to `/coach`, the response must still be loading (or completed) exactly where it left off. Do not cancel the in-flight request on unmount.
+
+---
+
+**12. AI Coach – add "Ask Coach" quick action on all entries (P4-1)**
+
+Across the application — trade entries, recommendations, alerts, Open Positions, and any other entry types:
+
+- Add a small "Ask Coach" icon button or arrow control on each entry. Clicking it navigates the user to `/coach` and pre-populates the input with a prompt that asks the AI coach to explain that specific entry (e.g. "Explain this alert: [alert title/asset/details]" or "Give me a deeper analysis of my trade: [trade details]"). Pass the entry context via route state, query param, or global store so the coach page can auto-submit or at least pre-fill the question. This must be consistent across all entry types.
+
+---
+
+**General**
+
+- Do not remove any existing functionality while making the above changes.
+- Ensure all new UI text is clear and professional in tone.
+- Verify that new tooltips, banners, and popovers are accessible (keyboard-navigable and screen-reader-friendly).
+- Add or update any relevant types/interfaces to reflect new fields (position size, trade amount, alert explanation metadata).
+
+Run pnpm run typecheck and verify the app boots before declaring complete.
