@@ -318,13 +318,13 @@ export default function MarketDetail() {
                     onClick={() => setTradeDirection("long")}
                     className={cn("py-3 rounded-lg border font-bold uppercase tracking-wider transition-all", tradeDirection === "long" ? "bg-success/20 border-success text-success" : "bg-background border-border text-muted-foreground hover:bg-secondary")}
                   >
-                    Long
+                    {market.sector === "prediction" ? "Yes" : "Long"}
                   </button>
                   <button 
                     onClick={() => setTradeDirection("short")}
                     className={cn("py-3 rounded-lg border font-bold uppercase tracking-wider transition-all", tradeDirection === "short" ? "bg-destructive/20 border-destructive text-destructive" : "bg-background border-border text-muted-foreground hover:bg-secondary")}
                   >
-                    Short
+                    {market.sector === "prediction" ? "No" : "Short"}
                   </button>
                 </div>
               </div>
