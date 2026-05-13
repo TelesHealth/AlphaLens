@@ -457,7 +457,7 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
                     ? "text-primary"
                     : "text-muted-foreground/70",
               )}
-              title="Conviction score (edge × confidence)"
+              title="Conviction score: Edge × AI Confidence — combined signal strength"
             >
               c:{fmtNumber(rec.convictionScore)}
             </div>

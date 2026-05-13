@@ -409,7 +409,13 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               </div>
             )}
             {rec.confidence != null && (
-              <div className="text-right">
+              <div
+                className="text-right"
+                title="AI model confidence in this call (0–100%) — distinct from Conviction, which combines this with edge magnitude"
+              >
+                <div className="text-[10px] font-mono text-muted-foreground leading-none mb-0.5">
+                  AI CONF
+                </div>
                 <div
                   className={cn(
                     "text-lg font-bold font-mono",
@@ -442,7 +448,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
             {rec.convictionScore != null && (
               <div
                 className="bg-primary/10 border border-primary/30 rounded-lg p-3 col-span-2 sm:col-span-1 row-span-2 sm:row-span-1 flex flex-col justify-between"
-                title="Edge × Confidence — combined high-signal score"
+                title="Conviction score: Edge × AI Confidence — combined signal strength (signed; positive = bullish edge, negative = bearish)"
               >
                 <div className="flex items-center justify-between">
                   <div className="text-[10px] font-mono text-muted-foreground">
@@ -904,8 +910,11 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">
-                    AI Confidence
+                  <div
+                    className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground"
+                    title="AI model confidence in this call (0–100%)"
+                  >
+                    AI Model Confidence
                   </div>
                   <div className="font-mono">
                     {rec.confidence != null ? `${rec.confidence}%` : "—"}
