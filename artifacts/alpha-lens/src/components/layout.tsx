@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   TrendingUp,
   BarChart2,
+  Eye,
 } from "lucide-react";
 import { useState } from "react";
 import { clsx, type ClassValue } from "clsx";
@@ -59,6 +60,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { href: "/", label: "Scanner", icon: Activity },
     { href: "/coach", label: "AI Coach", icon: MessageSquare },
     { href: "/portfolio", label: "Portfolio", icon: Briefcase },
+    { href: "/watchlist", label: "Watchlist", icon: Eye },
     { href: "/trading", label: "Trading", icon: TrendingUp, badge: pendingCount },
     { href: "/radar", label: "Radar", icon: Radio },
     { href: "/whales", label: "Smart Money", icon: Fish },

@@ -383,7 +383,18 @@ export default function Whales() {
           {cryptoLoading ? (
             <div className="text-center py-20 text-muted-foreground text-sm">Loading crypto whale transactions...</div>
           ) : (cryptoData?.transactions ?? []).length === 0 ? (
-            <div className="text-center py-20 text-muted-foreground text-sm">No large crypto whale transactions detected</div>
+            <div className="text-center py-20 px-4">
+              <Bitcoin className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+              <div className="text-sm text-foreground mb-1">
+                No large crypto whale transactions in the last refresh
+              </div>
+              <p className="text-xs text-muted-foreground/80 max-w-md mx-auto leading-relaxed">
+                The Unusual Whales upstream may be rate-limiting our requests, or
+                there genuinely have not been any whale-sized on-chain transfers
+                in this window. Data refreshes automatically every few minutes —
+                check back shortly.
+              </p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

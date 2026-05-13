@@ -1,4 +1,11 @@
 import { useState } from "react";
+import { Link } from "wouter";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { setAskCoachPrefill } from "@/lib/ask-coach";
 import {
   useGetRadarAlerts,
   useGetRadarPrices,
@@ -41,6 +48,8 @@ import {
   Shield,
   Landmark,
   Waves,
+  Info,
+  MessageSquare,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -96,10 +105,47 @@ const TYPE_LABELS: Record<string, string> = {
   news_catalyst: "News Catalyst",
 };
 
+// Plain-language explanations of severity tiers — used by the tooltip on the
+// severity badge so first-time users understand what CRITICAL / HIGH / etc.
+// actually mean in dollar/probability terms.
+const SEV_DESCRIPTIONS: Record<string, string> = {
+  critical:
+    "Critical — large, statistically rare move (multiple sigma) with strong follow-through risk. Worth attention now.",
+  high:
+    "High — meaningful move outside normal trading range. Likely tradeable signal, monitor closely.",
+  medium:
+    "Medium — notable move worth tracking but within recent volatility envelope.",
+  low: "Low — small deviation from baseline; informational only.",
+  normal: "Normal — within baseline range; no action implied.",
+};
+
+const TYPE_DESCRIPTIONS: Record<string, string> = {
+  price_spike:
+    "Price moved sharply (multi-sigma) inside the alert window. Often news-driven or reflects positioning unwind.",
+  volume_anomaly:
+    "Trading volume spiked vs the rolling average — institutional flow may be repositioning before a price move.",
+  chain_reaction:
+    "Move in one asset is statistically linked to follow-through in correlated assets. Watch the chained tickers.",
+  news_catalyst:
+    "Headline or filing detected that historically moves this asset class.",
+};
+
 function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded: boolean; onToggle: () => void }) {
   const style = SEV_STYLES[alert.severity ?? "medium"] ?? SEV_STYLES.medium;
   const isUp = (alert.pctChange ?? 0) > 0 || alert.direction === "up" || alert.direction === "bull";
   const TypeIcon = TYPE_ICONS[alert.type ?? ""] ?? AlertTriangle;
+  const sev = (alert.severity ?? "medium").toLowerCase();
+  const typeKey = alert.type ?? "";
+  const sevDesc = SEV_DESCRIPTIONS[sev] ?? SEV_DESCRIPTIONS.medium;
+  const typeDesc = TYPE_DESCRIPTIONS[typeKey];
+
+  // Build a compact summary so Ask Coach gets useful context without dragging
+  // the entire alert object across pages.
+  const askCoachQuestion = `Explain this Radar alert and what I should do about it: ${(alert.severity ?? "medium").toUpperCase()} ${
+    TYPE_LABELS[typeKey] ?? typeKey
+  } on ${alert.assetLabel ?? "the asset"} — "${alert.title ?? ""}"${
+    alert.pctChange != null ? ` (${alert.pctChange > 0 ? "+" : ""}${alert.pctChange.toFixed(1)}% move)` : ""
+  }. Is this bullish or bearish, and what's the play?`;
 
   return (
     <div
@@ -113,14 +159,59 @@ function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded:
     >
       <div className="p-4">
         <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <span className={cn("px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border", style.badge)}>
-            {(alert.severity ?? "medium").toUpperCase()}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {/* Button (not span) so keyboard users can focus and read the
+                  severity tooltip — radix shows the tooltip on focus. */}
+              <button
+                type="button"
+                className={cn(
+                  "px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                  style.badge,
+                )}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Severity ${(alert.severity ?? "medium").toUpperCase()}: ${sevDesc}`}
+                data-testid={`alert-severity-${alert.id}`}
+              >
+                {(alert.severity ?? "medium").toUpperCase()}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              className="max-w-xs bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed"
+            >
+              {sevDesc}
+            </TooltipContent>
+          </Tooltip>
           <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] rounded bg-muted text-muted-foreground border border-border">
             <TypeIcon className="w-3 h-3" />
             {TYPE_LABELS[alert.type ?? ""] ?? alert.type}
           </span>
           <span className="text-sm font-semibold text-foreground">{alert.assetLabel}</span>
+          {typeDesc && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  aria-label="What does this alert mean?"
+                  data-testid={`alert-info-${alert.id}`}
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                className="max-w-xs bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed"
+              >
+                <div className="font-semibold mb-1">
+                  {TYPE_LABELS[typeKey] ?? typeKey}
+                </div>
+                <div>{typeDesc}</div>
+              </TooltipContent>
+            </Tooltip>
+          )}
           <span className="flex-1" />
           {alert.pctChange != null && (
             <span className={cn("text-sm font-bold font-mono", isUp ? "text-success" : "text-destructive")}>
@@ -203,6 +294,23 @@ function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded:
           {alert.dataSource && (
             <div className="text-[10px] text-muted-foreground/50">Source: {alert.dataSource}</div>
           )}
+
+          {/* Bug #12: Ask Coach button on each alert. Stashes a context-rich
+              question in sessionStorage and navigates to /coach where it
+              auto-submits. */}
+          <div className="pt-2">
+            <Link
+              href="/coach"
+              onClick={(e) => {
+                e.stopPropagation();
+                setAskCoachPrefill(askCoachQuestion);
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+              data-testid={`btn-ask-coach-alert-${alert.id}`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" /> Ask Coach about this
+            </Link>
+          </div>
         </div>
       )}
     </div>
@@ -362,6 +470,25 @@ export default function RadarPage() {
 
       {tab === "alerts" && (
         <div className="space-y-4">
+          {/* Bug #1: timing/expectation banner so users understand what
+              "Live Alerts" actually means (5-min poll cycle, 8h lookback). */}
+          <div
+            className="rounded-xl border border-primary/20 bg-primary/5 p-3 flex items-start gap-3"
+            data-testid="radar-alerts-banner"
+          >
+            <Radio className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <div className="text-xs leading-relaxed text-muted-foreground">
+              <span className="text-foreground font-semibold">Live Alerts.</span>{" "}
+              Showing the most recent 8 hours. The radar runs a fresh scan every
+              5 minutes, so a brand-new event may take a moment to appear — hit
+              <span className="font-mono text-foreground"> Scan Now</span> for an
+              immediate refresh. Hover any{" "}
+              <span className="font-mono text-foreground">SEVERITY</span> badge
+              (or focus it via keyboard) for what it means; tap an alert to
+              expand and ask the AI Coach.
+            </div>
+          </div>
+
           <div className="flex items-center gap-3 flex-wrap">
             <select
               value={sevFilter}

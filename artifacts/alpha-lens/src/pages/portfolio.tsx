@@ -1,12 +1,15 @@
 import { useGetPortfolio, useGetPortfolioStats, useCloseTrade } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { 
   Wallet, 
   TrendingUp, 
   PieChart as PieChartIcon, 
   Activity,
-  XCircle
+  XCircle,
+  MessageSquare,
 } from "lucide-react";
+import { setAskCoachPrefill } from "@/lib/ask-coach";
 import { format } from "date-fns";
 import { 
   BarChart, 
@@ -186,13 +189,30 @@ export default function Portfolio() {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <button 
-                              onClick={() => closeMutation.mutate({ id: trade.id })}
-                              disabled={closeMutation.isPending}
-                              className="px-4 py-2 rounded-lg bg-background border border-border hover:border-primary hover:text-primary transition-colors text-xs font-medium inline-flex items-center gap-1.5 disabled:opacity-50"
-                            >
-                              <XCircle className="w-3.5 h-3.5" /> Close
-                            </button>
+                            <div className="inline-flex items-center gap-2 justify-end">
+                              {/* Bug #12: Ask Coach about this open position. */}
+                              <Link
+                                href="/coach"
+                                onClick={() =>
+                                  setAskCoachPrefill(
+                                    `Review my open ${trade.direction ?? ""} position in ${trade.assetName ?? trade.assetSymbol ?? `asset #${trade.assetId}`} (entry ${trade.entryPrice}, current P&L ${trade.pnl ?? 0}). Should I hold, trim, or close?`,
+                                    trade.assetId ?? undefined,
+                                  )
+                                }
+                                className="px-3 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors text-xs font-medium inline-flex items-center gap-1.5"
+                                data-testid={`btn-ask-coach-position-${trade.id}`}
+                                title="Ask the AI Coach about this position"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" /> Ask Coach
+                              </Link>
+                              <button 
+                                onClick={() => closeMutation.mutate({ id: trade.id })}
+                                disabled={closeMutation.isPending}
+                                className="px-4 py-2 rounded-lg bg-background border border-border hover:border-primary hover:text-primary transition-colors text-xs font-medium inline-flex items-center gap-1.5 disabled:opacity-50"
+                              >
+                                <XCircle className="w-3.5 h-3.5" /> Close
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );

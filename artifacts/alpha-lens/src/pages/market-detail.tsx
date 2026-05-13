@@ -20,9 +20,11 @@ import {
   AlertTriangle,
   Zap,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  MessageSquare,
 } from "lucide-react";
 import { Link } from "wouter";
+import { setAskCoachPrefill } from "@/lib/ask-coach";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { format } from "date-fns";
@@ -173,6 +175,20 @@ export default function MarketDetail() {
                 <BrainCircuit className={cn("w-5 h-5 text-primary", scoreMutation.isPending && "animate-pulse")} /> 
                 {scoreMutation.isPending ? "Analyzing..." : "Trigger Deep Analysis"}
               </button>
+              {/* Bug #12: Ask Coach about this specific asset. */}
+              <Link
+                href="/coach"
+                onClick={() =>
+                  setAskCoachPrefill(
+                    `Give me your full read on ${market.name} (${market.symbol}). Current price ${market.currentPrice}, alpha score ${market.alphaScore ?? "n/a"}, direction ${market.direction ?? "n/a"}. What's the setup, the risks, and how would you trade it?`,
+                    id,
+                  )
+                }
+                className="px-6 py-3 rounded-xl bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 font-medium transition-all flex items-center gap-2"
+                data-testid="btn-ask-coach-market"
+              >
+                <MessageSquare className="w-5 h-5" /> Ask Coach
+              </Link>
             </div>
           </div>
 

@@ -19,8 +19,10 @@ import Register from "@/pages/register";
 import Settings from "@/pages/settings";
 import TradingPage from "@/pages/trading";
 import LeaderboardPage from "@/pages/leaderboard";
+import WatchlistPage from "@/pages/watchlist";
 
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { CoachProvider } from "@/context/coach-context";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,14 +68,17 @@ function Router() {
     return <Register />;
   }
   // Public marketing page — accessible without authentication.
-  // When the visitor is already signed in, wrap in Layout so the side
-  // navigation stays available (Track Record is reachable from the sidebar).
+  // When the visitor is already signed in, wrap in Layout AND CoachProvider
+  // so the AI Coach in-flight mutation/messages survive navigation between
+  // /coach and Track Record (bug #11 — caught in code review).
   if (location === "/leaderboard") {
     if (user) {
       return (
-        <Layout>
-          <LeaderboardPage />
-        </Layout>
+        <CoachProvider>
+          <Layout>
+            <LeaderboardPage />
+          </Layout>
+        </CoachProvider>
       );
     }
     return <LeaderboardPage />;
@@ -81,20 +86,26 @@ function Router() {
 
   return (
     <AuthGate>
-      <Layout>
-        <Switch>
-          <Route path="/" component={Scanner} />
-          <Route path="/market/:id" component={MarketDetail} />
-          <Route path="/portfolio" component={Portfolio} />
-          <Route path="/coach" component={Coach} />
-          <Route path="/briefing" component={Briefing} />
-          <Route path="/radar" component={Radar} />
-          <Route path="/whales" component={Whales} />
-          <Route path="/trading" component={TradingPage} />
-          <Route path="/settings" component={Settings} />
-          <Route component={NotFound} />
-        </Switch>
-      </Layout>
+      {/* CoachProvider sits above the route Switch so the AI Coach mutation
+          and message history survive when the user navigates between pages.
+          Bug #11: in-flight responses must continue when leaving /coach. */}
+      <CoachProvider>
+        <Layout>
+          <Switch>
+            <Route path="/" component={Scanner} />
+            <Route path="/market/:id" component={MarketDetail} />
+            <Route path="/portfolio" component={Portfolio} />
+            <Route path="/watchlist" component={WatchlistPage} />
+            <Route path="/coach" component={Coach} />
+            <Route path="/briefing" component={Briefing} />
+            <Route path="/radar" component={Radar} />
+            <Route path="/whales" component={Whales} />
+            <Route path="/trading" component={TradingPage} />
+            <Route path="/settings" component={Settings} />
+            <Route component={NotFound} />
+          </Switch>
+        </Layout>
+      </CoachProvider>
     </AuthGate>
   );
 }

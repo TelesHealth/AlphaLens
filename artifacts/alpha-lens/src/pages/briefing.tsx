@@ -6,15 +6,13 @@ import {
   useGetBriefing,
   useTriggerScan,
   useGetGlobalEvents,
-  useGetWatchlist,
-  useRemoveFromWatchlist,
   useOpenTrade,
   useExecuteTrade,
   useGetTradingAccounts,
   useGetRoutingDecision,
+  useListMarkets,
   getGetBriefingQueryKey,
   getGetGlobalEventsQueryKey,
-  getGetWatchlistQueryKey,
   getGetPortfolioQueryKey,
   getGetPortfolioStatsQueryKey,
   getGetPendingOrdersQueryKey,
@@ -23,7 +21,9 @@ import {
   getGetTradingAccountsQueryKey,
   getGetRoutingDecisionQueryKey,
   type OpenTradeRequestDirection,
+  type Market,
 } from "@workspace/api-client-react";
+import { setAskCoachPrefill } from "@/lib/ask-coach";
 import type {
   Recommendation,
   GlobalEvent,
@@ -53,6 +53,7 @@ import {
   ShieldAlert,
   Crosshair,
   Trash2,
+  MessageSquare,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/components/ui-helpers";
 import { useToast } from "@/hooks/use-toast";
@@ -869,6 +870,25 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               Connect to Live Trade
             </Link>
           )}
+
+          {/* Bug #12: Ask Coach button on every trade recommendation. */}
+          <Link
+            href="/coach"
+            onClick={() =>
+              setAskCoachPrefill(
+                `Walk me through this trade recommendation: ${rec.title}. ${
+                  rec.headline ?? rec.why?.join(" ") ?? ""
+                }${rec.bearCase ? ` Bear case noted: ${rec.bearCase}.` : ""} What's the bull case vs bear case, and how should I size it?`,
+                rec.assetId ?? undefined,
+              )
+            }
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary text-sm font-medium transition-colors"
+            data-testid={`btn-ask-coach-rec-${recId}`}
+            title="Discuss this recommendation with the AI Coach"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Ask Coach
+          </Link>
         </div>
       )}
 
@@ -1104,7 +1124,13 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
   );
 }
 
-function EventCard({ event }: { event: GlobalEvent }) {
+function EventCard({
+  event,
+  markets,
+}: {
+  event: GlobalEvent;
+  markets: Market[];
+}) {
   const directionIcon =
     event.direction === "bullish" ? (
       <TrendingUp className="w-4 h-4 text-success" />
@@ -1113,6 +1139,29 @@ function EventCard({ event }: { event: GlobalEvent }) {
     ) : (
       <AlertTriangle className="w-4 h-4 text-warning" />
     );
+
+  // Bug #5: every event needs a Trade action, not just events that double as
+  // trade calls. Resolve the first affected asset to a known market so the
+  // user lands on /market/:id where the existing paper-trade modal lives.
+  const matchedMarket = (() => {
+    const symbols = event.affectedAssets ?? [];
+    for (const sym of symbols) {
+      const norm = sym.trim().toUpperCase();
+      const hit = markets.find(
+        (m) => m.symbol?.toUpperCase() === norm || m.name?.toUpperCase() === norm,
+      );
+      if (hit) return hit;
+    }
+    return null;
+  })();
+
+  const askCoachQuestion = `Explain this market event and what I should do: "${event.title}"${
+    event.detail ? ` — ${event.detail}` : ""
+  }${
+    event.affectedAssets && event.affectedAssets.length > 0
+      ? ` Affected assets: ${event.affectedAssets.join(", ")}.`
+      : ""
+  } Is the implication ${event.direction ?? "unclear"}?`;
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/20 transition-colors">
@@ -1155,6 +1204,38 @@ function EventCard({ event }: { event: GlobalEvent }) {
           </span>
         )}
       </div>
+
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/40 flex-wrap">
+        {matchedMarket ? (
+          <Link
+            href={`/market/${matchedMarket.id}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-success/15 hover:bg-success/25 border border-success/40 text-success transition-colors"
+            data-testid={`btn-event-trade-${event.id}`}
+            title={`Open trade entry for ${matchedMarket.symbol}`}
+          >
+            <Target className="w-3.5 h-3.5" /> Trade {matchedMarket.symbol}
+          </Link>
+        ) : (
+          <span
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted/40 border border-border text-muted-foreground/70 cursor-not-allowed"
+            title="No tracked market matches this event's affected assets"
+            data-testid={`btn-event-trade-disabled-${event.id}`}
+          >
+            <Target className="w-3.5 h-3.5" /> Trade unavailable
+          </span>
+        )}
+        {/* Bug #12: Ask Coach on every event card. */}
+        <Link
+          href="/coach"
+          onClick={() =>
+            setAskCoachPrefill(askCoachQuestion, matchedMarket?.id ?? undefined)
+          }
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary transition-colors"
+          data-testid={`btn-ask-coach-event-${event.id}`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" /> Ask Coach
+        </Link>
+      </div>
     </div>
   );
 }
@@ -1176,21 +1257,10 @@ export default function Briefing() {
     { query: { queryKey: getGetGlobalEventsQueryKey({ limit: 10 }), refetchInterval: 120000 } }
   );
 
-  const { data: watchlistData } = useGetWatchlist({
-    query: { queryKey: getGetWatchlistQueryKey(), refetchInterval: 60000 },
-  });
-
-  const removeWatchlistMutation = useRemoveFromWatchlist({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetWatchlistQueryKey() });
-        toast({ title: "Removed", description: "Asset removed from watchlist." });
-      },
-      onError: () => {
-        toast({ title: "Error", description: "Could not remove from watchlist.", variant: "destructive" });
-      },
-    },
-  });
+  // Markets list — used to map event.affectedAssets symbols to a concrete
+  // /market/:id link so EventCard can show a Trade button (bug #5).
+  const { data: marketsData } = useListMarkets({ limit: 200 });
+  const markets = marketsData?.markets ?? [];
 
   const scanMutation = useTriggerScan({
     mutation: {
@@ -1254,7 +1324,6 @@ export default function Briefing() {
     ) ?? [];
 
   const events = eventsData?.events ?? briefing?.globalEvents ?? [];
-  const watchlist = watchlistData?.watchlist ?? [];
 
   if (isLoading) {
     return (
@@ -1416,7 +1485,7 @@ export default function Briefing() {
             {events.length > 0 ? (
               <div className="space-y-3">
                 {events.map((event: GlobalEvent) => (
-                  <EventCard key={event.id} event={event} />
+                  <EventCard key={event.id} event={event} markets={markets} />
                 ))}
               </div>
             ) : (
@@ -1429,54 +1498,35 @@ export default function Briefing() {
             )}
           </section>
 
-          {watchlist.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <Eye className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
-                  MY WATCHLIST ({watchlist.length})
-                </h2>
-              </div>
-              <div className="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
-                {watchlist.map((item) => (
-                  <div key={item.id} className="p-3 hover:bg-secondary/20">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium">
-                          {item.assetTitle}
-                        </div>
-                        {item.assetClass && (
-                          <div className="text-[10px] font-mono text-muted-foreground">
-                            {item.assetClass}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {item.alertEdgeThreshold != null && (
-                          <span className="text-[10px] font-mono text-muted-foreground">
-                            Edge ≥{item.alertEdgeThreshold}%
-                          </span>
-                        )}
-                        <button
-                          onClick={() => removeWatchlistMutation.mutate({ id: item.id })}
-                          disabled={removeWatchlistMutation.isPending}
-                          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-                          title="Remove from watchlist"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    {item.notes && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {item.notes}
-                      </p>
-                    )}
+          {/* Bug #9: Watchlist promoted to its own page at /watchlist; no
+              longer rendered inline here. Surface a small CTA so users still
+              discover it from the Briefing. */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <Eye className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
+                MY WATCHLIST
+              </h2>
+            </div>
+            <Link
+              href="/watchlist"
+              className="block rounded-xl border border-border bg-card hover:bg-secondary/20 hover:border-primary/30 p-4 transition-colors"
+              data-testid="link-open-watchlist"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-foreground">
+                    Open my Watchlist
                   </div>
-                ))}
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    All assets you&apos;re tracking — now in their own page from
+                    the side nav.
+                  </div>
+                </div>
+                <ChevronUp className="w-4 h-4 text-muted-foreground rotate-90 shrink-0" />
               </div>
-            </section>
-          )}
+            </Link>
+          </section>
         </div>
       </div>
     </div>

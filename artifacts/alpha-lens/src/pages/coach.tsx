@@ -1,55 +1,41 @@
 import { useState, useRef, useEffect } from "react";
-import { useCoachAnalyze, useListMarkets } from "@workspace/api-client-react";
+import { useListMarkets } from "@workspace/api-client-react";
 import { Send, Bot, User, BrainCircuit, AlertTriangle, ChevronRight, Zap } from "lucide-react";
 import { cn } from "@/components/ui-helpers";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
-type Message = {
-  id: string;
-  role: "user" | "coach";
-  content: string;
-  recommendations?: string[];
-  riskAssessment?: string | null;
-  confidence?: number;
-};
-
-const COACH_STORAGE_KEY = "aiCoach.messages";
-
-const WELCOME_MESSAGE: Message = {
-  id: "welcome",
-  role: "coach",
-  content:
-    "I'm Arclion, your AI investment coach. I analyze global market data, evidence signals, and structural shifts. How can I assist your portfolio today?",
-};
-
-// Hydrate chat messages from sessionStorage so navigation away from /coach
-// (which unmounts this route component) does not wipe the user's conversation.
-// SessionStorage scope = current browser tab/session, so a new browser session
-// resets — matching the bug spec's "duration of the browser session" rule.
-function loadCoachMessages(): Message[] {
-  if (typeof window === "undefined") return [WELCOME_MESSAGE];
-  try {
-    const raw = window.sessionStorage.getItem(COACH_STORAGE_KEY);
-    if (!raw) return [WELCOME_MESSAGE];
-    const parsed = JSON.parse(raw) as Message[];
-    return Array.isArray(parsed) && parsed.length > 0
-      ? parsed
-      : [WELCOME_MESSAGE];
-  } catch {
-    return [WELCOME_MESSAGE];
-  }
-}
+import { useCoach } from "@/context/coach-context";
+import { consumeAskCoachPrefill } from "@/lib/ask-coach";
 
 export default function Coach() {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>(loadCoachMessages);
   const [selectedAssetId, setSelectedAssetId] = useState<number | "">("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   const { data: marketsData } = useListMarkets({ limit: 100 });
-  const analyzeMutation = useCoachAnalyze();
+
+  // Bug #11: messages, mutation, and isPending all live in CoachProvider so
+  // they survive when the user navigates away from /coach mid-request.
+  const { messages, ask, isPending } = useCoach();
+
+  // Bug #12: when the user clicks an "Ask Coach" button elsewhere in the app,
+  // we stash the question (and optional asset context) in sessionStorage and
+  // navigate here. On mount, consume that prefill and auto-submit so the user
+  // sees an immediate response without re-typing.
+  const prefillHandled = useRef(false);
+  useEffect(() => {
+    if (prefillHandled.current) return;
+    const prefill = consumeAskCoachPrefill();
+    if (!prefill) return;
+    prefillHandled.current = true;
+    if (prefill.assetId != null) setSelectedAssetId(prefill.assetId);
+    // Defer one tick so React commits the asset-select change before the
+    // mutation reads context.
+    setTimeout(() => {
+      ask(prefill.question, prefill.assetId);
+    }, 0);
+  }, [ask]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,56 +43,14 @@ export default function Coach() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, analyzeMutation.isPending]);
-
-  // Persist messages to sessionStorage on every change so navigation away from
-  // /coach (which unmounts this component) does not lose the conversation.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.sessionStorage.setItem(
-        COACH_STORAGE_KEY,
-        JSON.stringify(messages),
-      );
-    } catch {
-      // sessionStorage may be unavailable (private mode, quota exceeded). The
-      // chat still works in-memory; we just can't survive navigation in that
-      // edge case. No user-facing error needed.
-    }
-  }, [messages]);
+  }, [messages, isPending]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || analyzeMutation.isPending) return;
-
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content: input };
-    setMessages(prev => [...prev, userMsg]);
+    if (!input.trim() || isPending) return;
+    const q = input;
     setInput("");
-
-    analyzeMutation.mutate({
-      data: {
-        question: userMsg.content,
-        assetId: selectedAssetId === "" ? undefined : Number(selectedAssetId)
-      }
-    }, {
-      onSuccess: (res) => {
-        setMessages(prev => [...prev, {
-          id: (Date.now() + 1).toString(),
-          role: "coach",
-          content: res.analysis,
-          recommendations: res.recommendations,
-          riskAssessment: res.riskAssessment,
-          confidence: res.confidence
-        }]);
-      },
-      onError: () => {
-        setMessages(prev => [...prev, {
-          id: (Date.now() + 1).toString(),
-          role: "coach",
-          content: "I encountered an error analyzing the data. Please check connection and try again."
-        }]);
-      }
-    });
+    ask(q, selectedAssetId === "" ? undefined : Number(selectedAssetId));
   };
 
   return (
@@ -198,7 +142,7 @@ export default function Coach() {
             </div>
           ))}
 
-          {analyzeMutation.isPending && (
+          {isPending && (
             <div className="flex w-full justify-start">
               <div className="flex gap-4 max-w-[85%]">
                 <div className="w-10 h-10 rounded-xl bg-secondary border border-border text-foreground flex items-center justify-center shrink-0">
@@ -217,7 +161,7 @@ export default function Coach() {
 
         {/* Input Area */}
         <div className="p-4 bg-background/50 border-t border-border backdrop-blur-md z-10">
-          {messages.length <= 1 && !analyzeMutation.isPending && (
+          {messages.length <= 1 && !isPending && (
             <div className="max-w-4xl mx-auto mb-3">
               <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
                 Suggested starter questions
@@ -249,11 +193,11 @@ export default function Coach() {
               onChange={(e) => setInput(e.target.value)}
               placeholder={selectedAssetId ? "Ask about this specific market..." : "Ask for structural market analysis..."}
               className="w-full bg-card border-2 border-border rounded-xl pl-4 pr-14 py-4 text-base focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-inner"
-              disabled={analyzeMutation.isPending}
+              disabled={isPending}
             />
             <button
               type="submit"
-              disabled={!input.trim() || analyzeMutation.isPending}
+              disabled={!input.trim() || isPending}
               className="absolute right-2 p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:hover:bg-primary transition-colors shadow-lg shadow-primary/20"
             >
               <Send className="w-5 h-5" />
@@ -264,4 +208,3 @@ export default function Coach() {
     </div>
   );
 }
-
