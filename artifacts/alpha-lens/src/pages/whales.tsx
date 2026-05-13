@@ -200,7 +200,12 @@ export default function Whales() {
                     <th className="px-4 py-3 text-left">Ticker</th>
                     <th className="px-4 py-3 text-left">Type</th>
                     <th className="px-4 py-3 text-right">Strike</th>
-                    <th className="px-4 py-3 text-left">Expiry</th>
+                    <th
+                      className="px-4 py-3 text-left cursor-help"
+                      title="Options contract expiration date — the date the contract settles. Sooner expiries = higher leverage but faster time decay; longer expiries = more time for the thesis to play out."
+                    >
+                      Expiry
+                    </th>
                     <th className="px-4 py-3 text-right">Premium</th>
                     <th className="px-4 py-3 text-right">Size</th>
                     <th className="px-4 py-3 text-right">Vol/OI</th>

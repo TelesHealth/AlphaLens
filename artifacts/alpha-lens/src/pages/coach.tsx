@@ -217,6 +217,31 @@ export default function Coach() {
 
         {/* Input Area */}
         <div className="p-4 bg-background/50 border-t border-border backdrop-blur-md z-10">
+          {messages.length <= 1 && !analyzeMutation.isPending && (
+            <div className="max-w-4xl mx-auto mb-3">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+                Suggested starter questions
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  "What's the current market regime — risk-on or risk-off?",
+                  "Explain how to read the conviction score on a recommendation.",
+                  "Which sectors look strongest this week and why?",
+                  "How should I size my first paper trade?",
+                  "What's the difference between AI Confidence and Conviction?",
+                ].map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setInput(q)}
+                    className="text-xs font-mono px-3 py-1.5 rounded-full border border-border bg-card hover:bg-secondary hover:border-primary/40 hover:text-foreground text-muted-foreground transition-colors"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="relative flex items-center max-w-4xl mx-auto">
             <input
               type="text"

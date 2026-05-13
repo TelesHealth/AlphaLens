@@ -629,22 +629,22 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   {
                     label: "RSI",
                     sig: ta.rsi?.signal,
-                    tip: `RSI: ${ta.rsi?.value ?? "n/a"} → ${ta.rsi?.signal ?? "n/a"}`,
+                    tip: `RSI (Relative Strength Index) — momentum oscillator 0–100. Above 70 = overbought, below 30 = oversold. Current: ${ta.rsi?.value ?? "n/a"} → ${ta.rsi?.signal ?? "neutral"}.`,
                   },
                   {
                     label: "MACD",
                     sig: ta.macd?.signal,
-                    tip: `MACD: ${ta.macd?.signal ?? "n/a"}`,
+                    tip: `MACD (Moving Average Convergence Divergence) — trend-following indicator that signals momentum shifts when fast & slow EMAs cross. Current: ${ta.macd?.signal ?? "neutral"}.`,
                   },
                   {
                     label: "MA",
                     sig: ta.movingAverages?.signal,
-                    tip: `Moving averages: ${ta.movingAverages?.signal ?? "n/a"}`,
+                    tip: `MA (Moving Averages) — price relative to 50-day and 200-day averages. Above both = uptrend, below both = downtrend. Current: ${ta.movingAverages?.signal ?? "neutral"}.`,
                   },
                   {
                     label: "BB",
                     sig: ta.bollingerBands?.signal,
-                    tip: `Bollinger Bands: ${ta.bollingerBands?.signal ?? "n/a"}`,
+                    tip: `BB (Bollinger Bands) — volatility envelope around the moving average. Price touching the upper band = potential reversal down, lower band = potential reversal up. Current: ${ta.bollingerBands?.signal ?? "neutral"}.`,
                   },
                 ];
               const overall = ta.overallTASignal ?? "mixed";
@@ -675,7 +675,10 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 <div className="rounded-md border border-border/50 bg-secondary/20 px-3 py-2">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-3">
-                      <div className="text-[10px] font-mono text-muted-foreground">
+                      <div
+                        className="text-[10px] font-mono text-muted-foreground cursor-help"
+                        title="Classic technical-analysis indicators. Green dot = bullish, red = bearish, gray = neutral or unavailable. Hover each indicator for definitions and current readings."
+                      >
                         TECHNICAL SIGNALS
                       </div>
                       <div className="flex items-center gap-3">
