@@ -291,12 +291,23 @@ function CalibrationChart({
               tick={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}
             />
             <RechartsTooltip
+              cursor={{ fill: "hsl(var(--muted) / 0.25)" }}
               contentStyle={{
-                background: "hsl(var(--card))",
+                background: "hsl(var(--popover))",
                 border: "1px solid hsl(var(--border))",
                 borderRadius: 8,
                 fontFamily: "ui-monospace, monospace",
                 fontSize: 12,
+                color: "hsl(var(--popover-foreground))",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.4)",
+              }}
+              labelStyle={{
+                color: "hsl(var(--foreground))",
+                fontWeight: 600,
+                marginBottom: 4,
+              }}
+              itemStyle={{
+                color: "hsl(var(--muted-foreground))",
               }}
               formatter={(value: any, name: string, props: any) => {
                 if (name === "actual") {
