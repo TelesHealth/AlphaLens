@@ -130,6 +130,37 @@ const TYPE_DESCRIPTIONS: Record<string, string> = {
     "Headline or filing detected that historically moves this asset class.",
 };
 
+// How each alert type tends to relate to market sentiment / prediction
+// signals — surfaced in the Info tooltip so users understand the "why" behind
+// the alert, not just the "what".
+const TYPE_SIGNAL_RELATION: Record<string, string> = {
+  price_spike:
+    "Reflects realized price action — the move has already happened. You're being shown the follow-through window, not the trigger itself.",
+  volume_anomaly:
+    "Reflects positioning flow ahead of price — institutions or smart money may be building a position before a sentiment shift.",
+  chain_reaction:
+    "Sentiment in one asset is statistically propagating to correlated names. Treat the chained tickers as leading indicators.",
+  news_catalyst:
+    "Headline-driven sentiment shift expected. Watch how prediction markets and the named tickers reprice over the next bars.",
+};
+
+// Human-readable direction label for the alert based on direction field or
+// realized pctChange.
+function deriveDirectionLabel(alert: RadarAlert): {
+  label: "Bullish" | "Bearish" | "Informational";
+  className: string;
+} {
+  const dir = (alert.direction ?? "").toLowerCase();
+  const pct = alert.pctChange ?? 0;
+  if (dir === "up" || dir === "bull" || dir === "bullish" || pct > 0.5) {
+    return { label: "Bullish", className: "text-success" };
+  }
+  if (dir === "down" || dir === "bear" || dir === "bearish" || pct < -0.5) {
+    return { label: "Bearish", className: "text-destructive" };
+  }
+  return { label: "Informational", className: "text-muted-foreground" };
+}
+
 function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded: boolean; onToggle: () => void }) {
   const style = SEV_STYLES[alert.severity ?? "medium"] ?? SEV_STYLES.medium;
   const isUp = (alert.pctChange ?? 0) > 0 || alert.direction === "up" || alert.direction === "bull";
@@ -138,14 +169,16 @@ function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded:
   const typeKey = alert.type ?? "";
   const sevDesc = SEV_DESCRIPTIONS[sev] ?? SEV_DESCRIPTIONS.medium;
   const typeDesc = TYPE_DESCRIPTIONS[typeKey];
+  const signalRelation = TYPE_SIGNAL_RELATION[typeKey];
+  const directionInfo = deriveDirectionLabel(alert);
 
   // Build a compact summary so Ask Coach gets useful context without dragging
   // the entire alert object across pages.
-  const askCoachQuestion = `Explain this Radar alert and what I should do about it: ${(alert.severity ?? "medium").toUpperCase()} ${
+  const askCoachQuestion = `Walk me through this Radar alert in more depth: ${(alert.severity ?? "medium").toUpperCase()} ${
     TYPE_LABELS[typeKey] ?? typeKey
   } on ${alert.assetLabel ?? "the asset"} — "${alert.title ?? ""}"${
     alert.pctChange != null ? ` (${alert.pctChange > 0 ? "+" : ""}${alert.pctChange.toFixed(1)}% move)` : ""
-  }. Is this bullish or bearish, and what's the play?`;
+  }. Explain what's actually happening and what I should be thinking about.`;
 
   return (
     <div
@@ -203,12 +236,23 @@ function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded:
               </TooltipTrigger>
               <TooltipContent
                 side="top"
-                className="max-w-xs bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed"
+                className="max-w-sm bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed"
               >
-                <div className="font-semibold mb-1">
-                  {TYPE_LABELS[typeKey] ?? typeKey}
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="font-semibold">
+                    {TYPE_LABELS[typeKey] ?? typeKey}
+                  </span>
+                  <span className={cn("text-[10px] font-bold uppercase tracking-wider", directionInfo.className)}>
+                    {directionInfo.label}
+                  </span>
                 </div>
-                <div>{typeDesc}</div>
+                <div className="mb-1.5">{typeDesc}</div>
+                {signalRelation && (
+                  <div className="pt-1.5 border-t border-border/50 text-muted-foreground">
+                    <span className="font-medium text-foreground/80">Why you're seeing it: </span>
+                    {signalRelation}
+                  </div>
+                )}
               </TooltipContent>
             </Tooltip>
           )}

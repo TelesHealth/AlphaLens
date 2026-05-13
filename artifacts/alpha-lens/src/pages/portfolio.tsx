@@ -195,7 +195,7 @@ export default function Portfolio() {
                                 href="/coach"
                                 onClick={() =>
                                   setAskCoachPrefill(
-                                    `Review my open ${trade.direction ?? ""} position in ${trade.assetName ?? trade.assetSymbol ?? `asset #${trade.assetId}`} (entry ${trade.entryPrice}, current P&L ${trade.pnl ?? 0}). Should I hold, trim, or close?`,
+                                    `Walk me through my open ${trade.direction ?? ""} position in ${trade.assetName ?? trade.assetSymbol ?? `asset #${trade.assetId}`} in more depth (entry ${trade.entryPrice}, current P&L ${trade.pnl ?? 0}). Explain what's driving it right now and what I should be thinking about.`,
                                     trade.assetId ?? undefined,
                                   )
                                 }

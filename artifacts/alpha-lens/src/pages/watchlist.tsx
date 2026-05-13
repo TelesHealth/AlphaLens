@@ -141,7 +141,7 @@ export default function WatchlistPage() {
                     href="/coach"
                     onClick={() => {
                       setAskCoachPrefill(
-                        `Tell me about ${item.assetTitle} from my watchlist. What's the current setup and any concerns?`,
+                        `Walk me through ${item.assetTitle} from my watchlist in more depth. Explain the current setup and what I should be thinking about.`,
                         item.assetId ?? undefined,
                       );
                     }}

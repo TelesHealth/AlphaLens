@@ -39,6 +39,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Zap,
   Globe,
   Eye,
@@ -58,21 +63,48 @@ import {
 import { cn, formatCurrency } from "@/components/ui-helpers";
 import { useToast } from "@/hooks/use-toast";
 
+// Plain-language explanations of recommendation urgency tiers — wrapped in a
+// tooltip so first-time users understand what HIGH / MEDIUM / LOW actually
+// imply for timing.
+const URGENCY_DESCRIPTIONS: Record<string, string> = {
+  high:
+    "High urgency — time-sensitive setup. The catalyst or edge is expected to play out within hours to a day; act soon or move on.",
+  medium:
+    "Medium urgency — actionable this session, but not immediate. Take time to size and confirm before entering.",
+  low:
+    "Low urgency — informational. Worth tracking for context; no need to act today.",
+};
+
 function UrgencyBadge({ urgency }: { urgency?: string }) {
   const styles: Record<string, string> = {
     high: "bg-destructive/10 text-destructive border-destructive/20",
     medium: "bg-warning/10 text-warning border-warning/20",
     low: "bg-muted text-muted-foreground border-border",
   };
+  const key = (urgency ?? "low").toLowerCase();
+  const desc = URGENCY_DESCRIPTIONS[key] ?? URGENCY_DESCRIPTIONS.low;
   return (
-    <span
-      className={cn(
-        "px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border",
-        styles[urgency ?? "low"] ?? styles.low
-      )}
-    >
-      {urgency ?? "low"}
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Urgency ${(urgency ?? "low").toUpperCase()}: ${desc}`}
+          className={cn(
+            "px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+            styles[key] ?? styles.low,
+          )}
+        >
+          {urgency ?? "low"}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        className="max-w-xs bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed"
+      >
+        {desc}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -876,9 +908,9 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
             href="/coach"
             onClick={() =>
               setAskCoachPrefill(
-                `Walk me through this trade recommendation: ${rec.title}. ${
+                `Walk me through this trade recommendation in more depth: ${rec.title}. ${
                   rec.headline ?? rec.why?.join(" ") ?? ""
-                }${rec.bearCase ? ` Bear case noted: ${rec.bearCase}.` : ""} What's the bull case vs bear case, and how should I size it?`,
+                }${rec.bearCase ? ` Note on risk: ${rec.bearCase}.` : ""} Explain what's actually going on here and what I should be thinking about.`,
                 rec.assetId ?? undefined,
               )
             }
@@ -1155,13 +1187,13 @@ function EventCard({
     return null;
   })();
 
-  const askCoachQuestion = `Explain this market event and what I should do: "${event.title}"${
+  const askCoachQuestion = `Walk me through this market event in more depth: "${event.title}"${
     event.detail ? ` — ${event.detail}` : ""
   }${
     event.affectedAssets && event.affectedAssets.length > 0
       ? ` Affected assets: ${event.affectedAssets.join(", ")}.`
       : ""
-  } Is the implication ${event.direction ?? "unclear"}?`;
+  } Explain what's actually happening and what I should be thinking about.`;
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 hover:bg-secondary/20 transition-colors">

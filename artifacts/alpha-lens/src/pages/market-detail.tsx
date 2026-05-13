@@ -180,7 +180,7 @@ export default function MarketDetail() {
                 href="/coach"
                 onClick={() =>
                   setAskCoachPrefill(
-                    `Give me your full read on ${market.name} (${market.symbol}). Current price ${market.currentPrice}, alpha score ${market.alphaScore ?? "n/a"}, direction ${market.direction ?? "n/a"}. What's the setup, the risks, and how would you trade it?`,
+                    `Walk me through ${market.name} (${market.symbol}) in more depth. Current price ${market.currentPrice}, alpha score ${market.alphaScore ?? "n/a"}, direction ${market.direction ?? "n/a"}. Explain the setup and what I should be thinking about.`,
                     id,
                   )
                 }
