@@ -1,0 +1,67 @@
+Fix bug #5: AI Coach chat history is cleared when the user navigates away from the AI Coach page and returns. The history must persist for the duration of the browser session.
+
+Before making changes, run these checks locally to confirm exact paths/symbols (file contents were not available to the planner):
+
+1. `grep -r "AICoach" src/` to confirm the actual paths of the AI Coach components.
+2. Confirm whether `src/context/AICoachContext.tsx` and/or `src/store/aiCoachSlice.ts` exist. Only one of these is likely the real state holder; do not create the other.
+
+Then apply the following fix:
+
+### Goal
+Lift chat message state out of the route-level component (`src/pages/AICoach.tsx` / `src/components/AICoach/AICoachChat.tsx`) so it survives unmount, and back it with `sessionStorage` so it persists across navigations within the session but resets on a new browser session.
+
+### Changes
+
+**Case A — if `src/context/AICoachContext.tsx` exists and is the source of truth:**
+
+1. In `src/context/AICoachContext.tsx`:
+   - Ensure the provider holds the `messages` array (and any related fields like `isLoading`, `conversationId`) in `useState`, not inside the chat component.
+   - Initialize `messages` lazily from `sessionStorage`:
+     ```ts
+     const [messages, setMessages] = useState<Message[]>(() => {
+       if (typeof window === "undefined") return [];
+       try {
+         const raw = window.sessionStorage.getItem("aiCoach.messages");
+         return raw ? (JSON.parse(raw) as Message[]) : [];
+       } catch {
+         return [];
+       }
+     });
+     ```
+   - Add a `useEffect` that writes to `sessionStorage` whenever `messages` changes:
+     ```ts
+     useEffect(() => {
+       try {
+         window.sessionStorage.setItem("aiCoach.messages", JSON.stringify(messages));
+       } catch {}
+     }, [messages]);
+     ```
+   - Expose `messages`, `addMessage`, and `clearMessages` (which also calls `sessionStorage.removeItem("aiCoach.messages")`) through the context value. Keep the existing context type, only adding fields if missing.
+
+2. In the app root (wherever the router is mounted — typically `src/App.tsx` or `src/main.tsx`), confirm `<AICoachProvider>` wraps the `<Routes>` / `<Router>` so it lives ABOVE the route and does not unmount on navigation. If it currently wraps only the AI Coach page, move it up to wrap the router.
+
+3. In `src/components/AICoach/AICoachChat.tsx`:
+   - Remove any local `useState<Message[]>([])` for messages.
+   - Replace with `const { messages, addMessage } = useAICoachContext();` (use the existing hook name from the context file).
+   - Wire send/submit handlers to `addMessage` instead of local setters.
+
+4. In `src/pages/AICoach.tsx`:
+   - Remove any prop-drilling of messages or local message state. The page should just render `<AICoachChat />`.
+
+**Case B — if `src/store/aiCoachSlice.ts` exists (Redux/Zustand) instead:**
+
+1. In `src/store/aiCoachSlice.ts`:
+   - Ensure there is a `messages: Message[]` field with reducers/actions `addMessage` and `clearMessages`.
+   - Add session persistence: if Redux Toolkit, hydrate `initialState.messages` from `sessionStorage.getItem("aiCoach.messages")`, and subscribe to the store in `src/store/index.ts` to write `state.aiCoach.messages` back to `sessionStorage` on change. If Zustand, use the `persist` middleware with `storage: createJSONStorage(() => sessionStorage)` and `name: "aiCoach.messages"`, partializing to `{ messages }`.
+2. In `src/components/AICoach/AICoachChat.tsx`: replace local message `useState` with the store selector/hook. Dispatch `addMessage` on send.
+3. In `src/pages/AICoach.tsx`: remove any local message state.
+4. Delete `src/context/AICoachContext.tsx` references from these components if it is unused after the change. Do not delete the file itself.
+
+### Constraints
+- Do NOT change the message rendering UI, styling, or the API call shape.
+- Do NOT add a new dependency. Use only what is already in `package.json`. If Case B requires `redux-persist` or zustand `persist` and it is not already installed, stop and report back instead of installing.
+- Use `sessionStorage` (not `localStorage`) — the bug spec says "within the current session".
+- Key the storage as `"aiCoach.messages"`.
+- Wrap all `sessionStorage` access in `try/catch` and a `typeof window !== "undefined"` guard for SSR safety.
+
+Run pnpm run typecheck. Zero errors required.
