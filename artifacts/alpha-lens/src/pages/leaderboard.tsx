@@ -163,7 +163,7 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
           </div>
           <div
             className={cn(
-              "font-mono font-bold text-6xl md:text-7xl leading-none tabular-nums break-all",
+              "font-mono font-bold text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-none tabular-nums whitespace-nowrap",
               winRateColor(winRate),
               winRateGlow(winRate),
             )}

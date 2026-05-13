@@ -106,7 +106,13 @@ export default function MarketDetail() {
       onSuccess: () => {
         setIsTradeModalOpen(false);
         queryClient.invalidateQueries({ queryKey: ["/api/portfolio"] });
-        toast({ title: "Trade Opened", description: `Successfully opened ${tradeDirection} position.` });
+        const sym = data?.market?.symbol ?? data?.market?.name ?? "asset";
+        const entryPx = data?.market?.currentPrice;
+        const entryStr = entryPx != null ? ` @ ${formatCurrency(entryPx)}` : "";
+        toast({
+          title: "Paper trade executed",
+          description: `${tradeDirection.toUpperCase()} ${formatCurrency(tradeAmount)} on ${sym}${entryStr}`,
+        });
       },
       onError: (err: any) => toast({ title: "Trade Failed", description: err.message, variant: "destructive" })
     }

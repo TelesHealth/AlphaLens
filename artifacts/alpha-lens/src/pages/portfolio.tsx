@@ -147,6 +147,7 @@ export default function Portfolio() {
                       <th className="px-6 py-4 font-semibold tracking-wider">Asset</th>
                       <th className="px-6 py-4 font-semibold tracking-wider">Direction</th>
                       <th className="px-6 py-4 font-semibold tracking-wider">Entry</th>
+                      <th className="px-6 py-4 font-semibold tracking-wider">Position Size</th>
                       <th className="px-6 py-4 font-semibold tracking-wider">Unrealized P&L</th>
                       <th className="px-6 py-4 font-semibold tracking-wider text-right">Action</th>
                     </tr>
@@ -154,6 +155,8 @@ export default function Portfolio() {
                   <tbody>
                     {portfolio.openTrades.map((trade) => {
                       const isProfit = (trade.pnl || 0) >= 0;
+                      const positionSize =
+                        (trade.entryPrice ?? 0) * (trade.quantity ?? 0);
                       return (
                         <tr key={trade.id} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
                           <td className="px-6 py-4">
@@ -168,6 +171,12 @@ export default function Portfolio() {
                             </span>
                           </td>
                           <td className="px-6 py-4 font-mono">{formatCurrency(trade.entryPrice)}</td>
+                          <td className="px-6 py-4 font-mono" data-testid={`position-size-${trade.id}`}>
+                            <div className="text-foreground font-semibold">{formatCurrency(positionSize)}</div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              {trade.quantity?.toLocaleString(undefined, { maximumFractionDigits: 4 })} units
+                            </div>
+                          </td>
                           <td className="px-6 py-4">
                             <div className={cn("font-mono font-bold text-base", isProfit ? "text-success" : "text-destructive")}>
                               {isProfit ? "+" : ""}{formatCurrency(trade.pnl)}

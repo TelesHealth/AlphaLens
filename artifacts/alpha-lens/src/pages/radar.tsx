@@ -689,13 +689,6 @@ export default function RadarPage() {
             ))}
           </div>
 
-          <div className="rounded-xl bg-warning/5 border border-warning/20 p-4 text-sm text-warning">
-            <strong>Upgrade options:</strong> For real-time commodity prices (vs 15-min delay), add{" "}
-            <code className="bg-warning/10 px-1 rounded">ALPHA_VANTAGE_KEY</code> (~$50/mo). For options flow / dark pool large
-            volume, add <code className="bg-warning/10 px-1 rounded">UNUSUAL_WHALES_KEY</code> (~$50-200/mo). Both keys go in
-            Secrets.
-          </div>
-
           <div className="rounded-xl border border-border overflow-hidden bg-card">
             <div className="grid grid-cols-[2fr_1fr_auto] gap-3 px-4 py-3 bg-muted/50 border-b border-border">
               <span className="text-[10px] font-mono text-muted-foreground tracking-wider">SOURCE</span>
