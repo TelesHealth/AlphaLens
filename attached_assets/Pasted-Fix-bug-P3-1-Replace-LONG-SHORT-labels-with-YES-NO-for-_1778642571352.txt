@@ -1,0 +1,43 @@
+Fix bug P3-1: Replace LONG/SHORT labels with YES/NO for binary prediction market contracts (e.g., Fed-cut, recession contracts), while preserving LONG/SHORT for directional asset contracts (e.g., BTC-100K).
+
+File contents were not provided to the planner. Before editing, open and read each of these files in full so your changes match the actual code:
+- src/types/contract.ts
+- src/constants/tradeLabels.ts
+- src/components/ContractCard.tsx
+- src/components/TradePanel.tsx
+
+Apply the following changes:
+
+1. src/types/contract.ts
+   - Ensure the contract type model distinguishes binary event contracts from directional asset contracts. If there is an existing discriminator field (e.g. `kind`, `type`, `category`), confirm it has values that cover both cases. If not, add a field `contractKind: 'binary' | 'directional'` to the contract type/interface (name it to match the existing convention in the file — e.g. if the interface is `Contract`, add it there; if there is a union type, extend it).
+   - Export a small type guard `isBinaryContract(c: Contract): boolean` that returns true when the contract is a binary/event contract (Fed-cut, recession, and similar yes/no outcome markets) and false for directional asset contracts (BTC-100K, etc.). Implement it using whichever discriminator exists/was just added.
+
+2. src/constants/tradeLabels.ts
+   - Add two label sets and a helper to pick between them. Keep existing exports intact; only add new ones (do not rename or remove existing LONG/SHORT constants — other code may depend on them).
+   - Add:
+     ```
+     export const DIRECTIONAL_LABELS = { buy: 'LONG', sell: 'SHORT' } as const;
+     export const BINARY_LABELS = { buy: 'YES', sell: 'NO' } as const;
+     export type TradeSideLabels = { buy: string; sell: string };
+     export function getTradeSideLabels(isBinary: boolean): TradeSideLabels {
+       return isBinary ? BINARY_LABELS : DIRECTIONAL_LABELS;
+     }
+     ```
+   - Import `isBinaryContract` is NOT needed here; this file stays type-agnostic.
+
+3. src/components/ContractCard.tsx
+   - Import `getTradeSideLabels` from `src/constants/tradeLabels.ts` and `isBinaryContract` from `src/types/contract.ts`.
+   - Locate every place that renders the literal strings `'LONG'` or `'SHORT'` (or references the existing LONG/SHORT constants for button text/badges). Replace those user-visible strings with `labels.buy` / `labels.sell` where `const labels = getTradeSideLabels(isBinaryContract(contract));` is computed once near the top of the component (use the actual prop name for the contract that this component receives).
+   - Do NOT change any internal action identifiers, event names, analytics events, or API payload values — only the human-readable label text.
+
+4. src/components/TradePanel.tsx
+   - Same pattern as ContractCard: import `getTradeSideLabels` and `isBinaryContract`, compute `const labels = getTradeSideLabels(isBinaryContract(contract));` once, and replace user-facing `'LONG'` / `'SHORT'` text (button labels, headings, confirmation copy, side selector tabs) with `labels.buy` / `labels.sell`.
+   - If there is confirmation copy like "Go LONG on X" / "Go SHORT on X", change to "Buy YES on X" / "Buy NO on X" for binary contracts (use the labels object: `\`Buy ${labels.buy} on ${name}\`` style for binary; keep the "Go LONG/SHORT" phrasing for directional). The simplest implementation is to branch once on `isBinaryContract(contract)` for any sentence-level copy that doesn't read naturally with a swapped word.
+   - Do NOT change underlying side values sent to the order/trade submission logic.
+
+Constraints:
+- No changes to files outside the four listed above.
+- No renames or deletions of existing exports in tradeLabels.ts.
+- No changes to order submission, API calls, or side encoding — labels only.
+
+Run pnpm run typecheck. Zero errors required.
