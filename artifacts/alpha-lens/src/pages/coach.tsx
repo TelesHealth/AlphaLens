@@ -14,13 +14,36 @@ type Message = {
   confidence?: number;
 };
 
+const COACH_STORAGE_KEY = "aiCoach.messages";
+
+const WELCOME_MESSAGE: Message = {
+  id: "welcome",
+  role: "coach",
+  content:
+    "I'm Arclion, your AI investment coach. I analyze global market data, evidence signals, and structural shifts. How can I assist your portfolio today?",
+};
+
+// Hydrate chat messages from sessionStorage so navigation away from /coach
+// (which unmounts this route component) does not wipe the user's conversation.
+// SessionStorage scope = current browser tab/session, so a new browser session
+// resets — matching the bug spec's "duration of the browser session" rule.
+function loadCoachMessages(): Message[] {
+  if (typeof window === "undefined") return [WELCOME_MESSAGE];
+  try {
+    const raw = window.sessionStorage.getItem(COACH_STORAGE_KEY);
+    if (!raw) return [WELCOME_MESSAGE];
+    const parsed = JSON.parse(raw) as Message[];
+    return Array.isArray(parsed) && parsed.length > 0
+      ? parsed
+      : [WELCOME_MESSAGE];
+  } catch {
+    return [WELCOME_MESSAGE];
+  }
+}
+
 export default function Coach() {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([{
-    id: "welcome",
-    role: "coach",
-    content: "I'm Arclion, your AI investment coach. I analyze global market data, evidence signals, and structural shifts. How can I assist your portfolio today?"
-  }]);
+  const [messages, setMessages] = useState<Message[]>(loadCoachMessages);
   const [selectedAssetId, setSelectedAssetId] = useState<number | "">("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -35,6 +58,22 @@ export default function Coach() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, analyzeMutation.isPending]);
+
+  // Persist messages to sessionStorage on every change so navigation away from
+  // /coach (which unmounts this component) does not lose the conversation.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.setItem(
+        COACH_STORAGE_KEY,
+        JSON.stringify(messages),
+      );
+    } catch {
+      // sessionStorage may be unavailable (private mode, quota exceeded). The
+      // chat still works in-memory; we just can't survive navigation in that
+      // edge case. No user-facing error needed.
+    }
+  }, [messages]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
