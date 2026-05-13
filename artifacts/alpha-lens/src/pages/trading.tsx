@@ -766,7 +766,7 @@ function HistoryTab() {
             <thead className="border-b border-border bg-secondary/30">
               <tr>
                 <th className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                  Date
+                  Executed At
                 </th>
                 <th className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
                   Asset

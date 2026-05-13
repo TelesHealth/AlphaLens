@@ -677,7 +677,7 @@ export default function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <PublicHeader user={user} />
+      {!user && <PublicHeader user={user} />}
 
       <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 md:px-8 py-6 md:py-10 space-y-6 md:space-y-8 overflow-x-hidden">
         {isLoading && (

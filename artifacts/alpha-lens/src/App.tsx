@@ -65,8 +65,17 @@ function Router() {
     if (!loading && user) return <Redirect to="/briefing" />;
     return <Register />;
   }
-  // Public marketing page — accessible without authentication
+  // Public marketing page — accessible without authentication.
+  // When the visitor is already signed in, wrap in Layout so the side
+  // navigation stays available (Track Record is reachable from the sidebar).
   if (location === "/leaderboard") {
+    if (user) {
+      return (
+        <Layout>
+          <LeaderboardPage />
+        </Layout>
+      );
+    }
     return <LeaderboardPage />;
   }
 
