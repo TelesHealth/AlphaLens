@@ -149,8 +149,15 @@ export default function Portfolio() {
                     <tr>
                       <th className="px-6 py-4 font-semibold tracking-wider">Asset</th>
                       <th className="px-6 py-4 font-semibold tracking-wider">Direction</th>
-                      <th className="px-6 py-4 font-semibold tracking-wider">Entry</th>
-                      <th className="px-6 py-4 font-semibold tracking-wider">Position Size</th>
+                      <th className="px-6 py-4 font-semibold tracking-wider">Entry Price</th>
+                      <th className="px-6 py-4 font-semibold tracking-wider">
+                        <div>Entry Amount</div>
+                        <div className="text-[10px] font-normal text-muted-foreground/70 normal-case tracking-normal">cost basis at open</div>
+                      </th>
+                      <th className="px-6 py-4 font-semibold tracking-wider">
+                        <div>Position Size</div>
+                        <div className="text-[10px] font-normal text-muted-foreground/70 normal-case tracking-normal">market value now</div>
+                      </th>
                       <th className="px-6 py-4 font-semibold tracking-wider">Unrealized P&L</th>
                       <th className="px-6 py-4 font-semibold tracking-wider text-right">Action</th>
                     </tr>
@@ -158,8 +165,21 @@ export default function Portfolio() {
                   <tbody>
                     {portfolio.openTrades.map((trade) => {
                       const isProfit = (trade.pnl || 0) >= 0;
-                      const positionSize =
+                      // Entry Amount = cost basis frozen at open (entry × qty).
+                      // Position Size = current market value, reconstructed from
+                      // pnl since the Trade payload doesn't carry currentPrice:
+                      //   long:  marketValue = entryAmount + pnl
+                      //   short: marketValue = entryAmount − pnl
+                      // Falls back to entryAmount when pnl is missing.
+                      const entryAmount =
                         (trade.entryPrice ?? 0) * (trade.quantity ?? 0);
+                      const pnlSigned =
+                        trade.pnl == null
+                          ? 0
+                          : trade.direction === "short"
+                            ? -trade.pnl
+                            : trade.pnl;
+                      const positionSize = entryAmount + pnlSigned;
                       return (
                         <tr key={trade.id} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
                           <td className="px-6 py-4">
@@ -174,10 +194,25 @@ export default function Portfolio() {
                             </span>
                           </td>
                           <td className="px-6 py-4 font-mono">{formatCurrency(trade.entryPrice)}</td>
+                          <td className="px-6 py-4 font-mono" data-testid={`entry-amount-${trade.id}`}>
+                            <div className="text-muted-foreground font-medium">{formatCurrency(entryAmount)}</div>
+                            <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                              {trade.quantity?.toLocaleString(undefined, { maximumFractionDigits: 4 })} units
+                            </div>
+                          </td>
                           <td className="px-6 py-4 font-mono" data-testid={`position-size-${trade.id}`}>
                             <div className="text-foreground font-semibold">{formatCurrency(positionSize)}</div>
-                            <div className="text-[10px] text-muted-foreground mt-0.5">
-                              {trade.quantity?.toLocaleString(undefined, { maximumFractionDigits: 4 })} units
+                            <div className={cn(
+                              "text-[10px] mt-0.5 font-mono",
+                              trade.pnl == null
+                                ? "text-muted-foreground/60 italic"
+                                : isProfit
+                                  ? "text-success/80"
+                                  : "text-destructive/80",
+                            )}>
+                              {trade.pnl == null
+                                ? "live price pending"
+                                : `${isProfit ? "+" : ""}${formatCurrency(pnlSigned)} vs entry`}
                             </div>
                           </td>
                           <td className="px-6 py-4">
