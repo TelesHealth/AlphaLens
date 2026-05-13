@@ -841,10 +841,11 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
             onClick={openPaperModal}
             disabled={paperMutation.isPending}
             data-testid={`btn-paper-trade-${recId}`}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-secondary hover:bg-secondary/70 border border-border text-sm font-medium transition-colors disabled:opacity-50"
+            title="Simulate this trade with no real funds — risk-free practice"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-success/15 hover:bg-success/25 border border-success/40 text-success text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
           >
             <Target className="w-4 h-4" />
-            {paperMutation.isPending ? "Submitting…" : "Paper Trade"}
+            {paperMutation.isPending ? "Submitting…" : "Simulate Trade (Paper)"}
           </button>
 
           {hasLiveAccount ? (
