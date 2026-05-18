@@ -3,23 +3,6 @@ import { useListMarkets } from "@workspace/api-client-react";
 import { Send, Bot, User, BrainCircuit, AlertTriangle, ChevronRight, Zap } from "lucide-react";
 import { cn } from "@/components/ui-helpers";
 import ReactMarkdown from "react-markdown";
-
-function PendingTimer() {
-  // Lightweight wall-clock counter shown while the coach mutation is in
-  // flight. Renders "Thinking… 7s" so the user has immediate, evolving
-  // feedback even though the response isn't streamed yet (P3-10).
-  const [seconds, setSeconds] = useState(0);
-  useEffect(() => {
-    setSeconds(0);
-    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-  return (
-    <span className="ml-3 text-xs font-mono text-muted-foreground tabular-nums">
-      Thinking… {seconds}s
-    </span>
-  );
-}
 import remarkGfm from "remark-gfm";
 import { useCoach } from "@/context/coach-context";
 import { consumeAskCoachPrefill } from "@/lib/ask-coach";
@@ -175,7 +158,9 @@ export default function Coach() {
                   <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
                   <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
                   <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
-                  <PendingTimer />
+                  <span className="ml-3 text-xs font-mono text-muted-foreground">
+                    Thinking…
+                  </span>
                 </div>
               </div>
             </div>
