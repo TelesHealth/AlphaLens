@@ -1,0 +1,59 @@
+Address the following bugs and enhancements across the Arclion application. Work through them in the order listed, as some changes share files or subsystems.
+
+---
+
+**1. Improve AI Coach response speed (P3-10) — /coach**
+
+Investigate the AI Coach API call and reduce latency so responses arrive in under 10 seconds. Apply all of the following that are applicable:
+
+- Enable streaming responses on the coach endpoint so the UI begins rendering tokens as they arrive rather than waiting for the full response. Update the frontend to consume a streaming response and progressively display text.
+- If a system prompt or context payload is sent on every request, cache or pre-load it so it is not recomputed per request.
+- Reduce the maximum token limit on the response if it is set higher than necessary for typical coach replies.
+- If the model selection is configurable, confirm it is set to a fast/low-latency model variant.
+- Add a visible loading indicator or typing indicator in the chat UI so the user receives immediate feedback that the request is in progress, regardless of latency improvements.
+
+---
+
+**2. Always show the Avoid, Watch, and Trade Calls sections (P3-11) — /briefing**
+
+In the briefing page, the Avoid, Watch, and Trade Calls sections must always be rendered, even when they contain no items.
+
+- Remove any conditional that hides the entire section when its list is empty.
+- When the list is empty, render the section header as normal and display a placeholder message such as "No calls at this time." (or equivalent calm, neutral wording) inside the section body.
+- Apply this fix to all three sections: Avoid, Watch, and Trade Calls.
+
+---
+
+**3. Differentiate severity labels between Trade Calls and Global Events; add tooltips to Watch, Avoid, and Global Events cards (P3-12) — /briefing**
+
+Currently both Trade Calls and Global Events use "High/Critical" labels, creating an undifferentiated sense of urgency. Fix this as follows:
+
+- For Global Events severity labels, replace the existing labels with impact-framing labels: "Impact: Low", "Impact: Medium", "Impact: High". Update the badge/chip text and any underlying value-to-label mappings.
+- For Watch and Avoid calls severity labels, use the same impact-framing labels as Global Events ("Impact: Low / Medium / High") since these are informational, not actionable conviction calls.
+- For Trade Calls, retain the current conviction-based labels ("Trade: Medium / High / Critical") but confirm the label prefix makes the distinction clear.
+- Add the same explanatory tooltip that currently exists on Trade Call severity badges to Watch, Avoid, and Global Events severity badges. The tooltip text should reflect the appropriate framing: for Global Events and Watch/Avoid, the tooltip should explain market impact level, not trade conviction.
+- Update any legend or key on the page if one exists.
+
+---
+
+**4. Prevent text wrapping in the Asset column of the Open Positions table (P3-13) — /portfolio**
+
+In the Open Positions table on the portfolio page, the Asset column wraps to multiple lines, breaking the table layout.
+
+- Add `white-space: nowrap` to the Asset column header and all Asset cell elements.
+- If the table is overflowing its container as a result, wrap the table in a horizontally scrollable container (`overflow-x: auto`) rather than allowing cell content to wrap.
+- Ensure no other columns are forced to wrap unnecessarily by this change; verify the table renders cleanly at common viewport widths.
+
+---
+
+**5. Add contextual information to Win Rate in Track Record (P3-14) — /leaderboard**
+
+The Win Rate figure in the Track Record section lacks context, making it feel misleadingly low.
+
+- Below or alongside the Win Rate statistic, add a short context line that surfaces at least two of the following: the strategy type or style (e.g., "Swing / Trend-following"), the primary timeframe (e.g., "Daily / 4H"), and a risk-adjusted metric if available (e.g., Profit Factor or Risk-Reward Ratio).
+- Add a tooltip or info icon next to the Win Rate label that explains what the win rate measures and notes that win rate alone does not indicate profitability without considering risk-reward ratio. Keep the tooltip text concise and factual.
+- If the data to populate strategy/timeframe/risk-adjusted fields is not yet available from the backend, display a placeholder such as "Context coming soon" rather than omitting the section.
+
+---
+
+Run pnpm run typecheck and verify the app boots before declaring complete.

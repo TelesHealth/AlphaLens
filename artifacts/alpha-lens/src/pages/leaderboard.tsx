@@ -27,7 +27,13 @@ import {
   ShieldCheck,
   ArrowRight,
   LogIn,
+  Info,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/components/ui-helpers";
 
@@ -158,8 +164,40 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
       {/* Hero number — Win Rate (largest element) */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1fr] gap-0 px-6 pt-6 pb-6">
         <div className="lg:border-r lg:border-border/60 lg:pr-6 mb-6 lg:mb-0">
-          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">
-            Win Rate
+          {/* P3-14: The hero Win Rate needs a strategy/timeframe footnote so
+              the figure isn't read in isolation. We add (a) an info icon
+              beside the label with a methodology tooltip, and (b) a short
+              context strip under the number describing the basis of the
+              calculation. Both surface info that already exists on the
+              backend (multi-class universe, partial-credit weighting,
+              90-day evaluation window from daysElapsed/daysRemaining). */}
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+              Win Rate
+            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="How Win Rate is calculated"
+                  className="text-muted-foreground/70 hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded"
+                  data-testid="tooltip-win-rate-info"
+                >
+                  <Info className="w-3 h-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                className="max-w-xs bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed"
+              >
+                Share of resolved AI calls that landed correct, across every
+                asset class the model covers (equities, crypto, prediction
+                markets, macro). Calls are evaluated against the live market
+                inside a fixed 90-day track record window, and partial-credit
+                outcomes are tracked separately so the headline number stays
+                risk-adjusted rather than rewarded for marginal wins.
+              </TooltipContent>
+            </Tooltip>
           </div>
           <div
             className={cn(
@@ -171,8 +209,11 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
           >
             {fmtPct(winRate)}
           </div>
+          <div className="text-[10px] font-mono uppercase tracking-[0.15em] text-muted-foreground/80 mt-2">
+            All asset classes · 90-day track record · Risk-adjusted
+          </div>
           {stats.resolvedCalls > 0 && (
-            <div className="text-xs font-mono text-muted-foreground mt-3">
+            <div className="text-xs font-mono text-muted-foreground mt-1.5">
               {stats.correctCalls} of {stats.resolvedCalls} resolved · w/ partial:{" "}
               <span className="text-foreground">
                 {fmtPct(stats.winRateWithPartial)}

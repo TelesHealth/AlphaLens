@@ -3,6 +3,23 @@ import { useListMarkets } from "@workspace/api-client-react";
 import { Send, Bot, User, BrainCircuit, AlertTriangle, ChevronRight, Zap } from "lucide-react";
 import { cn } from "@/components/ui-helpers";
 import ReactMarkdown from "react-markdown";
+
+function PendingTimer() {
+  // Lightweight wall-clock counter shown while the coach mutation is in
+  // flight. Renders "Thinking… 7s" so the user has immediate, evolving
+  // feedback even though the response isn't streamed yet (P3-10).
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    setSeconds(0);
+    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <span className="ml-3 text-xs font-mono text-muted-foreground tabular-nums">
+      Thinking… {seconds}s
+    </span>
+  );
+}
 import remarkGfm from "remark-gfm";
 import { useCoach } from "@/context/coach-context";
 import { consumeAskCoachPrefill } from "@/lib/ask-coach";
@@ -148,10 +165,17 @@ export default function Coach() {
                 <div className="w-10 h-10 rounded-xl bg-secondary border border-border text-foreground flex items-center justify-center shrink-0">
                   <BrainCircuit className="w-5 h-5 animate-pulse text-primary" />
                 </div>
-                <div className="p-5 rounded-2xl bg-background border border-border rounded-tl-sm flex items-center gap-2">
+                <div
+                  className="p-5 rounded-2xl bg-background border border-border rounded-tl-sm flex items-center gap-2"
+                  role="status"
+                  aria-live="polite"
+                  aria-label="AI Coach is generating a response"
+                  data-testid="coach-pending-indicator"
+                >
                   <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
                   <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
                   <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <PendingTimer />
                 </div>
               </div>
             </div>

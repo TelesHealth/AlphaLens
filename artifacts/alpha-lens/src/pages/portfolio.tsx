@@ -147,7 +147,7 @@ export default function Portfolio() {
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs font-mono text-muted-foreground uppercase bg-background border-b border-border">
                     <tr>
-                      <th className="px-6 py-4 font-semibold tracking-wider">Asset</th>
+                      <th className="px-6 py-4 font-semibold tracking-wider whitespace-nowrap">Asset</th>
                       <th className="px-6 py-4 font-semibold tracking-wider">Direction</th>
                       <th className="px-6 py-4 font-semibold tracking-wider">Entry Price</th>
                       <th className="px-6 py-4 font-semibold tracking-wider">
@@ -182,7 +182,13 @@ export default function Portfolio() {
                       const positionSize = entryAmount + pnlSigned;
                       return (
                         <tr key={trade.id} className="border-b border-border/50 hover:bg-secondary/50 transition-colors">
-                          <td className="px-6 py-4">
+                          {/* P3-13: nowrap on the Asset cell so the symbol +
+                              name line never breaks the row layout. The
+                              parent table already lives inside an
+                              overflow-x-auto container, so on narrow
+                              viewports the table scrolls horizontally rather
+                              than wrapping cells. */}
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <div className="font-bold text-foreground">{trade.assetSymbol}</div>
                             <div className="text-xs text-muted-foreground mt-0.5">{trade.assetName}</div>
                           </td>

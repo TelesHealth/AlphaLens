@@ -63,38 +63,90 @@ import {
 import { cn, formatCurrency } from "@/components/ui-helpers";
 import { useToast } from "@/hooks/use-toast";
 
-// Plain-language explanations of recommendation urgency tiers — wrapped in a
-// tooltip so first-time users understand what HIGH / MEDIUM / LOW actually
-// imply for timing.
+// P3-12: The briefing distinguishes two semantic axes:
+//   - TRADE CALLS use a conviction-driven urgency tier (how soon to act).
+//     We prefix the badge with "Trade:" so the reader instantly knows the
+//     label refers to actionable conviction, not passive market impact.
+//   - WATCH LIST, AVOID, and GLOBAL EVENTS are informational. They describe
+//     how much the underlying catalyst could move price, not whether to act
+//     right now. Those badges are prefixed with "Impact:" and use an
+//     impact-focused tooltip so users don't read a watch-list badge as a
+//     trade signal.
 const URGENCY_DESCRIPTIONS: Record<string, string> = {
+  critical:
+    "Trade conviction: critical — strongest setup of the session. Edge is wide and the catalyst is imminent; size carefully and act now.",
   high:
-    "High urgency — time-sensitive setup. The catalyst or edge is expected to play out within hours to a day; act soon or move on.",
+    "Trade conviction: high — time-sensitive setup. The catalyst or edge is expected to play out within hours to a day; act soon or move on.",
   medium:
-    "Medium urgency — actionable this session, but not immediate. Take time to size and confirm before entering.",
+    "Trade conviction: medium — actionable this session, but not immediate. Take time to size and confirm before entering.",
   low:
-    "Low urgency — informational. Worth tracking for context; no need to act today.",
+    "Trade conviction: low — informational. Worth tracking for context; no need to act today.",
 };
 
-function UrgencyBadge({ urgency }: { urgency?: string }) {
-  const styles: Record<string, string> = {
-    high: "bg-destructive/10 text-destructive border-destructive/20",
-    medium: "bg-warning/10 text-warning border-warning/20",
-    low: "bg-muted text-muted-foreground border-border",
-  };
+const IMPACT_DESCRIPTIONS: Record<string, string> = {
+  critical:
+    "Market impact: critical — could meaningfully move multiple assets or an entire sector. Reposition exposure accordingly.",
+  high:
+    "Market impact: high — likely to move the affected assets noticeably. Watch entries, stops, and correlated names.",
+  medium:
+    "Market impact: medium — modest expected price impact. Worth tracking; not a standalone trigger.",
+  low:
+    "Market impact: low — background context. Minimal direct trading implication on its own.",
+};
+
+function UrgencyBadge({
+  urgency,
+  recType,
+}: {
+  urgency?: string;
+  recType?: string;
+}) {
+  // For watch/avoid recommendations the badge describes how much the
+  // catalyst could move the market, not how urgently to act — so we route
+  // through the impact vocabulary instead of the conviction vocabulary.
+  const isInformational = recType === "watch" || recType === "avoid";
+  const styles: Record<string, string> = isInformational
+    ? {
+        critical:
+          "bg-destructive/20 text-destructive border-destructive/30 shadow-[0_0_8px_rgba(239,68,68,0.2)]",
+        high: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+        medium: "bg-warning/10 text-warning border-warning/20",
+        low: "bg-muted text-muted-foreground border-border",
+      }
+    : {
+        critical:
+          "bg-destructive/20 text-destructive border-destructive/30 shadow-[0_0_8px_rgba(239,68,68,0.2)]",
+        high: "bg-destructive/10 text-destructive border-destructive/20",
+        medium: "bg-warning/10 text-warning border-warning/20",
+        low: "bg-muted text-muted-foreground border-border",
+      };
   const key = (urgency ?? "low").toLowerCase();
-  const desc = URGENCY_DESCRIPTIONS[key] ?? URGENCY_DESCRIPTIONS.low;
+  const desc = isInformational
+    ? IMPACT_DESCRIPTIONS[key] ?? IMPACT_DESCRIPTIONS.low
+    : URGENCY_DESCRIPTIONS[key] ?? URGENCY_DESCRIPTIONS.low;
+  const prefix = isInformational ? "Impact" : "Trade";
+  const labelText = (urgency ?? "low").toUpperCase();
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
-          aria-label={`Urgency ${(urgency ?? "low").toUpperCase()}: ${desc}`}
+          onKeyDown={(e) => {
+            // The parent recommendation card uses role="button" + an
+            // Enter/Space onKeyDown toggle to expand its details. Without
+            // this guard, activating the tooltip via keyboard would also
+            // toggle the card behind it — confusing for screen-reader and
+            // keyboard-only users.
+            if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+          }}
+          aria-label={`${prefix} ${labelText}: ${desc}`}
           className={cn(
             "px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
             styles[key] ?? styles.low,
           )}
         >
+          <span className="opacity-70 mr-1">{prefix}:</span>
           {urgency ?? "low"}
         </button>
       </TooltipTrigger>
@@ -109,6 +161,9 @@ function UrgencyBadge({ urgency }: { urgency?: string }) {
 }
 
 function ImpactBadge({ level }: { level?: string }) {
+  // Used by Global Events. Mirrors the watch/avoid impact vocabulary so the
+  // user reads the same axis (market impact) across every informational
+  // surface in the briefing.
   const styles: Record<string, string> = {
     critical:
       "bg-destructive/20 text-destructive border-destructive/30 shadow-[0_0_8px_rgba(239,68,68,0.2)]",
@@ -116,15 +171,35 @@ function ImpactBadge({ level }: { level?: string }) {
     medium: "bg-warning/10 text-warning border-warning/20",
     low: "bg-muted text-muted-foreground border-border",
   };
+  const key = (level ?? "low").toLowerCase();
+  const desc = IMPACT_DESCRIPTIONS[key] ?? IMPACT_DESCRIPTIONS.low;
+  const labelText = (level ?? "low").toUpperCase();
   return (
-    <span
-      className={cn(
-        "px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border",
-        styles[level ?? "low"] ?? styles.low
-      )}
-    >
-      {level}
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+          }}
+          aria-label={`Impact ${labelText}: ${desc}`}
+          className={cn(
+            "px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+            styles[key] ?? styles.low,
+          )}
+        >
+          <span className="opacity-70 mr-1">Impact:</span>
+          {level ?? "low"}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        className="max-w-xs bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed"
+      >
+        {desc}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -356,7 +431,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-secondary border border-border">
                   {rec.type}
                 </span>
-                <UrgencyBadge urgency={rec.urgency} />
+                <UrgencyBadge urgency={rec.urgency} recType={rec.type ?? undefined} />
                 {rec.assetClass && (
                   <span className="text-[10px] text-muted-foreground font-mono">
                     {rec.assetClass}
@@ -1445,53 +1520,73 @@ export default function Briefing() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {trades.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <Target className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
-                  TRADE CALLS ({trades.length})
-                </h2>
-              </div>
+          {/* P3-11: All three recommendation sections render unconditionally
+              so the user always sees the full intelligence frame (Trades /
+              Watches / Avoids). When a bucket has no entries we render a
+              short "No calls at this time" placeholder rather than hiding
+              the section — hiding made the page feel broken or incomplete
+              during quiet sessions. The legacy "Run AI Scan" empty state
+              still shows only when ALL three buckets are empty, since that
+              indicates no briefing has been generated yet at all. */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <Target className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
+                TRADE CALLS ({trades.length})
+              </h2>
+            </div>
+            {trades.length > 0 ? (
               <div className="space-y-3">
                 {trades.map((rec: Recommendation) => (
                   <RecommendationCard key={rec.id} rec={rec} />
                 ))}
               </div>
-            </section>
-          )}
-
-          {watches.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <Eye className="w-4 h-4 text-warning" />
-                <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
-                  WATCH LIST ({watches.length})
-                </h2>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-card/50 px-4 py-5 text-xs text-muted-foreground">
+                No trade calls at this time.
               </div>
+            )}
+          </section>
+
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <Eye className="w-4 h-4 text-warning" />
+              <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
+                WATCH LIST ({watches.length})
+              </h2>
+            </div>
+            {watches.length > 0 ? (
               <div className="space-y-3">
                 {watches.map((rec: Recommendation) => (
                   <RecommendationCard key={rec.id} rec={rec} />
                 ))}
               </div>
-            </section>
-          )}
-
-          {avoids.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <ShieldAlert className="w-4 h-4 text-destructive" />
-                <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
-                  AVOID ({avoids.length})
-                </h2>
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-card/50 px-4 py-5 text-xs text-muted-foreground">
+                No watch-list items at this time.
               </div>
+            )}
+          </section>
+
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <ShieldAlert className="w-4 h-4 text-destructive" />
+              <h2 className="text-sm font-mono font-bold tracking-wider text-muted-foreground">
+                AVOID ({avoids.length})
+              </h2>
+            </div>
+            {avoids.length > 0 ? (
               <div className="space-y-3">
                 {avoids.map((rec: Recommendation) => (
                   <RecommendationCard key={rec.id} rec={rec} />
                 ))}
               </div>
-            </section>
-          )}
+            ) : (
+              <div className="rounded-xl border border-dashed border-border bg-card/50 px-4 py-5 text-xs text-muted-foreground">
+                No avoid calls at this time.
+              </div>
+            )}
+          </section>
 
           {trades.length === 0 &&
             watches.length === 0 &&
