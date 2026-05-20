@@ -1,0 +1,74 @@
+Address all six issues below in a single pass. Work through them in the order listed; some items share subsystems so group your edits accordingly.
+
+---
+
+**1. AI Coach chat persistence across logout/login (P3-15)**
+
+Locate the AI Coach chat logic (used on the /coach route). Currently chat history appears to be stored only in memory or ephemeral client state.
+
+- Ensure every new message (both user and assistant) is written to the database immediately when it is created, keyed to the authenticated user's ID and a session/conversation ID.
+- On login, fetch the user's existing conversation history from the database and rehydrate the chat UI so previous messages are visible.
+- On logout, do not clear the stored messages from the database; only clear the in-memory/client state.
+- If there is an existing "save chat" function that is only called on an explicit action, change it to save automatically on every message exchange instead.
+- Verify that unauthenticated users cannot read another user's chat history.
+
+---
+
+**2. Position size vs. entry amount showing identical values in portfolio (P3-16)**
+
+Locate the paper trading open-positions display on the /portfolio route.
+
+- Find where "Position Size" and "Entry Amount" are rendered. They currently reference the same data field.
+- "Entry Amount" should display the notional value at entry (entry price multiplied by quantity, or the raw dollar amount the user committed).
+- "Position Size" should display the quantity of units/contracts held for that market (e.g., number of shares, contracts, or lots), not the dollar amount.
+- Fix the data binding so each label maps to its correct field. If the backend is not returning a distinct position-size field, add the calculation or fetch from the correct source.
+
+---
+
+**3. Remove "Trade" from severity badge label in Briefing trade calls (P3-17)**
+
+Locate the severity badge component used on the /briefing route for trade calls.
+
+- The badge currently renders text such as "High Trade", "Medium Trade", or "Low Trade" (or a similar pattern where "Trade" is appended/prepended).
+- Remove the word "Trade" from the badge label so it shows only the severity level (e.g., "High", "Medium", "Low").
+- Confirm no other badge or label on that page is unintentionally affected.
+
+---
+
+**4. Improve open-positions display with expandable rows in portfolio (P3-18)**
+
+Refactor the open-positions table/list on the /portfolio route:
+
+- Default (collapsed) row state: show only the essential columns — asset name/ticker, direction (long/short), P&L or status, and the position title or a short preview.
+- Add a visible expand/collapse toggle (a chevron-down icon or similar) at the start or end of each row.
+- Expanded state: reveal secondary details — position amount, full description, AI Coach button, and the Close button.
+- The collapsed row must be readable without horizontal scrolling on a typical mobile screen width.
+- Preserve existing functionality (Close action, AI Coach navigation) in the expanded state.
+- If a row is currently expanded and the user collapses it, the state should reset cleanly without affecting other rows.
+
+---
+
+**5. Leaderboard track record out of date (P2-4)**
+
+Locate the data source or scheduled job that populates track record entries on the /leaderboard route.
+
+- Identify why the track record has not been updated for approximately one month (missed cron job, broken data pipeline, stale cache, or hardcoded data).
+- Fix the root cause so track record entries are generated and persisted on their expected schedule.
+- If the data is seeded or fetched from an external source, ensure the fetch/seed process runs automatically and surfaces errors when it fails.
+- After fixing, manually trigger an update so the leaderboard reflects current data immediately.
+- Add error logging or an alert so a future failure is visible without requiring manual discovery.
+
+---
+
+**6. Monitor login "failed to fetch" error (P4-2)**
+
+The login endpoint on /login previously returned a "failed to fetch" error but is currently working.
+
+- Review the login flow for any transient causes: missing environment variables for the auth endpoint, race conditions on startup, or uncaught network errors.
+- Add a user-facing error message that is specific and informative (not the raw "failed to fetch" browser error) so that if the failure recurs, users see a clear message such as "Unable to reach the server. Please try again."
+- Ensure the login form catches fetch/network errors explicitly and handles them gracefully rather than letting the unhandled rejection surface in the UI.
+- Add server-side logging on auth endpoint failures so future occurrences are captured in logs.
+
+---
+
+Run pnpm run typecheck and verify the app boots before declaring complete.

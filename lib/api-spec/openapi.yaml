@@ -225,6 +225,10 @@ paths:
       operationId: coachAnalyze
       tags: [coach]
       summary: Get AI coach analysis
+      description: >
+        Returns analysis for the user's question. When the caller is
+        authenticated, both the question and the response are persisted to
+        the user's chat history (see /coach/messages).
       requestBody:
         required: true
         content:
@@ -238,6 +242,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CoachResponse"
+
+  /coach/messages:
+    get:
+      operationId: listCoachMessages
+      tags: [coach]
+      summary: List the authenticated user's coach chat history
+      description: >
+        Returns the authenticated user's coach messages in chronological
+        order (oldest first). Returns 401 when the caller is not
+        authenticated — chat history is per-user and never shared.
+      responses:
+        "200":
+          description: User's coach message history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachMessagesResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: clearCoachMessages
+      tags: [coach]
+      summary: Clear the authenticated user's coach chat history
+      responses:
+        "200":
+          description: History cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cleared]
+                properties:
+                  cleared:
+                    type: integer
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /portfolio/stats:
     get:
@@ -1347,6 +1395,46 @@ components:
         - analysis
         - recommendations
         - confidence
+
+    CoachMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        role:
+          type: string
+          enum: [user, coach]
+        content:
+          type: string
+        recommendations:
+          type: array
+          nullable: true
+          items:
+            type: string
+        riskAssessment:
+          type: string
+          nullable: true
+        confidence:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - role
+        - content
+        - createdAt
+
+    CoachMessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoachMessage"
+      required:
+        - messages
 
     Recommendation:
       type: object

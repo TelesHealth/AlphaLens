@@ -376,6 +376,8 @@ export const CloseTradeResponse = zod.object({
 });
 
 /**
+ * Returns analysis for the user's question. When the caller is authenticated, both the question and the response are persisted to the user's chat history (see /coach/messages).
+
  * @summary Get AI coach analysis
  */
 export const CoachAnalyzeBody = zod.object({
@@ -389,6 +391,32 @@ export const CoachAnalyzeResponse = zod.object({
   recommendations: zod.array(zod.string()),
   riskAssessment: zod.string().nullish(),
   confidence: zod.number(),
+});
+
+/**
+ * Returns the authenticated user's coach messages in chronological order (oldest first). Returns 401 when the caller is not authenticated — chat history is per-user and never shared.
+
+ * @summary List the authenticated user's coach chat history
+ */
+export const ListCoachMessagesResponse = zod.object({
+  messages: zod.array(
+    zod.object({
+      id: zod.number(),
+      role: zod.enum(["user", "coach"]),
+      content: zod.string(),
+      recommendations: zod.array(zod.string()).nullish(),
+      riskAssessment: zod.string().nullish(),
+      confidence: zod.number().nullish(),
+      createdAt: zod.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Clear the authenticated user's coach chat history
+ */
+export const ClearCoachMessagesResponse = zod.object({
+  cleared: zod.number(),
 });
 
 /**

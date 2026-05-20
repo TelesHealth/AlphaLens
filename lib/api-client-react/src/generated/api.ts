@@ -20,6 +20,8 @@ import type {
   AddToWatchlist200,
   ApprovePendingOrder200,
   BriefingResponse,
+  ClearCoachMessages200,
+  CoachMessagesResponse,
   CoachRequest,
   CoachResponse,
   ErrorResponse,
@@ -863,6 +865,8 @@ export const useCloseTrade = <
 };
 
 /**
+ * Returns analysis for the user's question. When the caller is authenticated, both the question and the response are persisted to the user's chat history (see /coach/messages).
+
  * @summary Get AI coach analysis
  */
 export const getCoachAnalyzeUrl = () => {
@@ -946,6 +950,164 @@ export const useCoachAnalyze = <
   TContext
 > => {
   return useMutation(getCoachAnalyzeMutationOptions(options));
+};
+
+/**
+ * Returns the authenticated user's coach messages in chronological order (oldest first). Returns 401 when the caller is not authenticated — chat history is per-user and never shared.
+
+ * @summary List the authenticated user's coach chat history
+ */
+export const getListCoachMessagesUrl = () => {
+  return `/api/coach/messages`;
+};
+
+export const listCoachMessages = async (
+  options?: RequestInit,
+): Promise<CoachMessagesResponse> => {
+  return customFetch<CoachMessagesResponse>(getListCoachMessagesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCoachMessagesQueryKey = () => {
+  return [`/api/coach/messages`] as const;
+};
+
+export const getListCoachMessagesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCoachMessages>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCoachMessages>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCoachMessagesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listCoachMessages>>
+  > = ({ signal }) => listCoachMessages({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCoachMessages>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCoachMessagesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCoachMessages>>
+>;
+export type ListCoachMessagesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary List the authenticated user's coach chat history
+ */
+
+export function useListCoachMessages<
+  TData = Awaited<ReturnType<typeof listCoachMessages>>,
+  TError = ErrorType<ErrorResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listCoachMessages>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCoachMessagesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Clear the authenticated user's coach chat history
+ */
+export const getClearCoachMessagesUrl = () => {
+  return `/api/coach/messages`;
+};
+
+export const clearCoachMessages = async (
+  options?: RequestInit,
+): Promise<ClearCoachMessages200> => {
+  return customFetch<ClearCoachMessages200>(getClearCoachMessagesUrl(), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getClearCoachMessagesMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof clearCoachMessages>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof clearCoachMessages>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["clearCoachMessages"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof clearCoachMessages>>,
+    void
+  > = () => {
+    return clearCoachMessages(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ClearCoachMessagesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof clearCoachMessages>>
+>;
+
+export type ClearCoachMessagesMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Clear the authenticated user's coach chat history
+ */
+export const useClearCoachMessages = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof clearCoachMessages>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof clearCoachMessages>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getClearCoachMessagesMutationOptions(options));
 };
 
 /**

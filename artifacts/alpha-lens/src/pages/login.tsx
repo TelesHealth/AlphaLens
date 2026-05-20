@@ -15,22 +15,70 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    // P4-2: Distinguish between (a) network/transport failures — where
+    // fetch() rejects with TypeError "Failed to fetch" or AbortError — and
+    // (b) server-returned errors (4xx/5xx with a JSON body). The previous
+    // implementation surfaced the raw browser error string to the user,
+    // which made transient connectivity issues read as if the credentials
+    // were wrong. We now show a clear, actionable message in each case and
+    // log the underlying error to the browser console for debugging.
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
+      let res: Response;
+      try {
+        res = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/auth/login`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ email, password }),
+          },
+        );
+      } catch (networkErr) {
+        console.error("[login] network error", networkErr);
+        setError(
+          "Unable to reach the server. Please check your connection and try again.",
+        );
+        return;
+      }
+
+      let data: { error?: string; user?: unknown } | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Body wasn't JSON — could be a proxy/HTML error page during a
+        // deploy or cold start. Surface a friendly message instead of the
+        // raw parser error.
+        if (!res.ok) {
+          setError(
+            res.status >= 500
+              ? "The server hit an unexpected error. Please try again in a moment."
+              : "Login failed. Please try again.",
+          );
+          return;
+        }
+      }
       if (!res.ok) {
-        setError(data?.error ?? "Login failed");
+        // 401/403 → bad credentials; 4xx → validation; 5xx → server error.
+        if (res.status === 401 || res.status === 403) {
+          setError(data?.error ?? "Invalid email or password.");
+        } else if (res.status >= 500) {
+          setError(
+            "The server hit an unexpected error. Please try again in a moment.",
+          );
+        } else {
+          setError(data?.error ?? "Login failed. Please try again.");
+        }
         return;
       }
       await refresh();
       navigate("/briefing");
-    } catch (err: any) {
-      setError(err?.message ?? "Login failed");
+    } catch (err) {
+      // Last-resort catch — should be unreachable now that fetch errors are
+      // handled above, but kept so we never let an unhandled rejection
+      // surface as a stack trace in the UI.
+      console.error("[login] unexpected error", err);
+      setError("Login failed. Please try again.");
     } finally {
       setLoading(false);
     }

@@ -237,6 +237,28 @@ export interface CoachResponse {
   confidence: number;
 }
 
+export type CoachMessageRole =
+  (typeof CoachMessageRole)[keyof typeof CoachMessageRole];
+
+export const CoachMessageRole = {
+  user: "user",
+  coach: "coach",
+} as const;
+
+export interface CoachMessage {
+  id: number;
+  role: CoachMessageRole;
+  content: string;
+  recommendations?: string[] | null;
+  riskAssessment?: string | null;
+  confidence?: number | null;
+  createdAt: string;
+}
+
+export interface CoachMessagesResponse {
+  messages: CoachMessage[];
+}
+
 export type RecommendationType =
   (typeof RecommendationType)[keyof typeof RecommendationType];
 
@@ -916,6 +938,10 @@ export const ListMarketsSort = {
 
 export type GetSignalsParams = {
   limit?: number;
+};
+
+export type ClearCoachMessages200 = {
+  cleared: number;
 };
 
 export type GetGlobalEventsParams = {

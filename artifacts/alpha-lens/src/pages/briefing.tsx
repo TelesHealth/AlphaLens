@@ -146,7 +146,16 @@ function UrgencyBadge({
             styles[key] ?? styles.low,
           )}
         >
-          <span className="opacity-70 mr-1">{prefix}:</span>
+          {/* P3-17: For Trade calls we drop the "Trade:" prefix per user
+              feedback — the section header ("TRADE CALLS") already provides
+              that context, and the bare severity word reads cleaner. For
+              Watch/Avoid we keep the "Impact:" prefix because those sit
+              alongside Trade items and the prefix is the only signal that
+              their severity refers to market impact, not actionable
+              conviction. The tooltip still carries the full explanation. */}
+          {isInformational && (
+            <span className="opacity-70 mr-1">{prefix}:</span>
+          )}
           {urgency ?? "low"}
         </button>
       </TooltipTrigger>
