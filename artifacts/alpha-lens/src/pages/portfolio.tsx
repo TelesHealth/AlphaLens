@@ -162,9 +162,19 @@ export default function Portfolio() {
               <ul className="divide-y divide-border/50">
                 {portfolio.openTrades.map((trade) => {
                   const isProfit = (trade.pnl || 0) >= 0;
-                  const entryAmount =
-                    (trade.entryPrice ?? 0) * (trade.quantity ?? 0);
                   const quantity = trade.quantity ?? 0;
+                  const entryPrice = trade.entryPrice ?? 0;
+                  const entryAmount = entryPrice * quantity;
+                  // Derive current mark from pnl so the user can see where
+                  // the asset is trading right now without an extra round-trip.
+                  // pnl = (mark - entry) * qty for long, (entry - mark) * qty for short.
+                  const pnlNum = trade.pnl ?? 0;
+                  const markPrice =
+                    quantity > 0
+                      ? trade.direction === "short"
+                        ? entryPrice - pnlNum / quantity
+                        : entryPrice + pnlNum / quantity
+                      : entryPrice;
                   const isOpen = !!expanded[trade.id];
                   return (
                     <li key={trade.id}>
@@ -207,50 +217,97 @@ export default function Portfolio() {
                       {isOpen && (
                         <div
                           id={`position-details-${trade.id}`}
-                          className="px-4 sm:px-6 pb-5 pt-1 bg-background/40 border-t border-border/40"
+                          className="bg-gradient-to-b from-secondary/30 to-background/40 border-t border-border/40"
                           data-testid={`position-details-${trade.id}`}
                         >
-                          <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                            <div>
-                              <dt className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Entry Price</dt>
-                              <dd className="font-mono text-sm mt-1">{formatCurrency(trade.entryPrice)}</dd>
+                          <div className="px-5 sm:px-8 py-6 space-y-5">
+                            {/* Trade economics — grouped in a subtle inner panel
+                                so the dropdown reads as a distinct detail card
+                                rather than a loose grid below the row. */}
+                            <div className="rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm p-5">
+                              <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted-foreground">
+                                  Trade Details
+                                </h3>
+                                <span className="text-[10px] font-mono text-muted-foreground/70">
+                                  Opened {format(new Date(trade.openedAt), "MMM d, yyyy")}
+                                </span>
+                              </div>
+                              <dl className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-5">
+                                <div>
+                                  <dt className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 mb-1.5">
+                                    Entry Price
+                                  </dt>
+                                  <dd className="font-mono text-base font-semibold tabular-nums">
+                                    {formatCurrency(entryPrice)}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 mb-1.5">
+                                    Mark Price
+                                  </dt>
+                                  <dd className={cn(
+                                    "font-mono text-base font-semibold tabular-nums",
+                                    isProfit ? "text-success" : "text-destructive",
+                                  )}>
+                                    {formatCurrency(markPrice)}
+                                  </dd>
+                                  <dd className="text-[10px] text-muted-foreground/70 mt-1">
+                                    current
+                                  </dd>
+                                </div>
+                                <div data-testid={`position-size-${trade.id}`}>
+                                  <dt className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 mb-1.5">
+                                    Position Size
+                                  </dt>
+                                  <dd className="font-mono text-base font-semibold tabular-nums">
+                                    {quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                                  </dd>
+                                  <dd className="text-[10px] text-muted-foreground/70 mt-1">
+                                    units held
+                                  </dd>
+                                </div>
+                                <div data-testid={`entry-amount-${trade.id}`}>
+                                  <dt className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70 mb-1.5">
+                                    Entry Amount
+                                  </dt>
+                                  <dd className="font-mono text-base font-semibold tabular-nums">
+                                    {formatCurrency(entryAmount)}
+                                  </dd>
+                                  <dd className="text-[10px] text-muted-foreground/70 mt-1">
+                                    cost basis
+                                  </dd>
+                                </div>
+                              </dl>
                             </div>
-                            <div data-testid={`entry-amount-${trade.id}`}>
-                              <dt className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Entry Amount</dt>
-                              <dd className="font-mono text-sm mt-1 font-semibold">{formatCurrency(entryAmount)}</dd>
-                              <dd className="text-[10px] text-muted-foreground/70 mt-0.5">cost basis at open</dd>
+                            {/* Action row — separated visually from the data
+                                panel above so destructive/primary actions
+                                don't compete with read-only numbers. */}
+                            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-3">
+                              <Link
+                                href="/coach"
+                                onClick={() =>
+                                  setAskCoachPrefill(
+                                    `Walk me through my open ${trade.direction ?? ""} position in ${trade.assetName ?? trade.assetSymbol ?? `asset #${trade.assetId}`} in more depth (entry ${trade.entryPrice}, current P&L ${trade.pnl ?? 0}). Explain what's driving it right now and what I should be thinking about.`,
+                                    trade.assetId ?? undefined,
+                                  )
+                                }
+                                className="px-4 py-2.5 rounded-lg bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 hover:border-primary/50 transition-all text-sm font-medium inline-flex items-center justify-center gap-2"
+                                data-testid={`btn-ask-coach-position-${trade.id}`}
+                                title="Ask the AI Coach about this position"
+                              >
+                                <MessageSquare className="w-4 h-4" /> Ask Coach
+                              </Link>
+                              <button
+                                onClick={() => closeMutation.mutate({ id: trade.id })}
+                                disabled={closeMutation.isPending}
+                                className="px-4 py-2.5 rounded-lg bg-destructive/10 text-destructive border border-destructive/30 hover:bg-destructive/20 hover:border-destructive/50 transition-all text-sm font-medium inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                                data-testid={`btn-close-position-${trade.id}`}
+                              >
+                                <XCircle className="w-4 h-4" />
+                                {closeMutation.isPending ? "Closing…" : "Close Position"}
+                              </button>
                             </div>
-                            <div data-testid={`position-size-${trade.id}`}>
-                              <dt className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">Position Size</dt>
-                              <dd className="font-mono text-sm mt-1 font-semibold">
-                                {quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })}
-                              </dd>
-                              <dd className="text-[10px] text-muted-foreground/70 mt-0.5">units held</dd>
-                            </div>
-                          </dl>
-                          <div className="flex flex-wrap items-center gap-2 justify-end">
-                            <Link
-                              href="/coach"
-                              onClick={() =>
-                                setAskCoachPrefill(
-                                  `Walk me through my open ${trade.direction ?? ""} position in ${trade.assetName ?? trade.assetSymbol ?? `asset #${trade.assetId}`} in more depth (entry ${trade.entryPrice}, current P&L ${trade.pnl ?? 0}). Explain what's driving it right now and what I should be thinking about.`,
-                                  trade.assetId ?? undefined,
-                                )
-                              }
-                              className="px-3 py-2 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors text-xs font-medium inline-flex items-center gap-1.5"
-                              data-testid={`btn-ask-coach-position-${trade.id}`}
-                              title="Ask the AI Coach about this position"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5" /> Ask Coach
-                            </Link>
-                            <button
-                              onClick={() => closeMutation.mutate({ id: trade.id })}
-                              disabled={closeMutation.isPending}
-                              className="px-4 py-2 rounded-lg bg-background border border-border hover:border-primary hover:text-primary transition-colors text-xs font-medium inline-flex items-center gap-1.5 disabled:opacity-50"
-                              data-testid={`btn-close-position-${trade.id}`}
-                            >
-                              <XCircle className="w-3.5 h-3.5" /> Close
-                            </button>
                           </div>
                         </div>
                       )}
