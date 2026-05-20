@@ -702,25 +702,57 @@ function PublicHeader({ user }: { user: ReturnType<typeof useAuth>["user"] }) {
   );
 }
 
+const PAGE_SIZE = 50;
+
+// Map the UI filter tab onto the backend `status` param so the API does the
+// filtering BEFORE applying the row limit. Without this, the first 50 rows
+// would all be resolved (because the backend sorts resolved-first), and the
+// "Open" tab would render 0 results even though thousands of open calls
+// exist. correct/incorrect both narrow the resolved set client-side after
+// the backend has returned every resolved row.
+function statusParamFor(filter: FilterTab): "all" | "open" | "resolved" {
+  if (filter === "open") return "open";
+  if (filter === "correct" || filter === "incorrect") return "resolved";
+  return "all";
+}
+
 export default function LeaderboardPage() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<FilterTab>("all");
+  // How many rows the user has chosen to fetch. Starts at one page and grows
+  // when they click "Show more". Resets to one page when the filter changes
+  // so we don't keep requesting an old, larger window against a different
+  // (potentially much smaller) dataset.
+  const [limit, setLimit] = useState<number>(PAGE_SIZE);
 
-  const { data, isLoading, error } = useGetLeaderboard(undefined, {
-    query: {
-      queryKey: getGetLeaderboardQueryKey(),
-      refetchInterval: 60_000,
-      retry: false,
+  const statusParam = statusParamFor(filter);
+  const handleFilterChange = (next: FilterTab) => {
+    setFilter(next);
+    setLimit(PAGE_SIZE);
+  };
+
+  const { data, isLoading, error } = useGetLeaderboard(
+    { limit, status: statusParam },
+    {
+      query: {
+        queryKey: getGetLeaderboardQueryKey({ limit, status: statusParam }),
+        refetchInterval: 60_000,
+        retry: false,
+        // Keep the previous page's rows visible while the next page loads
+        // so paginating doesn't flash a full loading state on every click.
+        placeholderData: (prev) => prev,
+      },
     },
-  });
+  );
 
   const stats = data?.stats;
   const calibration = data?.calibration ?? [];
   const recommendations = data?.recommendations ?? [];
 
+  // For correct/incorrect we narrow the resolved set client-side. For "open"
+  // and "all", the backend has already applied the right status filter so we
+  // just pass through.
   const filteredRecs = useMemo(() => {
-    if (filter === "all") return recommendations;
-    if (filter === "open") return recommendations.filter((r) => r.outcome == null);
     if (filter === "correct")
       return recommendations.filter((r) => r.outcome === "correct");
     if (filter === "incorrect")
@@ -728,14 +760,20 @@ export default function LeaderboardPage() {
     return recommendations;
   }, [recommendations, filter]);
 
+  // Counts come from the stats summary (always reflects the full dataset),
+  // not from the paginated `recommendations` array — otherwise tab badges
+  // would shrink whenever the filter restricted what the backend returned.
   const counts = useMemo(() => {
+    if (!stats) {
+      return { all: 0, open: 0, correct: 0, incorrect: 0 };
+    }
     return {
-      all: recommendations.length,
-      open: recommendations.filter((r) => r.outcome == null).length,
-      correct: recommendations.filter((r) => r.outcome === "correct").length,
-      incorrect: recommendations.filter((r) => r.outcome === "incorrect").length,
+      all: stats.totalCalls,
+      open: stats.openCalls,
+      correct: stats.correctCalls,
+      incorrect: stats.incorrectCalls,
     };
-  }, [recommendations]);
+  }, [stats]);
 
   const showCalibration =
     stats != null && stats.resolvedCalls >= 10 && calibration.some((c) => c.calls > 0);
@@ -779,7 +817,7 @@ export default function LeaderboardPage() {
                       : `${stats.resolvedCalls} resolved · ${stats.openCalls} open · sorted resolved-first`}
                   </p>
                 </div>
-                <FilterTabs active={filter} onChange={setFilter} counts={counts} />
+                <FilterTabs active={filter} onChange={handleFilterChange} counts={counts} />
               </div>
 
               {/* Header row (desktop) */}
@@ -807,6 +845,45 @@ export default function LeaderboardPage() {
                   ))
                 )}
               </div>
+
+              {/* Pagination footer — without this, the table looked like the
+                  track record stopped wherever the 50th visible row landed.
+                  Now the user sees "showing X of Y" and can pull more pages. */}
+              {recommendations.length > 0 && (() => {
+                const totalCalls = stats.totalCalls;
+                const shown = recommendations.length;
+                const hasMore = shown < totalCalls && shown >= limit;
+                return (
+                  <div className="px-6 py-4 border-t border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p className="text-xs font-mono text-muted-foreground">
+                      Showing {shown.toLocaleString()} of {totalCalls.toLocaleString()} calls
+                      {hasMore ? " · more available" : " · end of record"}
+                    </p>
+                    {hasMore && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setLimit((n) => n + PAGE_SIZE)}
+                          disabled={isLoading}
+                          className="px-3 py-1.5 rounded-lg border border-border bg-background hover:border-primary hover:text-primary transition-colors text-xs font-mono uppercase tracking-wider disabled:opacity-50"
+                          data-testid="btn-load-more-leaderboard"
+                        >
+                          Show {PAGE_SIZE} more
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLimit(Math.min(totalCalls, 2000))}
+                          disabled={isLoading}
+                          className="px-3 py-1.5 rounded-lg border border-border/60 bg-background/60 hover:border-primary/60 hover:text-primary transition-colors text-xs font-mono uppercase tracking-wider disabled:opacity-50"
+                          data-testid="btn-show-all-leaderboard"
+                        >
+                          Show all
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Empty-state extra context */}

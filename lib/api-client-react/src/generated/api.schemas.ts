@@ -962,7 +962,7 @@ export type UpdateRecommendationOutcome200 = {
 
 export type GetLeaderboardParams = {
   /**
-   * @maximum 100
+   * @maximum 2000
    */
   limit?: number;
   type?: GetLeaderboardType;

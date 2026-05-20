@@ -714,7 +714,7 @@ export const UpdateRecommendationOutcomeResponse = zod.object({
  * @summary Public signal accuracy leaderboard
  */
 export const getLeaderboardQueryLimitDefault = 50;
-export const getLeaderboardQueryLimitMax = 100;
+export const getLeaderboardQueryLimitMax = 2000;
 
 export const getLeaderboardQueryTypeDefault = `all`;
 export const getLeaderboardQueryStatusDefault = `all`;

@@ -446,7 +446,7 @@ paths:
           schema:
             type: integer
             default: 50
-            maximum: 100
+            maximum: 2000
         - name: type
           in: query
           schema:

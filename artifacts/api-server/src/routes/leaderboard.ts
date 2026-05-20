@@ -229,9 +229,16 @@ router.get("/", async (req, res) => {
       if (aResolved && !bResolved) return -1;
       if (!aResolved && bResolved) return 1;
       if (aResolved && bResolved) {
-        const aTime = a.resolutionDate ? new Date(a.resolutionDate).getTime() : 0;
-        const bTime = b.resolutionDate ? new Date(b.resolutionDate).getTime() : 0;
-        return bTime - aTime;
+        const aRes = a.resolutionDate ? new Date(a.resolutionDate).getTime() : 0;
+        const bRes = b.resolutionDate ? new Date(b.resolutionDate).getTime() : 0;
+        if (aRes !== bRes) return bRes - aRes;
+        // Tiebreaker: within the same resolution date, newest call first.
+        // Without this, a same-day batch of resolutions appears in arbitrary
+        // DB-insertion order, making the bottom of the page look like the
+        // track record stops at a stale "createdAt" date.
+        const aMade = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bMade = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bMade - aMade;
       }
       const aConv = typeof a.convictionScore === "number" ? a.convictionScore : -Infinity;
       const bConv = typeof b.convictionScore === "number" ? b.convictionScore : -Infinity;
