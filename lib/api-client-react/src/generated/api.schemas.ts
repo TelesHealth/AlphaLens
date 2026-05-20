@@ -901,10 +901,18 @@ export interface ResolutionDigest {
   needsReviewIds: number[];
 }
 
+export type LeaderboardResponsePagination = {
+  /** Total rows matching current type/status filter */
+  total: number;
+  offset: number;
+  limit: number;
+};
+
 export interface LeaderboardResponse {
   stats: LeaderboardStats;
   calibration: LeaderboardCalibrationBucket[];
   recommendations: Recommendation[];
+  pagination: LeaderboardResponsePagination;
 }
 
 export type ListMarketsParams = {
@@ -965,6 +973,10 @@ export type GetLeaderboardParams = {
    * @maximum 2000
    */
   limit?: number;
+  /**
+   * @minimum 0
+   */
+  offset?: number;
   type?: GetLeaderboardType;
   status?: GetLeaderboardStatus;
 };
@@ -985,6 +997,8 @@ export type GetLeaderboardStatus =
 export const GetLeaderboardStatus = {
   resolved: "resolved",
   open: "open",
+  correct: "correct",
+  incorrect: "incorrect",
   all: "all",
 } as const;
 

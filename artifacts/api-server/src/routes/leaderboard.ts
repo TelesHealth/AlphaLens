@@ -21,6 +21,7 @@ function round1(n: number): number {
 router.get("/", async (req, res) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 2000);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
     const typeFilter = (req.query.type as string | undefined) ?? "all";
     const statusFilter = (req.query.status as string | undefined) ?? "all";
     
@@ -221,28 +222,10 @@ router.get("/", async (req, res) => {
     );
     const daysRemaining = Math.max(0, TRACK_RECORD_TOTAL_DAYS - daysElapsed);
 
-    // Sort + filter recommendations: resolved first (newest resolution),
-    // then open ordered by convictionScore (highest first), then createdAt
+    // Sort by createdAt desc — newest call always on top, regardless of
+    // resolution status. This matches the "Date" column the user sees and
+    // makes pagination intuitive (page 1 = latest 50 calls overall).
     const sorted = [...all].sort((a, b) => {
-      const aResolved = a.outcome != null;
-      const bResolved = b.outcome != null;
-      if (aResolved && !bResolved) return -1;
-      if (!aResolved && bResolved) return 1;
-      if (aResolved && bResolved) {
-        const aRes = a.resolutionDate ? new Date(a.resolutionDate).getTime() : 0;
-        const bRes = b.resolutionDate ? new Date(b.resolutionDate).getTime() : 0;
-        if (aRes !== bRes) return bRes - aRes;
-        // Tiebreaker: within the same resolution date, newest call first.
-        // Without this, a same-day batch of resolutions appears in arbitrary
-        // DB-insertion order, making the bottom of the page look like the
-        // track record stops at a stale "createdAt" date.
-        const aMade = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bMade = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bMade - aMade;
-      }
-      const aConv = typeof a.convictionScore === "number" ? a.convictionScore : -Infinity;
-      const bConv = typeof b.convictionScore === "number" ? b.convictionScore : -Infinity;
-      if (aConv !== bConv) return bConv - aConv;
       const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return bTime - aTime;
@@ -252,10 +235,15 @@ router.get("/", async (req, res) => {
       if (typeFilter !== "all" && r.type !== typeFilter) return false;
       if (statusFilter === "resolved" && r.outcome == null) return false;
       if (statusFilter === "open" && r.outcome != null) return false;
+      // Outcome-specific filters operate on resolved rows only so the
+      // pagination total matches what the user sees on the page.
+      if (statusFilter === "correct" && r.outcome !== "correct") return false;
+      if (statusFilter === "incorrect" && r.outcome !== "incorrect") return false;
       return true;
     });
 
-    const recommendations = filtered.slice(0, limit);
+    const totalMatchingFilter = filtered.length;
+    const recommendations = filtered.slice(offset, offset + limit);
 
     res.json({
       stats: {
@@ -290,6 +278,11 @@ router.get("/", async (req, res) => {
       },
       calibration,
       recommendations,
+      pagination: {
+        total: totalMatchingFilter,
+        offset,
+        limit,
+      },
     });
   } catch (e: any) {
     req.log.error({ err: e }, "Error building leaderboard");

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { LeaderboardCalibrationBucket } from "./leaderboardCalibrationBucket";
+import type { LeaderboardResponsePagination } from "./leaderboardResponsePagination";
 import type { LeaderboardStats } from "./leaderboardStats";
 import type { Recommendation } from "./recommendation";
 
@@ -13,4 +14,5 @@ export interface LeaderboardResponse {
   stats: LeaderboardStats;
   calibration: LeaderboardCalibrationBucket[];
   recommendations: Recommendation[];
+  pagination: LeaderboardResponsePagination;
 }

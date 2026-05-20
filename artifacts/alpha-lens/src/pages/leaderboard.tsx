@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import {
   useGetLeaderboard,
@@ -704,61 +704,70 @@ function PublicHeader({ user }: { user: ReturnType<typeof useAuth>["user"] }) {
 
 const PAGE_SIZE = 50;
 
-// Map the UI filter tab onto the backend `status` param so the API does the
-// filtering BEFORE applying the row limit. Without this, the first 50 rows
-// would all be resolved (because the backend sorts resolved-first), and the
-// "Open" tab would render 0 results even though thousands of open calls
-// exist. correct/incorrect both narrow the resolved set client-side after
-// the backend has returned every resolved row.
-function statusParamFor(filter: FilterTab): "all" | "open" | "resolved" {
+// Map the UI filter tab onto the backend `status` param so the API does ALL
+// filtering before slicing the page. Without backend-side filtering the
+// pagination totals would be wrong (e.g. "Page 1 of 2" when there are
+// actually 30 correct calls spread across many pages of mixed outcomes).
+function statusParamFor(filter: FilterTab): "all" | "open" | "correct" | "incorrect" {
   if (filter === "open") return "open";
-  if (filter === "correct" || filter === "incorrect") return "resolved";
+  if (filter === "correct") return "correct";
+  if (filter === "incorrect") return "incorrect";
   return "all";
 }
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<FilterTab>("all");
-  // How many rows the user has chosen to fetch. Starts at one page and grows
-  // when they click "Show more". Resets to one page when the filter changes
-  // so we don't keep requesting an old, larger window against a different
-  // (potentially much smaller) dataset.
-  const [limit, setLimit] = useState<number>(PAGE_SIZE);
+  // 1-based page index. Each page is PAGE_SIZE rows. Reset to 1 whenever the
+  // filter changes so we don't end up parked on page 10 of a much smaller
+  // filtered dataset.
+  const [page, setPage] = useState<number>(1);
 
   const statusParam = statusParamFor(filter);
   const handleFilterChange = (next: FilterTab) => {
     setFilter(next);
-    setLimit(PAGE_SIZE);
+    setPage(1);
   };
 
-  const { data, isLoading, error } = useGetLeaderboard(
-    { limit, status: statusParam },
-    {
-      query: {
-        queryKey: getGetLeaderboardQueryKey({ limit, status: statusParam }),
-        refetchInterval: 60_000,
-        retry: false,
-        // Keep the previous page's rows visible while the next page loads
-        // so paginating doesn't flash a full loading state on every click.
-        placeholderData: (prev) => prev,
-      },
+  const offset = (page - 1) * PAGE_SIZE;
+  // Restrict the leaderboard list to trade-type recommendations so the
+  // pagination total lines up with the "Calls Made" hero stat (which is
+  // also trades-only). Watch/avoid items don't have outcomes anyway and
+  // wouldn't render meaningful values in the table columns.
+  const queryParams = {
+    limit: PAGE_SIZE,
+    offset,
+    status: statusParam,
+    type: "trade" as const,
+  };
+
+  const { data, isLoading, error } = useGetLeaderboard(queryParams, {
+    query: {
+      queryKey: getGetLeaderboardQueryKey(queryParams),
+      refetchInterval: 60_000,
+      retry: false,
+      // Keep the previous page's rows visible while the next page loads
+      // so Next/Previous doesn't flash a full loading state on every click.
+      placeholderData: (prev) => prev,
     },
-  );
+  });
 
   const stats = data?.stats;
   const calibration = data?.calibration ?? [];
   const recommendations = data?.recommendations ?? [];
 
-  // For correct/incorrect we narrow the resolved set client-side. For "open"
-  // and "all", the backend has already applied the right status filter so we
-  // just pass through.
-  const filteredRecs = useMemo(() => {
-    if (filter === "correct")
-      return recommendations.filter((r) => r.outcome === "correct");
-    if (filter === "incorrect")
-      return recommendations.filter((r) => r.outcome === "incorrect");
-    return recommendations;
-  }, [recommendations, filter]);
+  // Guard against being parked on a page that no longer exists — e.g. the
+  // dataset shrank after a background refresh, or we just changed filters.
+  // Without this, the user would see an empty table at offset 450 of 150.
+  const paginationTotal = data?.pagination?.total ?? 0;
+  const totalPagesForEffect = Math.max(1, Math.ceil(paginationTotal / PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPagesForEffect) setPage(totalPagesForEffect);
+  }, [page, totalPagesForEffect]);
+
+  // Backend now applies the full filter (including correct/incorrect) before
+  // pagination, so the rows we get back are already the correct set.
+  const filteredRecs = recommendations;
 
   // Counts come from the stats summary (always reflects the full dataset),
   // not from the paginated `recommendations` array — otherwise tab badges
@@ -814,7 +823,7 @@ export default function LeaderboardPage() {
                       ? "First outcomes will appear as the AI's predictions resolve. The track record started " +
                         fmtDateLong(stats.trackRecordStart) +
                         "."
-                      : `${stats.resolvedCalls} resolved · ${stats.openCalls} open · sorted resolved-first`}
+                      : `${stats.resolvedCalls} resolved · ${stats.openCalls} open · newest first`}
                   </p>
                 </div>
                 <FilterTabs active={filter} onChange={handleFilterChange} counts={counts} />
@@ -846,41 +855,64 @@ export default function LeaderboardPage() {
                 )}
               </div>
 
-              {/* Pagination footer — without this, the table looked like the
-                  track record stopped wherever the 50th visible row landed.
-                  Now the user sees "showing X of Y" and can pull more pages. */}
-              {recommendations.length > 0 && (() => {
-                const totalCalls = stats.totalCalls;
-                const shown = recommendations.length;
-                const hasMore = shown < totalCalls && shown >= limit;
+              {/* Pagination footer — page-based Previous / Next so the user
+                  can move through the full dataset (~1,600 calls) one page
+                  at a time, with a clear "Page X of Y" indicator. */}
+              {(() => {
+                const totalForFilter = data?.pagination?.total ?? 0;
+                if (totalForFilter === 0) return null;
+                const totalPages = Math.max(1, Math.ceil(totalForFilter / PAGE_SIZE));
+                const safePage = Math.min(page, totalPages);
+                const rangeStart = (safePage - 1) * PAGE_SIZE + 1;
+                const rangeEnd = Math.min(safePage * PAGE_SIZE, totalForFilter);
+                const canPrev = safePage > 1;
+                const canNext = safePage < totalPages;
                 return (
                   <div className="px-6 py-4 border-t border-border/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <p className="text-xs font-mono text-muted-foreground">
-                      Showing {shown.toLocaleString()} of {totalCalls.toLocaleString()} calls
-                      {hasMore ? " · more available" : " · end of record"}
+                      Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of{" "}
+                      {totalForFilter.toLocaleString()} · Page {safePage} of {totalPages}
                     </p>
-                    {hasMore && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setLimit((n) => n + PAGE_SIZE)}
-                          disabled={isLoading}
-                          className="px-3 py-1.5 rounded-lg border border-border bg-background hover:border-primary hover:text-primary transition-colors text-xs font-mono uppercase tracking-wider disabled:opacity-50"
-                          data-testid="btn-load-more-leaderboard"
-                        >
-                          Show {PAGE_SIZE} more
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setLimit(Math.min(totalCalls, 2000))}
-                          disabled={isLoading}
-                          className="px-3 py-1.5 rounded-lg border border-border/60 bg-background/60 hover:border-primary/60 hover:text-primary transition-colors text-xs font-mono uppercase tracking-wider disabled:opacity-50"
-                          data-testid="btn-show-all-leaderboard"
-                        >
-                          Show all
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPage(1)}
+                        disabled={!canPrev || isLoading}
+                        className="px-2.5 py-1.5 rounded-lg border border-border/60 bg-background hover:border-primary hover:text-primary transition-colors text-xs font-mono uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+                        data-testid="btn-page-first"
+                        aria-label="First page"
+                      >
+                        «
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={!canPrev || isLoading}
+                        className="px-3 py-1.5 rounded-lg border border-border bg-background hover:border-primary hover:text-primary transition-colors text-xs font-mono uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+                        data-testid="btn-page-prev"
+                      >
+                        ‹ Previous
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={!canNext || isLoading}
+                        className="px-3 py-1.5 rounded-lg border border-border bg-background hover:border-primary hover:text-primary transition-colors text-xs font-mono uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+                        data-testid="btn-page-next"
+                      >
+                        Next ›
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPage(totalPages)}
+                        disabled={!canNext || isLoading}
+                        className="px-2.5 py-1.5 rounded-lg border border-border/60 bg-background hover:border-primary hover:text-primary transition-colors text-xs font-mono uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
+                        data-testid="btn-page-last"
+                        aria-label="Last page"
+                      >
+                        »
+                      </button>
+                    </div>
                   </div>
                 );
               })()}

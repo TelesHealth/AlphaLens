@@ -716,6 +716,9 @@ export const UpdateRecommendationOutcomeResponse = zod.object({
 export const getLeaderboardQueryLimitDefault = 50;
 export const getLeaderboardQueryLimitMax = 2000;
 
+export const getLeaderboardQueryOffsetDefault = 0;
+export const getLeaderboardQueryOffsetMin = 0;
+
 export const getLeaderboardQueryTypeDefault = `all`;
 export const getLeaderboardQueryStatusDefault = `all`;
 
@@ -724,11 +727,15 @@ export const GetLeaderboardQueryParams = zod.object({
     .number()
     .max(getLeaderboardQueryLimitMax)
     .default(getLeaderboardQueryLimitDefault),
+  offset: zod.coerce
+    .number()
+    .min(getLeaderboardQueryOffsetMin)
+    .default(getLeaderboardQueryOffsetDefault),
   type: zod
     .enum(["trade", "watch", "avoid", "all"])
     .default(getLeaderboardQueryTypeDefault),
   status: zod
-    .enum(["resolved", "open", "all"])
+    .enum(["resolved", "open", "correct", "incorrect", "all"])
     .default(getLeaderboardQueryStatusDefault),
 });
 
@@ -865,6 +872,13 @@ export const GetLeaderboardResponse = zod.object({
       createdAt: zod.date().nullish(),
     }),
   ),
+  pagination: zod.object({
+    total: zod
+      .number()
+      .describe("Total rows matching current type\/status filter"),
+    offset: zod.number(),
+    limit: zod.number(),
+  }),
 });
 
 /**

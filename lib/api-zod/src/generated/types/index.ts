@@ -44,6 +44,7 @@ export * from "./globalEventImpactLevel";
 export * from "./healthStatus";
 export * from "./leaderboardCalibrationBucket";
 export * from "./leaderboardResponse";
+export * from "./leaderboardResponsePagination";
 export * from "./leaderboardStats";
 export * from "./leaderboardStatsByType";
 export * from "./leaderboardStatsByTypeAvoid";

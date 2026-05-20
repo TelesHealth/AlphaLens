@@ -13,6 +13,10 @@ export type GetLeaderboardParams = {
    * @maximum 2000
    */
   limit?: number;
+  /**
+   * @minimum 0
+   */
+  offset?: number;
   type?: GetLeaderboardType;
   status?: GetLeaderboardStatus;
 };

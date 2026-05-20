@@ -12,5 +12,7 @@ export type GetLeaderboardStatus =
 export const GetLeaderboardStatus = {
   resolved: "resolved",
   open: "open",
+  correct: "correct",
+  incorrect: "incorrect",
   all: "all",
 } as const;
