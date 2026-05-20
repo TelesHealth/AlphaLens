@@ -57,9 +57,23 @@ function fmtNumber(n: number | null | undefined, decimals = 1): string {
   return n.toFixed(decimals);
 }
 
+// Date-only strings ("YYYY-MM-DD") are parsed by `new Date()` as UTC midnight,
+// which then rolls back a calendar day when rendered in any timezone west of
+// UTC (e.g. April 22 UTC → "April 21" in US Pacific). Parse them as local
+// midnight instead so the calendar date the backend sent is the one the user
+// sees. Full ISO timestamps (with time + offset) are left to the default
+// parser, which is unambiguous.
+function parseDisplayDate(s: string): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(s);
+}
+
 function fmtDate(s: string | null | undefined): string {
   if (!s) return "—";
-  const d = new Date(s);
+  const d = parseDisplayDate(s);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString(undefined, {
     month: "short",
@@ -69,7 +83,7 @@ function fmtDate(s: string | null | undefined): string {
 }
 
 function fmtDateLong(s: string): string {
-  const d = new Date(s);
+  const d = parseDisplayDate(s);
   return d.toLocaleDateString(undefined, {
     month: "long",
     day: "numeric",
