@@ -474,13 +474,24 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   {rec.title}
                 </h3>
               )}
+              {/* Bug fix: when the card is expanded, drop the `truncate` and
+                  `line-clamp-2` clamps so the asset title, headline, and
+                  edge explanation render in full instead of getting cut
+                  off with an ellipsis. When collapsed we keep the clamps
+                  so the briefing list stays dense and scannable. */}
               {rec.assetTitle && (
-                <div className="text-[11px] text-muted-foreground font-mono mt-0.5 truncate">
+                <div className={cn(
+                  "text-[11px] text-muted-foreground font-mono mt-0.5",
+                  !expanded && "truncate",
+                )}>
                   {rec.assetTitle}
                 </div>
               )}
               {rec.headline && (
-                <div className="text-xs text-muted-foreground mt-1 line-clamp-2 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground/90">
+                <div className={cn(
+                  "text-xs text-muted-foreground mt-1 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground/90",
+                  !expanded && "line-clamp-2",
+                )}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec.headline}</ReactMarkdown>
                 </div>
               )}
@@ -517,7 +528,10 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               )}
               {rec.edgeExplanation && (
                 <div
-                  className="text-xs text-muted-foreground italic mt-1.5 line-clamp-2"
+                  className={cn(
+                    "text-xs text-muted-foreground italic mt-1.5",
+                    !expanded && "line-clamp-2",
+                  )}
                   title={rec.edgeExplanation}
                   onClick={(e) => e.stopPropagation()}
                 >
