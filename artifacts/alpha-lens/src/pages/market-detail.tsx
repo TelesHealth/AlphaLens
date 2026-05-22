@@ -98,7 +98,7 @@ function ProbabilityGauge({ value, title, color }: { value: number, title: strin
           </PieChart>
         </ResponsiveContainer>
         <div className="absolute inset-0 flex flex-col items-center justify-center pt-6">
-          <span className="text-2xl font-bold font-mono">{value}%</span>
+          <span className="text-2xl font-bold font-mono">{Math.round(value)}%</span>
         </div>
       </div>
       <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest mt-[-20px]">{title}</span>
