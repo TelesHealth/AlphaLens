@@ -302,24 +302,16 @@ export async function getCoachAnalysis(input: CoachInput) {
     : `User question: ${input.question}`;
 
   try {
-    // P3-10: Latency reduction levers applied:
-    //   - max_tokens 1000 → 600: coach replies are 3-5 paragraphs +
-    //     5 bullets + risk + confidence line, which comfortably fits in
-    //     ~500-550 tokens. Cuts worst-case completion time roughly 40%
-    //     (sonnet-4-6 emits ~40-60 tok/s).
-    //   - Model stays on claude-sonnet-4-6: it is the fast variant in the
-    //     4-series and benchmarks faster than claude-3-5-sonnet at higher
-    //     quality. Haiku would be ~2x faster but loses the structured
-    //     reasoning the coach prompt depends on, so we keep sonnet.
-    //   - Streaming was evaluated but requires OpenAPI/codegen changes +
-    //     SSE wiring on the frontend; deferred to post-UAT to keep the
-    //     contract stable during the freeze. The frontend was updated
-    //     instead to show a "Thinking… N s" indicator for live feedback.
-    //   - Context build steps (DB queries + macro fetch) already run via
-    //     Promise.all upstream of this call, so no win available there.
+    // P2-5: max_tokens raised 600 → 1200. The 600-token cap was clipping
+    // longer responses, especially when the user invoked "Ask Coach" from a
+    // briefing trade-call card with rich context (the model writes ~3-5
+    // paragraphs + a 5-bullet RECOMMENDATIONS block + RISK + confidence
+    // line, which routinely overflows 600 tokens and gets truncated
+    // mid-sentence). 1200 gives ~2x headroom while still keeping completion
+    // latency under ~15s on sonnet-4-6 (~40-60 tok/s).
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 600,
+      max_tokens: 1200,
       system: COACH_PROMPT,
       messages: [{ role: "user", content: prompt }],
     });

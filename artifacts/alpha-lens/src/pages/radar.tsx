@@ -443,13 +443,17 @@ export default function RadarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4 flex-wrap">
+      {/* P3-21: stack header content vertically on mobile so the
+          "LIVE — 5 MIN CYCLE" badge and Scan button sit BELOW the title +
+          description instead of floating beside (and overlapping) them at
+          375/390px. md+ keeps the original side-by-side layout. */}
+      <div className="flex flex-col md:flex-row md:items-center md:gap-4 gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-destructive/10 border border-destructive/20">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-destructive/10 border border-destructive/20 shrink-0">
               <Radio className="w-5 h-5 text-destructive" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-2xl font-display font-bold tracking-tight">Market Radar</h1>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">
                 PRICE SPIKES · VOLUME ANOMALIES · CHAIN REACTIONS
@@ -457,7 +461,7 @@ export default function RadarPage() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/50 border border-border">
             <div className="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(34,197,94,0.8)] animate-pulse" />
             <span className="text-[10px] font-mono text-muted-foreground">LIVE — 5 MIN CYCLE</span>

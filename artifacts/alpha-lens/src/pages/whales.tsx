@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import {
   useGetWhalesStatus,
   useGetWhalesFlowAlerts,
@@ -19,8 +20,74 @@ import {
   AlertTriangle,
   Landmark,
   Bitcoin,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/components/ui-helpers";
+import { setAskCoachPrefill } from "@/lib/ask-coach";
+
+// P3-22: per-tab plain-language descriptions + a pre-wired "Ask AI Coach"
+// button so beginner users have context for what each whale-data view
+// actually means and a one-click path to a deeper explanation.
+function TabIntro({
+  tabId,
+  description,
+  coachPrompt,
+}: {
+  tabId: TabId;
+  description: string;
+  coachPrompt: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-card/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+      <p className="text-sm text-muted-foreground flex-1 leading-relaxed">{description}</p>
+      <Link
+        href="/coach"
+        onClick={() => setAskCoachPrefill(coachPrompt)}
+        data-testid={`btn-ask-coach-whales-${tabId}`}
+        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary text-sm font-medium transition-colors shrink-0"
+      >
+        <MessageSquare className="w-4 h-4" />
+        Ask AI Coach
+      </Link>
+    </div>
+  );
+}
+
+const TAB_INTROS: Record<
+  TabId,
+  { description: string; coachPrompt: string }
+> = {
+  flow: {
+    description:
+      "Options Flow shows large options contract activity. Unusual size, sweeps, and high volume-to-open-interest ratios can signal institutional traders making directional bets — useful as an early read on smart-money positioning.",
+    coachPrompt:
+      "Explain how to read and use options flow data to make trading decisions. Walk me through what sweeps, premium size, and volume/OI ratios actually mean, and how to spot meaningful signals versus noise.",
+  },
+  darkpool: {
+    description:
+      "Dark Pools are private exchanges where large institutional trades execute away from public markets. Unusual dark-pool prints (above-average size, prints near the bid or ask) can signal quiet accumulation or distribution before the move shows up on the tape.",
+    coachPrompt:
+      "Explain dark pool prints — what they are, how to interpret unusual notional size relative to NBBO bid/ask, and how I should use this data alongside price action to spot institutional accumulation or distribution.",
+  },
+  tide: {
+    description:
+      "Market Tide tracks overall market breadth and money-flow direction across sectors. Net call vs put premium and net volume tell you whether capital is rotating risk-on or risk-off in real time across the broader market.",
+    coachPrompt:
+      "Explain Market Tide — how net call premium, net put premium, and net volume across the market reveal risk-on/risk-off sentiment, and how I should use breadth and money-flow data to time entries.",
+  },
+  congress: {
+    description:
+      "Congress tracks disclosed stock trades made by members of the U.S. Congress, which are publicly reported by law within 45 days. Sustained buying or selling by well-connected members can occasionally front-run policy or regulatory moves.",
+    coachPrompt:
+      "Explain how to use Congressional trade disclosures as a trading signal — what to watch for, the limitations of the 45-day reporting lag, and which patterns historically have predictive value versus noise.",
+  },
+  crypto: {
+    description:
+      "Crypto Whales tracks large wallet movements and transactions on-chain. Big transfers to/from exchanges, accumulation by known whale wallets, and unusual cross-chain flows can signal major buying or selling pressure before price reacts.",
+    coachPrompt:
+      "Explain how to interpret on-chain whale movements in crypto — exchange inflows vs outflows, large accumulation wallets, and which signals reliably precede price moves versus which are noise.",
+  },
+};
 import {
   ResponsiveContainer,
   AreaChart,
@@ -190,6 +257,7 @@ export default function Whales() {
 
       {tab === "flow" && (
         <div className="space-y-3">
+          <TabIntro tabId="flow" {...TAB_INTROS.flow} />
           {flowLoading || summaryLoading ? (
             <div className="text-center py-20 text-muted-foreground text-sm">Loading options flow...</div>
           ) : (
@@ -269,6 +337,7 @@ export default function Whales() {
 
       {tab === "darkpool" && (
         <div className="space-y-3">
+          <TabIntro tabId="darkpool" {...TAB_INTROS.darkpool} />
           {dpLoading ? (
             <div className="text-center py-20 text-muted-foreground text-sm">Loading dark pool data...</div>
           ) : (
@@ -327,6 +396,7 @@ export default function Whales() {
 
       {tab === "congress" && (
         <div className="space-y-3">
+          <TabIntro tabId="congress" {...TAB_INTROS.congress} />
           {congressLoading ? (
             <div className="text-center py-20 text-muted-foreground text-sm">Loading congressional trades...</div>
           ) : (congressData?.trades ?? []).length === 0 ? (
@@ -380,6 +450,7 @@ export default function Whales() {
 
       {tab === "crypto" && (
         <div className="space-y-3">
+          <TabIntro tabId="crypto" {...TAB_INTROS.crypto} />
           {cryptoLoading ? (
             <div className="text-center py-20 text-muted-foreground text-sm">Loading crypto whale transactions...</div>
           ) : (cryptoData?.transactions ?? []).length === 0 ? (
@@ -430,6 +501,7 @@ export default function Whales() {
 
       {tab === "tide" && (
         <div className="space-y-4">
+          <TabIntro tabId="tide" {...TAB_INTROS.tide} />
           {tideLoading ? (
             <div className="text-center py-20 text-muted-foreground text-sm">Loading market tide...</div>
           ) : tideChartData.length === 0 ? (

@@ -1,0 +1,91 @@
+Fix the following bugs and enhancements across the codebase in the order listed below. Address every item completely.
+
+---
+
+**1. Persist AI Coach chat history across logout/login (P3-15)**
+
+AI Coach chat history must survive a logout/login cycle. Make the following changes:
+
+- When a user sends a message and receives a response in the AI Coach (/coach), immediately persist each message (both user and assistant turns) to the database tied to the authenticated user's ID, not just to local/session state.
+- On coach page load, fetch the user's full chat history from the database and hydrate the chat UI with it, regardless of whether the session was freshly created or resumed.
+- Do not clear chat history from the database on logout. The logout flow should only clear the client-side session/token, not the stored messages.
+- If a guest/unauthenticated session exists, do not persist those messages to the database. Only persist messages for authenticated users.
+- Add a database migration or schema update if chat messages are not already stored in a persistent table with columns for user_id, role (user/assistant), content, and created_at timestamp.
+
+---
+
+**2. Fix cut-off AI Coach responses when using "Ask AI Coach" from trade call cards (P2-5)**
+
+AI Coach responses are being truncated when invoked via the "Ask AI Coach" button on briefing trade call cards.
+
+- Locate the function that constructs and sends the prompt to the AI when the "Ask AI Coach" button is clicked from a trade call context.
+- Increase or remove any hardcoded token/character limit being applied to this specific prompt path that does not apply to normal coach messages.
+- Ensure the AI response is streamed or awaited fully before rendering. If the response is being cut off due to a response timeout, increase the timeout limit for this endpoint.
+- Verify the prompt being constructed from the trade call card data is not excessively long in a way that leaves no room for the completion. Trim or summarize the injected context if needed, but do not shorten the expected response length.
+- After the fix, the full response must render in the chat view without truncation.
+
+---
+
+**3. Schedule automated market scoring and AI analysis refresh every 5 minutes (P2-6)**
+
+Market scores and AI analysis in / and /market/{market-id} currently require manual triggering.
+
+- Create a scheduled job (cron job or equivalent background task) that runs every 5 minutes.
+- The job must iterate over all active market assets and trigger the deep analysis and scoring pipeline for each one, the same logic that is currently invoked manually per asset.
+- Ensure the job runs server-side and does not require any user interaction or page visit to trigger.
+- Add logging to confirm each run: log start time, markets processed, and any errors encountered.
+- If the infrastructure does not already support background scheduling, add a lightweight scheduler (such as node-cron or equivalent for the stack in use) and initialize it on server startup.
+- Ensure the scheduler does not produce duplicate overlapping runs: if a previous run is still in progress when the next tick fires, skip that tick and log a warning.
+
+---
+
+**4. Fix Recent Realized P&L chart and Trade History not showing newly closed positions (P3-20, P3-23)**
+
+These two issues share the same root cause: closed positions are not appearing promptly in the portfolio view.
+
+- Locate the data-fetching logic for both the "Recent Realized P&L" chart and the "Trade History" list on /portfolio.
+- Remove or increase any display/history limit that is artificially capping how many entries are shown. The most recently closed positions must always appear, so if a limit exists, sort by closed_at descending before applying it.
+- Ensure that when a position is closed (paper trade or real trade), the close event immediately writes the realized P&L record to the database with an accurate closed_at timestamp.
+- After a position is closed, invalidate or refetch the portfolio data on the client so the Trade History list and the Realized P&L chart both update without requiring a full page reload.
+- Verify the Realized P&L chart's data query uses the closed_at timestamp for sorting and filtering, not a creation or update timestamp that might predate the close event.
+
+---
+
+**5. Fix overlapping "LIVE - 5 min cycle" badge on /radar mobile view (P3-21)**
+
+The floating badge overlaps the Market Radar short description text on mobile screens.
+
+- Locate the "LIVE - 5 min cycle" badge component on the /radar page.
+- On mobile breakpoints, change the badge's positioning so it does not overlap the description text. Options in order of preference: move it below the title and above the description as an inline element, or reposition it to a corner that does not intersect the text block.
+- Do not use a fixed/absolute position strategy on mobile that causes it to float over content. Switch to relative/inline positioning at small breakpoints.
+- Verify the fix at 375px and 390px widths.
+
+---
+
+**6. Fix inconsistent font sizes in expanded briefing Trade Call cards (P3-19)**
+
+- Locate the expanded state of the Trade Call card component on /briefing.
+- Audit all text elements rendered inside the expanded card sections (entry, target, stop loss, rationale, etc.).
+- Standardize the font sizes: use a single base size for body/label text within the card (e.g., the project's existing small or base text utility class) and a consistent size for section headings within the card.
+- Remove any inline font-size overrides that deviate from the standard scale.
+- Ensure the fix is consistent across all card variants that can appear in the expanded state.
+
+---
+
+**7. Add section descriptions and "Ask AI Coach" buttons to /whales tabs (P3-22)**
+
+The /whales page tabs (Options Flow, Dark Pool, Market Tide, Congress, Crypto Whales) have no explanatory context for beginner users.
+
+- For each tab (Options Flow, Dark Pool, Market Tide, Congress, Crypto Whales), add a short descriptive paragraph immediately below the tab title or at the top of the tab content panel. The description should explain in plain language what the data in that tab represents and why it matters for traders.
+  - Options Flow: explain that this shows large options contract activity that may signal institutional directional bets.
+  - Dark Pool: explain that dark pools are private exchanges where large institutional trades are executed away from public markets, and unusual prints can signal accumulation or distribution.
+  - Market Tide: explain that this tracks overall market breadth and money flow direction across sectors.
+  - Congress: explain that this tracks disclosed stock trades made by members of Congress, which are publicly reported by law.
+  - Crypto Whales: explain that this tracks large wallet movements and transactions in cryptocurrency markets that may indicate major buying or selling pressure.
+- Below each tab description, add an "Ask AI Coach" button. When clicked, it should open the AI Coach (or a coach modal/drawer) with a pre-filled prompt relevant to that tab (e.g., for Options Flow: "Explain how to read and use options flow data to make trading decisions.").
+- The button style should match the existing "Ask AI Coach" button used elsewhere in the app (e.g., on briefing trade call cards).
+- Ensure the pre-filled prompt is sent to the coach and a response is initiated automatically, not left as a draft.
+
+---
+
+Run pnpm run typecheck and verify the app boots before declaring complete.
