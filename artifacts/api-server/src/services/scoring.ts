@@ -129,36 +129,49 @@ Provide your AI probability assessment, direction, and generate evidence signals
       },
     };
   } catch (e: any) {
-    const fallbackProb = 50 + (Math.random() - 0.5) * 20;
+    // Bug fix: previously, ANY error in this function (transient Anthropic
+    // 5xx, rate limit, JSON parse hiccup, etc.) overwrote the asset row
+    // with synthetic fallback values — a random ~50% probability and the
+    // text "AI scoring encountered an issue." This wiped the last good
+    // scan, so a user landing on /market/:id during a transient failure
+    // would see the error banner where their previous analysis used to be.
+    //
+    // New behavior: on failure, we DO NOT touch the DB at all. The asset
+    // row keeps its last successful scan (aiProbability, aiSummary,
+    // edge, alphaScore, lastScoredAt) and the next successful scan will
+    // refresh it normally. The error is logged and returned in `scoring`
+    // so callers (manual "Trigger Deep Analysis" button) can surface a
+    // toast, but the persisted UI data stays intact.
+    //
+    // For brand-new assets that have never been scored successfully, the
+    // existing row is still returned unchanged (everything null / default)
+    // and the UI will continue to show its "no analysis yet" empty state
+    // — which is honest, and much better than a fake fallback that looks
+    // like a real scan.
+    console.error(
+      `[scoreMarketWithAI] scoring failed for asset id=${market.id} symbol=${market.symbol}: ${e?.message ?? e}. Preserving last successful scan in DB.`,
+    );
+
     const marketProb = market.marketProbability ?? market.currentPrice ?? 50;
-    const edge = Math.round((fallbackProb - marketProb) * 10) / 10;
-
-    const [updatedMarket] = await db
-      .update(assetsTable)
-      .set({
-        aiProbability: fallbackProb,
-        edge,
-        direction: edge > 0 ? "bullish" : edge < 0 ? "bearish" : "neutral",
-        alphaScore: Math.abs(edge),
-        aiSummary: `AI scoring encountered an issue. Fallback probability: ${fallbackProb.toFixed(1)}%`,
-        lastScoredAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(assetsTable.id, market.id))
-      .returning();
-
+    // The DB column `assets.direction` is plain text and could in principle
+    // contain a legacy/unexpected value. Validate against the allowlist
+    // here so we never return an out-of-band literal to the client.
+    const allowedDirections = ["bullish", "bearish", "neutral"] as const;
+    type Direction = (typeof allowedDirections)[number];
+    const safeDirection: Direction = (
+      allowedDirections as readonly string[]
+    ).includes(market.direction ?? "")
+      ? (market.direction as Direction)
+      : "neutral";
     return {
-      market: updatedMarket,
+      market, // unchanged — last good scan preserved
       scoring: {
-        aiProbability: fallbackProb,
+        aiProbability: market.aiProbability ?? 0,
         marketProbability: marketProb,
-        edge,
-        direction: (edge > 0 ? "bullish" : edge < 0 ? "bearish" : "neutral") as
-          | "bullish"
-          | "bearish"
-          | "neutral",
-        confidence: 0.3,
-        reasoning: `Fallback scoring applied. Error: ${e.message}`,
+        edge: market.edge ?? 0,
+        direction: safeDirection,
+        confidence: 0,
+        reasoning: `Scoring temporarily unavailable (${e?.message ?? "unknown error"}). Showing last successful analysis.`,
       },
     };
   }
