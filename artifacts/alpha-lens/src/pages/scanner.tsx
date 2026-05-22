@@ -194,17 +194,17 @@ export default function Scanner() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         {market.aiProbability ? (
-                          <div className="font-mono text-lg font-medium">{market.aiProbability}%</div>
+                          <div className="font-mono text-lg font-medium">{Math.round(market.aiProbability)}%</div>
                         ) : <span className="text-muted-foreground">—</span>}
                         {market.marketProbability && (
-                          <div className="text-xs text-muted-foreground mt-1 font-mono">Mkt: {market.marketProbability}%</div>
+                          <div className="text-xs text-muted-foreground mt-1 font-mono">Mkt: {Math.round(market.marketProbability)}%</div>
                         )}
                       </td>
                       <td
                         className="px-6 py-4 text-center"
                         title={
                           market.edge != null
-                            ? `${market.sector === "prediction" ? "Probability gap" : "Directional edge"}: AI ${market.aiProbability ?? "—"}% vs market ${market.marketProbability ?? "—"}% (${market.edge > 0 ? "+" : ""}${market.edge.toFixed(1)} pts)`
+                            ? `${market.sector === "prediction" ? "Probability gap" : "Directional edge"}: AI ${market.aiProbability != null ? Math.round(market.aiProbability) : "—"}% vs market ${market.marketProbability != null ? Math.round(market.marketProbability) : "—"}% (${market.edge > 0 ? "+" : ""}${market.edge.toFixed(1)} pts)`
                             : undefined
                         }
                       >
