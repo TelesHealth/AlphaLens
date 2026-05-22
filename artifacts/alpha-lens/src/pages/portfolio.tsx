@@ -59,8 +59,12 @@ export default function Portfolio() {
     return <div className="p-12 text-center text-destructive">Failed to load portfolio.</div>;
   }
 
-  // Generate chart data from closed trades
-  const chartData = portfolio.closedTrades.slice(-10).reverse().map(t => ({
+  // P3-20/P3-23 (v2): backend returns closedTrades sorted DESC by
+  // closedAt (newest first). The previous `slice(-10).reverse()` was
+  // pulling the OLDEST 10 trades — so the chart never updated when the
+  // user closed a new position. Take the FIRST 10 (newest) then reverse
+  // so the chart still reads left-to-right oldest → newest.
+  const chartData = portfolio.closedTrades.slice(0, 10).reverse().map(t => ({
     name: t.assetSymbol,
     pnl: t.pnl || 0,
     date: format(new Date(t.closedAt!), "MMM d"),

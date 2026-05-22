@@ -597,9 +597,15 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                     );
                   })()}
                 </div>
+                {/* P3-19 (v2): conviction score was text-2xl which dominated
+                    the expanded card and broke the visual hierarchy
+                    against the other stat tiles (PROBABILITY GAP / AI
+                    PROBABILITY / CURRENT PRICE all use text-sm font-mono).
+                    Drop to text-base so every stat tile reads at the same
+                    visual weight across all breakpoints. */}
                 <div
                   className={cn(
-                    "text-2xl font-mono font-bold mt-1",
+                    "text-base font-mono font-bold mt-1",
                     rec.convictionScore > 15
                       ? "text-success"
                       : rec.convictionScore > 0
@@ -628,7 +634,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 </div>
                 <div
                   className={cn(
-                    "text-sm font-mono font-bold",
+                    "text-base font-mono font-bold",
                     rec.edge > 0 ? "text-success" : "text-destructive",
                   )}
                 >
@@ -643,7 +649,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 <div className="text-[10px] font-mono text-muted-foreground mb-1">
                   AI PROBABILITY
                 </div>
-                <div className="text-sm font-mono font-bold">
+                <div className="text-base font-mono font-bold">
                   {rec.aiProbability > 1
                     ? rec.aiProbability.toFixed(1)
                     : (rec.aiProbability * 100).toFixed(1)}
@@ -660,7 +666,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                       ? "CURRENT RATE"
                       : "CURRENT PRICE"}
                 </div>
-                <div className="text-sm font-mono font-bold">
+                <div className="text-base font-mono font-bold">
                   {rec.assetClass === "prediction"
                     ? `${rec.marketPrice.toFixed(1)}%`
                     : rec.assetClass === "fx"

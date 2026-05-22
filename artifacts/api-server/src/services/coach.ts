@@ -25,18 +25,18 @@ You provide personalized, actionable coaching to traders analyzing markets. Your
 - Balanced — always present bull AND bear cases
 - Educational — explain WHY, not just WHAT
 
-When analyzing a position, cover:
-1. Edge assessment — is the AI vs market gap tradeable?
-2. Risk factors — what could make the trade go wrong?
-3. Position sizing guidance — how much to allocate?
-4. Timing — is now the right entry or should they wait?
-5. Historical context — what happened in similar setups?
+When analyzing a position, cover (briefly): edge assessment, key risk factors, position-sizing guidance, timing, and one line of historical context if relevant.
 
-Structure your response as follows:
-1. First, write 3-5 focused paragraphs of analysis. Be conversational but precise.
-2. Then on a new line write "RECOMMENDATIONS:" followed by 3-5 actionable bullet points starting with "- "
-3. Then on a new line write "RISK:" followed by a single-line risk assessment (e.g., "Medium — volatility elevated, position size carefully")
-4. Then on a new line write "CONFIDENCE:" followed by a number 0-100
+LENGTH BUDGET (CRITICAL — your reply must always finish all four sections below):
+- Total response: roughly 800–1400 tokens. Always leave headroom so RECOMMENDATIONS, RISK, and CONFIDENCE are guaranteed to fit.
+- It is BETTER to be brief and complete than long and truncated. If you only have room for 2 short paragraphs of analysis, write 2 short paragraphs and move on — never trail off mid-sentence.
+- Prefer tight, information-dense sentences. No filler, no restating the question.
+
+Structure your response as follows (ALL FOUR sections are mandatory and must always appear):
+1. 2–3 focused paragraphs of analysis. Conversational but precise. Keep each paragraph to 3–5 sentences.
+2. Then on a new line write "RECOMMENDATIONS:" followed by 3 actionable bullet points starting with "- " (each bullet one short sentence, ≤ 25 words).
+3. Then on a new line write "RISK:" followed by a single-line risk assessment (e.g., "Medium — volatility elevated, position size carefully").
+4. Then on a new line write "CONFIDENCE:" followed by a number 0-100.
 
 MARKDOWN FORMATTING RULES (strict):
 - Use only well-formed markdown. Every "**" opening MUST have a matching closing "**" with no spaces between the asterisks and the bolded word(s) (correct: **High**, incorrect: ** High** or High **).
@@ -52,6 +52,55 @@ MARKDOWN FORMATTING RULES (strict):
  *  - `- item` bullets are preserved
  * Anything else loose (single `*`, leading `* `, trailing `**`) is cleaned up.
  */
+/**
+ * P2-5 (v2/3): When Claude hits max_tokens, the LAST line is usually a
+ * partial sentence ("...and the trade is"). We need to drop just that
+ * partial tail without wiping out structured sections (RECOMMENDATIONS:,
+ * RISK:, CONFIDENCE:) or already-complete bullet lines above it.
+ *
+ * Strategy:
+ *   1. Split into lines, walk backwards, and discard ONLY the trailing
+ *      lines that look incomplete (don't end with terminal punctuation
+ *      and aren't a section header / blank line). Stop as soon as we
+ *      hit a complete line — keep everything above intact.
+ *   2. If after that the very last kept line is still not terminated
+ *      (rare), chop it back to its last [.!?].
+ *
+ * This preserves RECOMMENDATIONS: + every fully-written bullet even
+ * when the model was cut mid-way through the LAST bullet.
+ */
+function trimToLastCompleteSentence(input: string): string {
+  if (!input) return input;
+  const SECTION_HEADERS = /^\s*(RECOMMENDATIONS|RISK|CONFIDENCE)\s*:/i;
+  const lines = input.replace(/\s+$/, "").split("\n");
+  while (lines.length > 0) {
+    const last = lines[lines.length - 1].trim();
+    if (last === "") { lines.pop(); continue; }
+    if (SECTION_HEADERS.test(last)) break; // keep complete section headers
+    // A line is considered "complete" if it ends with terminal punctuation
+    // (optionally followed by a closing bracket/quote) OR is a numeric line
+    // like "CONFIDENCE: 78" which often has no punctuation.
+    const complete = /[.!?][)"'\]]*$/.test(last) || /:\s*\d+\s*$/.test(last);
+    if (complete) break;
+    lines.pop();
+  }
+  if (lines.length === 0) return input; // safety: never wipe everything
+  // Defensive: if the final kept line is still mid-sentence (shouldn't
+  // happen given the loop above, but be safe), chop at its last [.!?].
+  const lastIdx = lines.length - 1;
+  const lastLine = lines[lastIdx];
+  if (!/[.!?][)"'\]]*$/.test(lastLine.trim()) && !SECTION_HEADERS.test(lastLine.trim())) {
+    const re = /[.!?][)"'\]]*(?=\s|$)/g;
+    let lastEnd = -1;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(lastLine)) !== null) {
+      lastEnd = m.index + m[0].length;
+    }
+    if (lastEnd > 0) lines[lastIdx] = lastLine.slice(0, lastEnd);
+  }
+  return lines.join("\n").trim();
+}
+
 function sanitizeMarkdown(input: string): string {
   if (!input) return input;
   let out = input;
@@ -302,16 +351,18 @@ export async function getCoachAnalysis(input: CoachInput) {
     : `User question: ${input.question}`;
 
   try {
-    // P2-5: max_tokens raised 600 → 1200. The 600-token cap was clipping
-    // longer responses, especially when the user invoked "Ask Coach" from a
-    // briefing trade-call card with rich context (the model writes ~3-5
-    // paragraphs + a 5-bullet RECOMMENDATIONS block + RISK + confidence
-    // line, which routinely overflows 600 tokens and gets truncated
-    // mid-sentence). 1200 gives ~2x headroom while still keeping completion
-    // latency under ~15s on sonnet-4-6 (~40-60 tok/s).
+    // P2-5 (v2): max_tokens raised 1200 → 2048 AND the system prompt was
+    // tightened with an explicit length budget (~800–1400 tokens, 2–3
+    // short paragraphs, 3 bullets) so the model has plenty of headroom to
+    // always finish all four sections (analysis / RECOMMENDATIONS / RISK /
+    // CONFIDENCE) without trailing off mid-sentence — which kept happening
+    // at 1200 tokens with the previous "3–5 paragraphs + 5 bullets" prompt.
+    // Belt-and-suspenders: we also detect a "max_tokens" stop_reason below
+    // and trim the response back to the last complete sentence so the user
+    // never sees a chopped half-word at the end.
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1200,
+      max_tokens: 2048,
       system: COACH_PROMPT,
       messages: [{ role: "user", content: prompt }],
     });
@@ -323,6 +374,19 @@ export async function getCoachAnalysis(input: CoachInput) {
       if (block.type === "text") {
         analysis = block.text.trim();
         break;
+      }
+    }
+
+    // P2-5 (v2): If Anthropic stopped us at the token cap, trim the trailing
+    // partial sentence so the response always ends cleanly. We keep
+    // everything up to (and including) the last terminal punctuation
+    // [.!?] or closing bracket/quote, OR the last complete bullet/heading
+    // line. Without this, a 2048-token reply that runs out of room would
+    // end with "...the trade is" mid-thought.
+    if (response.stop_reason === "max_tokens" && analysis) {
+      const trimmed = trimToLastCompleteSentence(analysis);
+      if (trimmed && trimmed.length > 50) {
+        analysis = trimmed;
       }
     }
 

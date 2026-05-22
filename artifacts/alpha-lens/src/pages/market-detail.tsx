@@ -41,6 +41,36 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
+// P2-6 (v3): format an ISO timestamp as "Wed, May 20, 2026 · 14:32 UTC"
+// using a real UTC-aware formatter. We can't reuse date-fns `format` here
+// because it ignores timezone and uses the host's local time, which made
+// the displayed value disagree with the "UTC" suffix.
+const _utcFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+function formatLastScoredUtc(iso: string | Date): string {
+  const d = typeof iso === "string" ? new Date(iso) : iso;
+  if (Number.isNaN(d.getTime())) return "Never";
+  // Intl returns e.g. "Wed, May 20, 2026, 14:32" → reshape to our preferred
+  // "Wed, May 20, 2026 · 14:32 UTC" separator style.
+  const parts = _utcFmt.formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const weekday = get("weekday");
+  const month = get("month");
+  const day = get("day");
+  const year = get("year");
+  const hour = get("hour");
+  const minute = get("minute");
+  return `${weekday}, ${month} ${day}, ${year} · ${hour}:${minute} UTC`;
+}
+
 function ProbabilityGauge({ value, title, color }: { value: number, title: string, color: string }) {
   const data = [
     { name: "Active", value: value },
@@ -151,7 +181,18 @@ export default function MarketDetail() {
                 <div className="flex items-center gap-4 text-muted-foreground font-mono">
                   <span className="text-lg">{market.symbol}</span>
                   <div className="w-1 h-1 rounded-full bg-border" />
-                  <span>Last Scored: {market.lastScoredAt ? format(new Date(market.lastScoredAt), "HH:mm 'UTC'") : "Never"}</span>
+                  {/* P2-6 (v2/3): show full day + date + time so users know
+                      both recency and which day the analysis ran. Format:
+                      "Wed, May 20, 2026 · 14:32 UTC". date-fns `format`
+                      uses LOCAL timezone, so we use Intl.DateTimeFormat
+                      with timeZone:'UTC' to ensure the displayed value
+                      actually matches the "UTC" label. */}
+                  <span title={market.lastScoredAt ? new Date(market.lastScoredAt).toISOString() : undefined}>
+                    Last Scored:{" "}
+                    {market.lastScoredAt
+                      ? formatLastScoredUtc(market.lastScoredAt)
+                      : "Never"}
+                  </span>
                 </div>
               </div>
               
