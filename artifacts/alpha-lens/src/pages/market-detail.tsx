@@ -41,26 +41,24 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
-// P2-6 (v3): format an ISO timestamp as "Wed, May 20, 2026 · 14:32 UTC"
-// using a real UTC-aware formatter. We can't reuse date-fns `format` here
-// because it ignores timezone and uses the host's local time, which made
-// the displayed value disagree with the "UTC" suffix.
-const _utcFmt = new Intl.DateTimeFormat("en-US", {
-  timeZone: "UTC",
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
-function formatLastScoredUtc(iso: string | Date): string {
+// P2-6 (v4): per user request, render Last Scored in the viewer's LOCAL
+// timezone (and label it with their local tz abbreviation, e.g. "PDT")
+// rather than UTC. We still keep the full ISO in the tooltip so anyone
+// debugging across timezones can see the canonical instant.
+function formatLastScoredLocal(iso: string | Date): string {
   const d = typeof iso === "string" ? new Date(iso) : iso;
   if (Number.isNaN(d.getTime())) return "Never";
-  // Intl returns e.g. "Wed, May 20, 2026, 14:32" → reshape to our preferred
-  // "Wed, May 20, 2026 · 14:32 UTC" separator style.
-  const parts = _utcFmt.formatToParts(d);
+  const fmt = new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZoneName: "short",
+  });
+  const parts = fmt.formatToParts(d);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   const weekday = get("weekday");
   const month = get("month");
@@ -68,7 +66,8 @@ function formatLastScoredUtc(iso: string | Date): string {
   const year = get("year");
   const hour = get("hour");
   const minute = get("minute");
-  return `${weekday}, ${month} ${day}, ${year} · ${hour}:${minute} UTC`;
+  const tz = get("timeZoneName");
+  return `${weekday}, ${month} ${day}, ${year} · ${hour}:${minute}${tz ? " " + tz : ""}`;
 }
 
 function ProbabilityGauge({ value, title, color }: { value: number, title: string, color: string }) {
@@ -181,16 +180,14 @@ export default function MarketDetail() {
                 <div className="flex items-center gap-4 text-muted-foreground font-mono">
                   <span className="text-lg">{market.symbol}</span>
                   <div className="w-1 h-1 rounded-full bg-border" />
-                  {/* P2-6 (v2/3): show full day + date + time so users know
-                      both recency and which day the analysis ran. Format:
-                      "Wed, May 20, 2026 · 14:32 UTC". date-fns `format`
-                      uses LOCAL timezone, so we use Intl.DateTimeFormat
-                      with timeZone:'UTC' to ensure the displayed value
-                      actually matches the "UTC" label. */}
+                  {/* P2-6 (v4): show full day + date + time in the viewer's
+                      LOCAL timezone (with tz abbreviation). The previous
+                      version forced UTC which was confusing for users in
+                      other timezones. Full ISO instant is in the tooltip. */}
                   <span title={market.lastScoredAt ? new Date(market.lastScoredAt).toISOString() : undefined}>
                     Last Scored:{" "}
                     {market.lastScoredAt
-                      ? formatLastScoredUtc(market.lastScoredAt)
+                      ? formatLastScoredLocal(market.lastScoredAt)
                       : "Never"}
                   </span>
                 </div>
@@ -237,26 +234,32 @@ export default function MarketDetail() {
             </div>
           </div>
 
-          <div className="flex gap-8 items-center bg-background/50 rounded-2xl p-6 border border-border/50 min-w-fit">
-            <div className="flex flex-col items-center justify-center px-4 border-r border-border/50">
+          {/* Bug fix: this card overflowed on mobile because it was a
+              single horizontal flex row with `min-w-fit`, causing the
+              "MKT IMP" gauge to get clipped on narrow screens. Now it
+              stacks vertically on mobile (sm) and goes horizontal at md+,
+              with `flex-wrap` and reduced padding/gap on small screens so
+              all three tiles always fit and stay readable. */}
+          <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-stretch md:items-center bg-background/50 rounded-2xl p-4 md:p-6 border border-border/50 w-full md:w-auto">
+            <div className="flex flex-col items-center justify-center px-4 md:border-r border-b md:border-b-0 border-border/50 pb-4 md:pb-0">
               <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">Alpha Score</span>
               <ScoreDisplay score={market.alphaScore} size="xl" />
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex gap-2 flex-wrap justify-center">
                 <DirectionBadge direction={market.direction!} />
                 <RiskBadge risk={market.riskLevel!} />
               </div>
             </div>
-            
-            <div className="flex gap-4">
-              <ProbabilityGauge 
-                value={market.aiProbability || 0} 
-                title="AI PROB" 
-                color="hsl(var(--primary))" 
+
+            <div className="flex gap-2 sm:gap-4 justify-center flex-wrap">
+              <ProbabilityGauge
+                value={market.aiProbability || 0}
+                title="AI PROB"
+                color="hsl(var(--primary))"
               />
-              <ProbabilityGauge 
-                value={market.marketProbability || 0} 
-                title="MKT IMP" 
-                color="hsl(var(--muted-foreground))" 
+              <ProbabilityGauge
+                value={market.marketProbability || 0}
+                title="MKT IMP"
+                color="hsl(var(--muted-foreground))"
               />
             </div>
           </div>

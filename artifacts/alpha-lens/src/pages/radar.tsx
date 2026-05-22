@@ -498,13 +498,19 @@ export default function RadarPage() {
         ))}
       </div>
 
-      <div className="flex gap-1 border-b border-border">
+      {/* Bug fix: on mobile the tab bar previously wrapped or clipped the
+          last tab ("Data Sources") because the flex row had no horizontal
+          scroll. We now make the row horizontally scrollable on small
+          screens, with each tab `shrink-0` and `whitespace-nowrap` so
+          labels never break or get cut off. The scrollbar is hidden via
+          the `scrollbar-thin` utility already used elsewhere in the app. */}
+      <div className="flex gap-1 border-b border-border overflow-x-auto scrollbar-thin -mx-2 px-2">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             className={cn(
-              "flex items-center gap-2 px-4 py-3 text-sm border-b-2 transition-all",
+              "flex items-center gap-2 px-4 py-3 text-sm border-b-2 transition-all shrink-0 whitespace-nowrap",
               tab === id
                 ? "border-primary text-primary font-medium"
                 : "border-transparent text-muted-foreground hover:text-foreground",

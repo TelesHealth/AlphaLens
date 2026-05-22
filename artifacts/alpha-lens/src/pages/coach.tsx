@@ -1,11 +1,73 @@
 import { useState, useRef, useEffect } from "react";
 import { useListMarkets } from "@workspace/api-client-react";
-import { Send, Bot, User, BrainCircuit, AlertTriangle, ChevronRight, Zap } from "lucide-react";
+import { Send, Bot, User, BrainCircuit, AlertTriangle, ChevronRight, Zap, Sparkles } from "lucide-react";
 import { cn } from "@/components/ui-helpers";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useCoach } from "@/context/coach-context";
 import { consumeAskCoachPrefill } from "@/lib/ask-coach";
+
+// Curated starter questions shown when the conversation is empty. Grouped
+// by intent so users get a flavor of what the coach is best at.
+const STARTER_QUESTIONS: { group: string; questions: string[] }[] = [
+  {
+    group: "Market regime",
+    questions: [
+      "What's the current market regime — risk-on or risk-off?",
+      "Which sectors look strongest this week and why?",
+      "How are macro signals (Fed, CPI, unemployment) shaping risk appetite?",
+      "Where is the smart money flowing right now?",
+    ],
+  },
+  {
+    group: "Trade ideas & sizing",
+    questions: [
+      "What are the highest-conviction trade calls on the board today?",
+      "How should I size my first paper trade?",
+      "Which prediction market shows the biggest AI vs market edge?",
+      "Walk me through a high-edge crypto setup right now.",
+    ],
+  },
+  {
+    group: "Learn the platform",
+    questions: [
+      "Explain how to read the conviction score on a recommendation.",
+      "What's the difference between AI Confidence and Conviction?",
+      "How does Alpha Lens generate its AI probability scores?",
+      "What does the Alpha Score actually measure?",
+    ],
+  },
+];
+
+// Pregenerated follow-up questions shown AFTER each coach reply so the
+// user always has a useful next prompt one click away. We rotate through
+// the pool deterministically based on message id so the suggestions don't
+// reshuffle on every re-render.
+const FOLLOWUP_POOL: string[] = [
+  "What's the strongest counter-argument to this view?",
+  "How should I size a position around this idea?",
+  "What would invalidate this thesis — what should I watch?",
+  "How does this compare to similar setups in the past 12 months?",
+  "What's the best entry trigger and where should the stop sit?",
+  "Are there any related markets that would amplify this trade?",
+  "How does this fit into the current macro regime?",
+  "What's the risk/reward asymmetry here?",
+  "Which signals should I monitor over the next 48 hours?",
+  "If this thesis works, what's the realistic upside path?",
+];
+
+function pickFollowups(seed: string | number, count = 3): string[] {
+  // Simple deterministic hash → rotating window into FOLLOWUP_POOL.
+  const s = String(seed);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  const start = h % FOLLOWUP_POOL.length;
+  const out: string[] = [];
+  for (let i = 0; i < count; i++) {
+    out.push(FOLLOWUP_POOL[(start + i) % FOLLOWUP_POOL.length]);
+  }
+  return out;
+}
 
 export default function Coach() {
   const [input, setInput] = useState("");
@@ -53,6 +115,21 @@ export default function Coach() {
     ask(q, selectedAssetId === "" ? undefined : Number(selectedAssetId));
   };
 
+  // One-click submit for a pregenerated question (starter or follow-up).
+  // Skips the input box so the user goes straight from idea → reply.
+  const submitQuestion = (q: string) => {
+    if (isPending || !q.trim()) return;
+    ask(q, selectedAssetId === "" ? undefined : Number(selectedAssetId));
+  };
+
+  // Index of the latest coach message — that's the only one we attach
+  // follow-up suggestions to (the older replies stay clean to avoid
+  // visual clutter in the scroll history).
+  let lastCoachIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "coach") { lastCoachIdx = i; break; }
+  }
+
   return (
     <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-4rem)] flex flex-col animate-in fade-in duration-500">
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -83,7 +160,7 @@ export default function Coach() {
         
         {/* Chat Area */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 z-10 scrollbar-thin">
-          {messages.map((msg) => (
+          {messages.map((msg, idx) => (
             <div key={msg.id} className={cn("flex w-full", msg.role === "user" ? "justify-end" : "justify-start")}>
               <div className={cn("flex gap-4 max-w-[85%]", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
                 
@@ -137,6 +214,30 @@ export default function Coach() {
                       )}
                     </div>
                   )}
+
+                  {/* Pregenerated related questions — only attached to the
+                      LATEST coach reply so the user always has a relevant
+                      next prompt one click away without scrolling. */}
+                  {msg.role === "coach" && idx === lastCoachIdx && !isPending && (
+                    <div className="bg-background/60 border border-border rounded-xl p-4 backdrop-blur-sm">
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3 text-primary" />
+                        Related questions
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {pickFollowups(msg.id).map((q) => (
+                          <button
+                            key={q}
+                            type="button"
+                            onClick={() => submitQuestion(q)}
+                            className="text-xs font-mono px-3 py-1.5 rounded-full border border-border bg-card hover:bg-secondary hover:border-primary/40 hover:text-foreground text-muted-foreground transition-colors text-left"
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -171,28 +272,30 @@ export default function Coach() {
         {/* Input Area */}
         <div className="p-4 bg-background/50 border-t border-border backdrop-blur-md z-10">
           {messages.length <= 1 && !isPending && (
-            <div className="max-w-4xl mx-auto mb-3">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">
+            <div className="max-w-4xl mx-auto mb-3 space-y-3">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-primary" />
                 Suggested starter questions
               </div>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  "What's the current market regime — risk-on or risk-off?",
-                  "Explain how to read the conviction score on a recommendation.",
-                  "Which sectors look strongest this week and why?",
-                  "How should I size my first paper trade?",
-                  "What's the difference between AI Confidence and Conviction?",
-                ].map((q) => (
-                  <button
-                    key={q}
-                    type="button"
-                    onClick={() => setInput(q)}
-                    className="text-xs font-mono px-3 py-1.5 rounded-full border border-border bg-card hover:bg-secondary hover:border-primary/40 hover:text-foreground text-muted-foreground transition-colors"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
+              {STARTER_QUESTIONS.map(({ group, questions }) => (
+                <div key={group}>
+                  <div className="text-[10px] font-mono text-muted-foreground/70 mb-1.5 pl-1">
+                    {group}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {questions.map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        onClick={() => submitQuestion(q)}
+                        className="text-xs font-mono px-3 py-1.5 rounded-full border border-border bg-card hover:bg-secondary hover:border-primary/40 hover:text-foreground text-muted-foreground transition-colors text-left"
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
           <form onSubmit={handleSubmit} className="relative flex items-center max-w-4xl mx-auto">

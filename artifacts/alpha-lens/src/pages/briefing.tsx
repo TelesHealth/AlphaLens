@@ -72,6 +72,17 @@ import { useToast } from "@/hooks/use-toast";
 //     right now. Those badges are prefixed with "Impact:" and use an
 //     impact-focused tooltip so users don't read a watch-list badge as a
 //     trade signal.
+// P3-19 (v4): Shared className for ALL four prose body sections in the
+// expanded Trade Call card (WHY, WHY THIS CONFIDENCE LEVEL, HISTORICAL
+// CONTEXT, BEAR CASE). Locks paragraph size to text-xs across breakpoints
+// AND restores list-marker styling (ul → disc, ol → decimal) since we
+// dropped the prose-xs Tailwind Typography class which used to provide
+// those defaults. Without these explicit list utilities, Tailwind's
+// preflight reset strips bullets and markdown lists render as plain text.
+const BRIEFING_PROSE_CLASS =
+  "text-xs leading-relaxed [&_p]:m-0 [&_p]:text-xs [&_strong]:text-foreground " +
+  "[&_ul]:list-disc [&_ul]:pl-4 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:my-1 [&_li]:my-0.5 [&_li]:text-xs";
+
 const URGENCY_DESCRIPTIONS: Record<string, string> = {
   critical:
     "Trade conviction: critical — strongest setup of the session. Edge is wide and the catalyst is imminent; size carefully and act now.",
@@ -677,13 +688,20 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
             )}
           </div>
 
+          {/* P3-19 (v3/v4): font sizing across the four prose sections (WHY,
+              WHY THIS CONFIDENCE LEVEL, HISTORICAL CONTEXT, BEAR CASE) is
+              unified here. We use a single shared className (defined as
+              BRIEFING_PROSE_CLASS at the top of the file) that locks down
+              paragraph size to text-xs AND restores list-marker styling
+              for ul/ol so markdown bullets/numbered lists still render
+              correctly without depending on Tailwind Typography's prose-xs. */}
           {rec.confidenceRationale && (
             <div className="rounded-md border border-border/50 bg-secondary/20 px-3 py-2">
               <div className="text-[10px] font-mono text-muted-foreground mb-1">
                 WHY THIS CONFIDENCE LEVEL
               </div>
-              <div className="text-xs text-foreground/80">
-                {rec.confidenceRationale}
+              <div className={cn(BRIEFING_PROSE_CLASS, "text-foreground/80")}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec.confidenceRationale}</ReactMarkdown>
               </div>
             </div>
           )}
@@ -697,10 +715,10 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 {rec.why.map((reason, i) => (
                   <li
                     key={i}
-                    className="text-xs text-foreground/80 flex items-start gap-2"
+                    className="flex items-start gap-2"
                   >
-                    <Crosshair className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
-                    <div className="prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground">
+                    <Crosshair className="w-3 h-3 mt-1 shrink-0 text-primary" />
+                    <div className={cn(BRIEFING_PROSE_CLASS, "text-foreground/80")}>
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{reason}</ReactMarkdown>
                     </div>
                   </li>
@@ -919,13 +937,13 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               );
             })()}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {rec.historicalContext && (
               <div>
                 <div className="text-[10px] font-mono text-muted-foreground mb-1">
                   HISTORICAL CONTEXT
                 </div>
-                <div className="text-foreground/70 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground">
+                <div className={cn(BRIEFING_PROSE_CLASS, "text-foreground/70")}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec.historicalContext}</ReactMarkdown>
                 </div>
               </div>
@@ -935,7 +953,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 <div className="text-[10px] font-mono text-muted-foreground mb-1">
                   BEAR CASE
                 </div>
-                <div className="text-foreground/70 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground">
+                <div className={cn(BRIEFING_PROSE_CLASS, "text-foreground/70")}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec.bearCase}</ReactMarkdown>
                 </div>
               </div>
