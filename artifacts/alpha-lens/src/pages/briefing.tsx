@@ -442,8 +442,16 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(!expanded); } }}
         className="w-full text-left p-4 hover:bg-secondary/30 transition-colors cursor-pointer"
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
+        {/* Mobile width fix: this row used to be a single horizontal flex
+            with the title/description on the left and a meta block
+            (direction icon + AI CONF + "Show analysis") pinned right
+            with `shrink-0`. On a phone the meta block ate nearly half
+            the card, squishing the headline into the left half. Now we
+            stack flex-col on mobile (so the description gets the FULL
+            card width) and only go horizontal at sm+; the meta block
+            slides to a horizontal strip below the headline on mobile. */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="flex items-start gap-3 flex-1 min-w-0 w-full">
             <div className="mt-0.5 shrink-0">
               <Icon className="w-5 h-5" />
             </div>
@@ -490,21 +498,31 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 </div>
               )}
               {rec.headline && (
-                <div className="text-xs text-muted-foreground mt-1 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground/90 break-words">
+                // Desktop width fix: previously this used `prose prose-xs`,
+                // and the typography plugin's `prose-xs` modifier
+                // imposes its own `max-width` (around 45rem) that won
+                // out over `max-w-none`, leaving an empty gap on the
+                // right of wide cards. We drop `prose-xs` (we already
+                // set the font size to `text-xs` directly) and force
+                // the prose container to fill the full card width with
+                // `!max-w-full`, so headlines stretch edge to edge on
+                // every breakpoint.
+                <div className="text-xs text-muted-foreground mt-1 prose prose-invert !max-w-full w-full [&_p]:m-0 [&_strong]:text-foreground/90 break-words">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec.headline}</ReactMarkdown>
                 </div>
               )}
               {rec.edgeChangeAlert?.hasAlert &&
                 rec.edgeChangeAlert.previousEdge != null &&
                 rec.edgeChangeAlert.currentEdge != null && (
-                <div
+                <InfoTip
+                  label={rec.edgeChangeAlert.message}
+                  stopPropagation
                   className={cn(
-                    "mt-2 flex items-start gap-2 rounded-md border px-2.5 py-1.5",
+                    "mt-2 flex items-start gap-2 rounded-md border px-2.5 py-1.5 w-full",
                     rec.edgeChangeAlert.direction === "widening"
                       ? "bg-success/10 border-success/30 text-success"
                       : "bg-warning/10 border-warning/30 text-warning",
                   )}
-                  title={rec.edgeChangeAlert.message}
                 >
                   {rec.edgeChangeAlert.direction === "widening" ? (
                     <TrendingUp className="w-3.5 h-3.5 mt-0.5 shrink-0" />
@@ -523,7 +541,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                       {rec.edgeChangeAlert.minutesAgo ?? 0} min ago)
                     </div>
                   </div>
-                </div>
+                </InfoTip>
               )}
               {rec.edgeExplanation && (
                 <div
@@ -535,7 +553,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 w-full sm:w-auto sm:shrink-0 justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
             {rec.direction && (
               <div className="flex items-center gap-1">
                 {rec.direction === "long" || rec.direction === "bullish" ? (
@@ -546,9 +564,10 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               </div>
             )}
             {rec.confidence != null && (
-              <div
+              <InfoTip
+                label="AI model confidence in this call (0–100%) — distinct from Conviction, which combines this with edge magnitude"
+                stopPropagation
                 className="text-right"
-                title="AI model confidence in this call (0–100%) — distinct from Conviction, which combines this with edge magnitude"
               >
                 <div className="text-[10px] font-mono text-muted-foreground leading-none mb-0.5">
                   AI CONF
@@ -565,10 +584,10 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                 >
                   {rec.confidence}%
                 </div>
-              </div>
+              </InfoTip>
             )}
-            <div className="flex items-center gap-1 ml-auto text-xs text-muted-foreground">
-              <span>{expanded ? "Hide analysis" : "Show analysis"}</span>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-auto">
+              <span>{expanded ? "Hide" : "Show analysis"}</span>
               {expanded ? (
                 <ChevronUp className="w-4 h-4" />
               ) : (

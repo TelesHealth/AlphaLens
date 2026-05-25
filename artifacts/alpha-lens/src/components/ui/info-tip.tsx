@@ -32,6 +32,11 @@ export interface InfoTipProps {
   contentClassName?: string;
   side?: "top" | "right" | "bottom" | "left";
   align?: "start" | "center" | "end";
+  /** When InfoTip is nested inside another clickable element (e.g. a
+   *  briefing card whose parent toggles expansion on click), set this
+   *  to true so the trigger calls stopPropagation on click/keydown and
+   *  the host element doesn't react to the tap as well. */
+  stopPropagation?: boolean;
   children: React.ReactNode;
 }
 
@@ -42,6 +47,7 @@ export function InfoTip({
   contentClassName,
   side,
   align,
+  stopPropagation,
   children,
 }: InfoTipProps) {
   const fallbackTitle =
@@ -51,6 +57,14 @@ export function InfoTip({
       <PopoverTrigger
         type="button"
         title={fallbackTitle}
+        onClick={stopPropagation ? (e) => e.stopPropagation() : undefined}
+        onKeyDown={
+          stopPropagation
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+              }
+            : undefined
+        }
         className={cn(
           "cursor-help text-left bg-transparent border-0 p-0 m-0 font-inherit text-inherit",
           className,

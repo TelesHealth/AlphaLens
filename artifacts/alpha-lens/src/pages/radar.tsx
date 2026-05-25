@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { Link } from "wouter";
+// Mobile tap fix: radar previously used Radix Tooltip, which on touch
+// devices doesn't open on a plain tap (it requires long-press at best).
+// Popover opens on click/tap on all platforms, so we swap the two
+// existing tooltip blocks (severity badge + alert-type info icon) over
+// to Popover with the same styled content. Desktop click still works
+// fine — only the trigger gesture changes.
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { setAskCoachPrefill } from "@/lib/ask-coach";
 import {
   useGetRadarAlerts,
@@ -192,10 +198,11 @@ function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded:
     >
       <div className="p-4">
         <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              {/* Button (not span) so keyboard users can focus and read the
-                  severity tooltip — radix shows the tooltip on focus. */}
+          <Popover>
+            <PopoverTrigger asChild>
+              {/* Tap-friendly trigger: a real <button> so keyboard users
+                  can focus AND mobile users can tap to read the
+                  severity explanation. */}
               <button
                 type="button"
                 className={cn(
@@ -208,22 +215,22 @@ function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded:
               >
                 {(alert.severity ?? "medium").toUpperCase()}
               </button>
-            </TooltipTrigger>
-            <TooltipContent
+            </PopoverTrigger>
+            <PopoverContent
               side="top"
-              className="max-w-xs bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed"
+              className="max-w-xs w-auto bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed p-3"
             >
               {sevDesc}
-            </TooltipContent>
-          </Tooltip>
+            </PopoverContent>
+          </Popover>
           <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] rounded bg-muted text-muted-foreground border border-border">
             <TypeIcon className="w-3 h-3" />
             {TYPE_LABELS[alert.type ?? ""] ?? alert.type}
           </span>
           <span className="text-sm font-semibold text-foreground">{alert.assetLabel}</span>
           {typeDesc && (
-            <Tooltip>
-              <TooltipTrigger asChild>
+            <Popover>
+              <PopoverTrigger asChild>
                 <button
                   type="button"
                   onClick={(e) => e.stopPropagation()}
@@ -233,10 +240,10 @@ function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded:
                 >
                   <Info className="w-3.5 h-3.5" />
                 </button>
-              </TooltipTrigger>
-              <TooltipContent
+              </PopoverTrigger>
+              <PopoverContent
                 side="top"
-                className="max-w-sm bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed"
+                className="max-w-sm w-auto bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed p-3"
               >
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="font-semibold">
@@ -253,8 +260,8 @@ function AlertCard({ alert, expanded, onToggle }: { alert: RadarAlert; expanded:
                     {signalRelation}
                   </div>
                 )}
-              </TooltipContent>
-            </Tooltip>
+              </PopoverContent>
+            </Popover>
           )}
           <span className="flex-1" />
           {alert.pctChange != null && (
