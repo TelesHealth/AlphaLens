@@ -39,6 +39,7 @@ import {
   cn 
 } from "@/components/ui-helpers";
 import { useToast } from "@/hooks/use-toast";
+import { InfoTip } from "@/components/ui/info-tip";
 import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 // P2-6 (v4): per user request, render Last Scored in the viewer's LOCAL
@@ -170,51 +171,75 @@ export default function MarketDetail() {
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -mr-48 -mt-48 pointer-events-none" />
         
         <div className="flex flex-col lg:flex-row justify-between gap-8 relative z-10">
-          <div className="space-y-6 flex-1">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-4xl lg:text-5xl font-display font-bold">{market.name}</h1>
+          <div className="space-y-6 flex-1 min-w-0">
+            {/* Mobile responsiveness fix: this header used to be a single
+                horizontal flex row with the name on the left and the
+                price floated right, plus a single-row flex of
+                "SYMBOL · dot · Last Scored …" underneath. On a phone:
+                  - the price wrapped under the name awkwardly,
+                  - the "Last Scored" timestamp got squished into about
+                    half the card because it shared a single flex row
+                    with the symbol and a separator dot,
+                  - the action buttons left-aligned and bled off the
+                    edge.
+                The new layout stacks name above price on mobile (full
+                width, left-aligned, large), lets the symbol + Last
+                Scored chips wrap to their own lines so the timestamp
+                always gets the full card width, and centers the
+                buttons (full-width, stacked) on mobile while keeping
+                the original horizontal layout from sm/lg upward. */}
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 lg:gap-6">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold break-words">{market.name}</h1>
                   <SectorBadge sector={market.sector} />
                 </div>
-                <div className="flex items-center gap-4 text-muted-foreground font-mono">
-                  <span className="text-lg">{market.symbol}</span>
-                  <div className="w-1 h-1 rounded-full bg-border" />
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground font-mono">
+                  <span className="text-base sm:text-lg">{market.symbol}</span>
+                  <div className="hidden sm:block w-1 h-1 rounded-full bg-border" />
                   {/* P2-6 (v4): show full day + date + time in the viewer's
                       LOCAL timezone (with tz abbreviation). The previous
-                      version forced UTC which was confusing for users in
-                      other timezones. Full ISO instant is in the tooltip. */}
-                  <span title={market.lastScoredAt ? new Date(market.lastScoredAt).toISOString() : undefined}>
+                      version forced UTC, which was confusing for users
+                      in other timezones. Full ISO instant is now in a
+                      tap-friendly InfoTip so mobile users can see it. */}
+                  <InfoTip
+                    label={
+                      market.lastScoredAt
+                        ? `Exact timestamp: ${new Date(market.lastScoredAt).toISOString()}`
+                        : "This asset has not been scored yet."
+                    }
+                    className="w-full sm:w-auto text-sm sm:text-base whitespace-normal break-words"
+                  >
                     Last Scored:{" "}
                     {market.lastScoredAt
                       ? formatLastScoredLocal(market.lastScoredAt)
                       : "Never"}
-                  </span>
+                  </InfoTip>
                 </div>
               </div>
-              
-              <div className="text-right">
-                <div className="text-4xl font-mono font-bold">{formatCurrency(market.currentPrice)}</div>
-                <div className={cn("text-lg font-mono font-medium flex items-center justify-end gap-1 mt-1", isPositive ? "text-success" : "text-destructive")}>
+
+              <div className="text-left lg:text-right shrink-0">
+                <div className="text-3xl sm:text-4xl font-mono font-bold break-words">{formatCurrency(market.currentPrice)}</div>
+                <div className={cn("text-base sm:text-lg font-mono font-medium flex items-center lg:justify-end gap-1 mt-1", isPositive ? "text-success" : "text-destructive")}>
                   {isPositive ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                   {formatPercent(market.priceChange24h)}
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-border/50">
-              <button 
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-center sm:justify-start gap-3 sm:gap-4 pt-4 border-t border-border/50">
+              <button
                 onClick={() => setIsTradeModalOpen(true)}
-                className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] hover:-translate-y-0.5 transition-all flex items-center gap-2"
+                className="w-full sm:w-auto justify-center px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] hover:-translate-y-0.5 transition-all flex items-center gap-2"
               >
                 <Target className="w-5 h-5" /> Trade Asset
               </button>
-              <button 
+              <button
                 onClick={() => scoreMutation.mutate({ id })}
                 disabled={scoreMutation.isPending}
-                className="px-6 py-3 rounded-xl bg-secondary border border-border hover:border-primary/50 text-foreground font-medium transition-all flex items-center gap-2 group disabled:opacity-50"
+                className="w-full sm:w-auto justify-center px-6 py-3 rounded-xl bg-secondary border border-border hover:border-primary/50 text-foreground font-medium transition-all flex items-center gap-2 group disabled:opacity-50"
               >
-                <BrainCircuit className={cn("w-5 h-5 text-primary", scoreMutation.isPending && "animate-pulse")} /> 
+                <BrainCircuit className={cn("w-5 h-5 text-primary", scoreMutation.isPending && "animate-pulse")} />
                 {scoreMutation.isPending ? "Analyzing..." : "Trigger Deep Analysis"}
               </button>
               {/* Bug #12: Ask Coach about this specific asset. */}
@@ -226,7 +251,7 @@ export default function MarketDetail() {
                     id,
                   )
                 }
-                className="px-6 py-3 rounded-xl bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 font-medium transition-all flex items-center gap-2"
+                className="w-full sm:w-auto justify-center px-6 py-3 rounded-xl bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 font-medium transition-all flex items-center gap-2"
                 data-testid="btn-ask-coach-market"
               >
                 <MessageSquare className="w-5 h-5" /> Ask Coach

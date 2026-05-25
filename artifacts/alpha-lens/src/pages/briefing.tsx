@@ -61,6 +61,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/components/ui-helpers";
+import { InfoTip } from "@/components/ui/info-tip";
 import { useToast } from "@/hooks/use-toast";
 
 // P3-12: The briefing distinguishes two semantic axes:
@@ -474,24 +475,22 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   {rec.title}
                 </h3>
               )}
-              {/* Bug fix: when the card is expanded, drop the `truncate` and
-                  `line-clamp-2` clamps so the asset title, headline, and
-                  edge explanation render in full instead of getting cut
-                  off with an ellipsis. When collapsed we keep the clamps
-                  so the briefing list stays dense and scannable. */}
+              {/* Mobile cut-off fix: previously these fields used
+                  `truncate` / `line-clamp-2` (even conditionally on the
+                  expanded state) which on narrow phone screens hid roughly
+                  half of the headline before the user expanded the card.
+                  The user explicitly wants nothing in this card to be cut
+                  off at any breakpoint, so we drop the clamps entirely.
+                  The collapsed card may be a touch taller, but every word
+                  of the asset title, headline, and edge explanation is
+                  always visible — on mobile, tablet, and desktop. */}
               {rec.assetTitle && (
-                <div className={cn(
-                  "text-[11px] text-muted-foreground font-mono mt-0.5",
-                  !expanded && "truncate",
-                )}>
+                <div className="text-[11px] text-muted-foreground font-mono mt-0.5 break-words">
                   {rec.assetTitle}
                 </div>
               )}
               {rec.headline && (
-                <div className={cn(
-                  "text-xs text-muted-foreground mt-1 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground/90",
-                  !expanded && "line-clamp-2",
-                )}>
+                <div className="text-xs text-muted-foreground mt-1 prose prose-invert prose-xs max-w-none [&_p]:m-0 [&_strong]:text-foreground/90 break-words">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{rec.headline}</ReactMarkdown>
                 </div>
               )}
@@ -528,11 +527,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               )}
               {rec.edgeExplanation && (
                 <div
-                  className={cn(
-                    "text-xs text-muted-foreground italic mt-1.5",
-                    !expanded && "line-clamp-2",
-                  )}
-                  title={rec.edgeExplanation}
+                  className="text-xs text-muted-foreground italic mt-1.5 break-words"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {rec.edgeExplanation}
@@ -588,9 +583,13 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
         <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3 animate-in slide-in-from-top-2 duration-200">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {rec.convictionScore != null && (
-              <div
-                className="bg-primary/10 border border-primary/30 rounded-lg p-3 col-span-2 sm:col-span-1 row-span-2 sm:row-span-1 flex flex-col justify-between"
-                title="Conviction score: Edge × AI Confidence — combined signal strength (signed; positive = bullish edge, negative = bearish)"
+              // Mobile tap fix: was a `<div title="...">` which never showed
+              // on touch devices. InfoTip renders the tile as a real button
+              // so tapping it opens the explanation popover; desktop hover
+              // still works via the mirrored native title attribute.
+              <InfoTip
+                label="Conviction score: Edge × AI Confidence — combined signal strength (signed; positive = bullish edge, negative = bearish)"
+                className="bg-primary/10 border border-primary/30 rounded-lg p-3 col-span-2 sm:col-span-1 row-span-2 sm:row-span-1 flex flex-col justify-between w-full"
               >
                 <div className="flex items-center justify-between">
                   <div className="text-[10px] font-mono text-muted-foreground">
@@ -641,16 +640,16 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   {rec.convictionScore > 0 ? "+" : ""}
                   {rec.convictionScore.toFixed(1)}
                 </div>
-              </div>
+              </InfoTip>
             )}
             {rec.edge != null && (
-              <div
-                className="bg-secondary/30 rounded-lg p-3"
-                title={
+              <InfoTip
+                label={
                   rec.edgeType === "probability_gap"
                     ? "AI probability vs market contract price"
                     : "AI directional confidence above neutral baseline"
                 }
+                className="bg-secondary/30 rounded-lg p-3 w-full"
               >
                 <div className="text-[10px] font-mono text-muted-foreground mb-1">
                   {rec.edgeType === "probability_gap"
@@ -667,7 +666,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                   {rec.edge.toFixed(1)}
                   {rec.edgeType === "probability_gap" ? "%" : " pts"}
                 </div>
-              </div>
+              </InfoTip>
             )}
             {rec.aiProbability != null && (
               <div className="bg-secondary/30 rounded-lg p-3">
