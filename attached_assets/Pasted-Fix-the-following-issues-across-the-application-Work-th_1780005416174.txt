@@ -1,0 +1,76 @@
+Fix the following issues across the application. Work through them in the order listed, as some changes share the same files or subsystems.
+
+---
+
+**1. Persist AI Coach chat history across logout/login (P3-15)**
+
+The core problem is that chat messages are stored only in local/session state and are lost when a user logs out. Fix this by:
+
+- Saving AI Coach chat messages to the database (or persistent backend storage) tied to the authenticated user's ID, not just to local component state or localStorage.
+- On login, fetch the user's existing chat history from the backend and rehydrate the chat UI before the user can type.
+- On logout, do not clear the stored chat messages from the backend. Only clear the in-memory/session state on the client side.
+- On every new message sent or received, persist the full updated conversation to the backend immediately.
+- Ensure the chat history load happens early in the coach page lifecycle (e.g., on mount after auth is confirmed) so messages appear before the user interacts.
+
+---
+
+**2. AI Coach suggested questions mobile responsiveness (P3-27)**
+
+On the `/coach` page, the suggested questions section takes up the full screen width on mobile. Fix this by:
+
+- Wrapping the suggested questions in a container that uses `flex-wrap: wrap` or a responsive grid so questions reflow across multiple rows on small screens rather than stretching full-width.
+- Constrain each suggested question chip/button to a reasonable `max-width` (e.g., fit-content or a percentage cap) so they do not expand to fill the full viewport width on mobile.
+- Test at 375px, 414px, and 768px breakpoints to confirm the layout is compact and readable.
+
+---
+
+**3. Add "Direction" and "P&L" column labels to Current Open Positions (P3-24)**
+
+On the `/portfolio` page, the Current Open Positions list is missing header labels for the Direction and P&L columns. Fix this by:
+
+- Adding a header row (or label row) above the positions list that includes at minimum the labels "Direction" and "P&L" aligned with their respective columns.
+- Ensure the labels are visually consistent with any other column headers already present in that section.
+
+---
+
+**4. Add time tracking to Trade History session (BUG-37)**
+
+On the `/portfolio` page, the Trade History section does not show time information. Fix this by:
+
+- Displaying the time (in addition to the date, if date is already shown) for each trade entry in the Trade History list. Use a human-readable format such as `MMM DD, YYYY HH:mm` or equivalent.
+- If the timestamp data is already available on the trade object, format and render it. If it is not being fetched, update the data fetch to include the timestamp field.
+
+---
+
+**5. Add expandable row to Trade History for additional details (P3-25)**
+
+On the `/portfolio` page, Trade History entries have no way to view additional details such as trade status. Fix this by:
+
+- Adding a toggle/expand button (e.g., a chevron icon) to each Trade History row.
+- When expanded, show additional detail fields including at minimum "Trade Status" and any other relevant supplementary fields (e.g., fill price, fees, notes).
+- Only one row needs to be expandable at a time (accordion behavior is acceptable, but multi-open is also fine).
+- The expanded area should be visually distinct from the main row (e.g., slightly indented or with a subtle background).
+
+---
+
+**6. Change Yes/No trade direction options to Long/Short (P3-26)**
+
+On the `/market/{id}` page, the paper trade execution form uses "Yes" and "No" as the direction options. Fix this by:
+
+- Replacing the "Yes" option label with "Long".
+- Replacing the "No" option label with "Short".
+- Ensure the underlying values passed on form submission correctly reflect the directional meaning (e.g., map "Long" to whatever value the backend expects for a long position, and "Short" for a short position). Do not change backend contract unless required; only change the display labels if the values are already correct.
+
+---
+
+**7. Add loading state when switching Track Record filters on /leaderboard (P3-28)**
+
+On the `/leaderboard` page, switching between Track Record filters gives no visual feedback. Fix this by:
+
+- Introducing a loading state (e.g., a spinner, skeleton rows, or an opacity/disabled overlay on the table) that activates immediately when a filter is changed and clears once the new data has loaded.
+- While the loading state is active, disable or visually suppress the filter controls to prevent rapid double-switching.
+- Additionally, fix the layout issue where "Conf" and "Status" column labels have no space between them on smaller screen widths. Add appropriate spacing (padding or gap) between those two labels so they are visually separated at all viewport sizes. Test at 375px and 768px.
+
+---
+
+Run pnpm run typecheck and verify the app boots before declaring complete.

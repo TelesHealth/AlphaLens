@@ -529,10 +529,10 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
             </div>
           )}
         </div>
-        <div className="hidden md:block md:col-span-1 text-right font-mono text-xs text-muted-foreground">
+        <div className="hidden md:block md:col-span-1 text-right pr-2 font-mono text-xs text-muted-foreground">
           {fmtNumber(rec.confidence, 0)}
         </div>
-        <div className="col-span-6 md:col-span-1 flex md:justify-center">
+        <div className="col-span-6 md:col-span-1 flex md:justify-center md:pl-2">
           <OutcomeBadge outcome={rec.outcome} />
         </div>
         <div className="col-span-4 md:col-span-1 text-right font-mono text-xs">
@@ -741,7 +741,7 @@ export default function LeaderboardPage() {
     type: "trade" as const,
   };
 
-  const { data, isLoading, error } = useGetLeaderboard(queryParams, {
+  const { data, isLoading, isFetching, error } = useGetLeaderboard(queryParams, {
     query: {
       queryKey: getGetLeaderboardQueryKey(queryParams),
       refetchInterval: 60_000,
@@ -837,21 +837,46 @@ export default function LeaderboardPage() {
                 <div className="col-span-1 text-right">AI Prob</div>
                 <div className="col-span-1 text-right">Market</div>
                 <div className="col-span-1 text-right">Edge</div>
-                <div className="col-span-1 text-right">Conf</div>
-                <div className="col-span-1 text-center">Status</div>
+                <div className="col-span-1 text-right pr-2">Conf</div>
+                <div className="col-span-1 text-center pl-2">Status</div>
                 <div className="col-span-1 text-right">Paper Ret</div>
                 <div className="col-span-1" />
               </div>
 
-              <div className="p-3 space-y-2">
+              {/* P3-28: visible loading state when switching filter tabs
+                  (or paging). `placeholderData` keeps the previous rows
+                  visible to avoid full-table flicker, but without a
+                  dim/spinner the user can't tell their tab click did
+                  anything. We dim the list and show a spinner while the
+                  new request is in flight. */}
+              <div className="p-3 space-y-2 relative">
                 {filteredRecs.length === 0 ? (
                   <div className="text-center text-xs font-mono text-muted-foreground py-12">
                     No calls match this filter yet.
                   </div>
                 ) : (
-                  filteredRecs.map((rec) => (
-                    <RecommendationRow key={rec.id} rec={rec} />
-                  ))
+                  <div
+                    className={cn(
+                      "space-y-2 transition-opacity",
+                      isFetching && !isLoading && "opacity-50 pointer-events-none",
+                    )}
+                    aria-busy={isFetching && !isLoading}
+                  >
+                    {filteredRecs.map((rec) => (
+                      <RecommendationRow key={rec.id} rec={rec} />
+                    ))}
+                  </div>
+                )}
+                {isFetching && !isLoading && (
+                  <div
+                    className="absolute inset-x-0 top-2 flex justify-center pointer-events-none"
+                    data-testid="leaderboard-fetching"
+                  >
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/90 border border-border shadow text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                      <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                      Updating…
+                    </div>
+                  </div>
                 )}
               </div>
 

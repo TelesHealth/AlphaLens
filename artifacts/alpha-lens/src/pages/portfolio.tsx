@@ -163,6 +163,20 @@ export default function Portfolio() {
                 <p className="text-muted-foreground">No active trades. Visit the Scanner to find opportunities.</p>
               </div>
             ) : (
+              <>
+                {/* P3-24: column labels above the list so the right-hand
+                    numbers (direction badge + P&L) read as data columns
+                    rather than loose chips. Hidden on the smallest screens
+                    where the row already self-describes. */}
+                <div
+                  className="hidden sm:flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-2 border-b border-border/40 bg-secondary/10 text-[10px] font-mono uppercase tracking-wider text-muted-foreground"
+                  aria-hidden="true"
+                >
+                  <div className="w-4 shrink-0" />
+                  <div className="flex-1">Position</div>
+                  <div className="w-[68px] text-center shrink-0">Direction</div>
+                  <div className="w-[110px] text-right shrink-0">P&L</div>
+                </div>
               <ul className="divide-y divide-border/50">
                 {portfolio.openTrades.map((trade) => {
                   const isProfit = (trade.pnl || 0) >= 0;
@@ -202,14 +216,14 @@ export default function Portfolio() {
                           <div className="text-xs text-muted-foreground mt-0.5 truncate">{trade.assetName}</div>
                         </div>
                         <span className={cn(
-                          "px-2 py-1 text-[10px] uppercase font-bold tracking-wider rounded border shrink-0",
+                          "w-[68px] text-center px-2 py-1 text-[10px] uppercase font-bold tracking-wider rounded border shrink-0",
                           trade.direction === 'long'
                             ? "bg-success/10 text-success border-success/30"
                             : "bg-destructive/10 text-destructive border-destructive/30",
                         )}>
                           {trade.direction}
                         </span>
-                        <div className="text-right shrink-0">
+                        <div className="w-[110px] text-right shrink-0">
                           <div className={cn("font-mono font-bold text-base", isProfit ? "text-success" : "text-destructive")}>
                             {isProfit ? "+" : ""}{formatCurrency(trade.pnl)}
                           </div>
@@ -319,6 +333,7 @@ export default function Portfolio() {
                   );
                 })}
               </ul>
+              </>
             )}
           </div>
 
@@ -362,28 +377,110 @@ export default function Portfolio() {
               <div className="space-y-2">
                 {portfolio.closedTrades.map(trade => {
                   const isProfit = (trade.pnl || 0) >= 0;
+                  const isHistOpen = !!expanded[trade.id];
+                  const quantity = trade.quantity ?? 0;
+                  const entryPrice = trade.entryPrice ?? 0;
+                  const exitPrice = trade.exitPrice ?? 0;
+                  const entryAmount = entryPrice * quantity;
+                  const exitAmount = exitPrice * quantity;
+                  const closedAtLabel = trade.closedAt
+                    ? format(new Date(trade.closedAt), "MMM d, yyyy · HH:mm")
+                    : "—";
                   return (
-                    <div key={trade.id} className="p-4 rounded-xl border border-border bg-background hover:bg-secondary/50 transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <div className="font-bold text-foreground">{trade.assetSymbol}</div>
-                          <span className={cn("text-[10px] uppercase font-bold tracking-wider", trade.direction === 'long' ? "text-success" : "text-destructive")}>
-                            {trade.direction}
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <div className={cn("font-mono font-bold", isProfit ? "text-success" : "text-destructive")}>
-                            {isProfit ? "+" : ""}{formatCurrency(trade.pnl)}
+                    <div key={trade.id} className="rounded-xl border border-border bg-background overflow-hidden">
+                      {/* P3-25: collapsed row is a button that toggles
+                          expansion. BUG-37: close date+time always visible
+                          so users can see WHEN each trade resolved. */}
+                      <button
+                        type="button"
+                        onClick={() => toggleRow(trade.id)}
+                        aria-expanded={isHistOpen}
+                        aria-controls={`history-details-${trade.id}`}
+                        data-testid={`history-toggle-${trade.id}`}
+                        className="w-full text-left p-4 hover:bg-secondary/50 transition-colors"
+                      >
+                        <div className="flex justify-between items-start mb-2 gap-3">
+                          <div className="min-w-0 flex items-start gap-2">
+                            <ChevronDown
+                              className={cn(
+                                "w-4 h-4 mt-0.5 text-muted-foreground shrink-0 transition-transform",
+                                isHistOpen && "rotate-180",
+                              )}
+                              aria-hidden="true"
+                            />
+                            <div className="min-w-0">
+                              <div className="font-bold text-foreground truncate">{trade.assetSymbol}</div>
+                              <span className={cn("text-[10px] uppercase font-bold tracking-wider", trade.direction === 'long' ? "text-success" : "text-destructive")}>
+                                {trade.direction}
+                              </span>
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground font-mono">
-                            {formatPercent(trade.pnlPercent)}
+                          <div className="text-right shrink-0">
+                            <div className={cn("font-mono font-bold", isProfit ? "text-success" : "text-destructive")}>
+                              {isProfit ? "+" : ""}{formatCurrency(trade.pnl)}
+                            </div>
+                            <div className="text-xs text-muted-foreground font-mono">
+                              {formatPercent(trade.pnlPercent)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex justify-between items-center text-xs text-muted-foreground font-mono mt-3 pt-3 border-t border-border/50">
-                        <span>In: {formatCurrency(trade.entryPrice)}</span>
-                        <span>Out: {formatCurrency(trade.exitPrice)}</span>
-                      </div>
+                        <div className="flex justify-between items-center text-xs text-muted-foreground font-mono mt-3 pt-3 border-t border-border/50 gap-2">
+                          <span>In: {formatCurrency(trade.entryPrice)}</span>
+                          <span>Out: {formatCurrency(trade.exitPrice)}</span>
+                        </div>
+                        <div className="mt-2 text-[10px] font-mono text-muted-foreground/70">
+                          Closed {closedAtLabel}
+                        </div>
+                      </button>
+                      {isHistOpen && (
+                        <div
+                          id={`history-details-${trade.id}`}
+                          data-testid={`history-details-${trade.id}`}
+                          className="px-4 pb-4 pt-3 border-t border-border/50 bg-secondary/20 space-y-3"
+                        >
+                          <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider">
+                            <span className="text-muted-foreground">Trade Status</span>
+                            <span
+                              className={cn(
+                                "px-2 py-0.5 rounded border font-bold",
+                                isProfit
+                                  ? "bg-success/10 text-success border-success/30"
+                                  : "bg-destructive/10 text-destructive border-destructive/30",
+                              )}
+                            >
+                              {trade.status ?? "closed"} · {isProfit ? "win" : "loss"}
+                            </span>
+                          </div>
+                          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs font-mono">
+                            <div>
+                              <dt className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-0.5">Opened</dt>
+                              <dd className="tabular-nums">{format(new Date(trade.openedAt), "MMM d, yyyy · HH:mm")}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-0.5">Closed</dt>
+                              <dd className="tabular-nums">{closedAtLabel}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-0.5">Position Size</dt>
+                              <dd className="tabular-nums">{quantity.toLocaleString(undefined, { maximumFractionDigits: 4 })} units</dd>
+                            </div>
+                            <div>
+                              <dt className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-0.5">Entry Amount</dt>
+                              <dd className="tabular-nums">{formatCurrency(entryAmount)}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-0.5">Exit Amount</dt>
+                              <dd className="tabular-nums">{formatCurrency(exitAmount)}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-0.5">Realized P&L</dt>
+                              <dd className={cn("tabular-nums font-bold", isProfit ? "text-success" : "text-destructive")}>
+                                {isProfit ? "+" : ""}{formatCurrency(trade.pnl)} ({formatPercent(trade.pnlPercent)})
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

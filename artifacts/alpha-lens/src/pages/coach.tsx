@@ -288,7 +288,7 @@ export default function Coach() {
                         key={q}
                         type="button"
                         onClick={() => submitQuestion(q)}
-                        className="text-xs font-mono px-3 py-1.5 rounded-full border border-border bg-card hover:bg-secondary hover:border-primary/40 hover:text-foreground text-muted-foreground transition-colors text-left"
+                        className="text-xs font-mono px-3 py-1.5 rounded-full border border-border bg-card hover:bg-secondary hover:border-primary/40 hover:text-foreground text-muted-foreground transition-colors text-left max-w-full sm:max-w-[18rem] break-words leading-snug"
                       >
                         {q}
                       </button>

@@ -13,6 +13,7 @@ import {
   useListCoachMessages,
   getListCoachMessagesQueryKey,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 
 export type CoachMessage = {
@@ -68,16 +69,39 @@ const CoachContext = createContext<CoachContextValue | null>(null);
 export function CoachProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<CoachMessage[]>(loadCoachMessages);
   const analyzeMutation = useCoachAnalyze();
   const lastHydratedUserIdRef = useRef<number | null>(null);
+  // Mirrors `userId` so async mutation callbacks can read the CURRENT auth
+  // context without going stale in their captured closure. Used to drop
+  // /analyze responses that arrive after the user logged out or switched
+  // accounts — otherwise user A's coach reply could land in user B's
+  // (or an anonymous) chat thread on the same browser.
+  const currentUserIdRef = useRef<number | null>(userId);
+  currentUserIdRef.current = userId;
+  // Tracks the *previous* userId on every render so we can detect a real
+  // auth transition (logout, or account switch) independent of whether
+  // server hydration has completed. Without this, a user who logged out
+  // before /coach/messages resolved would leave their thread cached.
+  const prevUserIdRef = useRef<number | null>(userId);
 
   // Pull server-side history whenever a user is signed in. `enabled` keeps
   // the request suspended for anonymous sessions so we don't fire a 401 on
   // every page load.
+  //
+  // SECURITY: scope the query key by `userId` so cached coach history can
+  // never leak between two accounts that signed in on the same browser.
+  // Without this scoping, the generated key is global ("/coach/messages")
+  // and React Query would happily hand user B the data it cached for user
+  // A on first render after switching accounts.
+  const historyQueryKey = [
+    ...getListCoachMessagesQueryKey(),
+    { userId: userId ?? "anon" },
+  ];
   const historyQuery = useListCoachMessages({
     query: {
-      queryKey: getListCoachMessagesQueryKey(),
+      queryKey: historyQueryKey,
       enabled: userId != null,
       staleTime: 30_000,
       // Don't refetch on focus — incoming /analyze responses already update
@@ -97,9 +121,49 @@ export function CoachProvider({ children }: { children: ReactNode }) {
   // reply must not be clobbered by the slower history fetch. The next
   // mount/login will hydrate cleanly.
   useEffect(() => {
+    const prevUserId = prevUserIdRef.current;
+    prevUserIdRef.current = userId;
+
     if (userId == null) {
+      // On any logout (or account-switch to null), drop the prior user's
+      // chat from in-memory state AND sessionStorage. We trigger this on
+      // the prev→null transition itself rather than on the hydration ref
+      // so that even a user who logged out BEFORE /coach/messages resolved
+      // doesn't leave a thread cached for the next viewer of this browser.
+      if (prevUserId != null) {
+        setMessages([COACH_WELCOME_MESSAGE]);
+        if (typeof window !== "undefined") {
+          try {
+            window.sessionStorage.removeItem(COACH_STORAGE_KEY);
+          } catch {
+            // ignore
+          }
+        }
+        // Drop any cached coach history rows so a different account
+        // signing in on the same browser can't reuse them.
+        queryClient.removeQueries({
+          queryKey: getListCoachMessagesQueryKey(),
+        });
+      }
       lastHydratedUserIdRef.current = null;
       return;
+    }
+    // Account switch: prior user → different user. Drop the previous
+    // thread immediately so it can't flash for the new account while
+    // hydration is in flight.
+    if (prevUserId != null && prevUserId !== userId) {
+      setMessages([COACH_WELCOME_MESSAGE]);
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.removeItem(COACH_STORAGE_KEY);
+        } catch {
+          // ignore
+        }
+      }
+      queryClient.removeQueries({
+        queryKey: getListCoachMessagesQueryKey(),
+      });
+      lastHydratedUserIdRef.current = null;
     }
     if (lastHydratedUserIdRef.current === userId) return;
     if (analyzeMutation.isPending) return;
@@ -148,6 +212,10 @@ export function CoachProvider({ children }: { children: ReactNode }) {
   const ask = (question: string, assetId?: number) => {
     const trimmed = question.trim();
     if (!trimmed || analyzeMutation.isPending) return;
+    // Snapshot the auth context AT THE MOMENT the question is asked. If
+    // it changes before the response lands (logout / account switch), we
+    // discard the result so it can't leak into the next session.
+    const askedAsUserId = currentUserIdRef.current;
     const userMsg: CoachMessage = {
       id: Date.now().toString(),
       role: "user",
@@ -163,6 +231,7 @@ export function CoachProvider({ children }: { children: ReactNode }) {
       },
       {
         onSuccess: (res) => {
+          if (currentUserIdRef.current !== askedAsUserId) return;
           setMessages((prev) => [
             ...prev,
             {
@@ -176,6 +245,7 @@ export function CoachProvider({ children }: { children: ReactNode }) {
           ]);
         },
         onError: () => {
+          if (currentUserIdRef.current !== askedAsUserId) return;
           setMessages((prev) => [
             ...prev,
             {
