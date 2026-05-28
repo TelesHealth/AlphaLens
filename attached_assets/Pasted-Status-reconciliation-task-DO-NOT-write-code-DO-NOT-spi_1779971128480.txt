@@ -1,0 +1,64 @@
+Status reconciliation task — DO NOT write code, DO NOT spin up a Project Task, DO NOT merge anything, DO NOT deploy. Read git history, code, DB, and project state only, then produce a findings document. I've been away ~2 weeks and need to rebuild ground truth before deciding anything.
+
+Last known state (as of 2026-05-12, my last session)
+
+- main HEAD was ab4bf71 (Edge Calc R1+R2 merge — was supposed to be reverted as part of an "Option B" deploy decision that I never confirmed executing).
+- Railway (api.arclion.ai) was on 43b7934, ~2 days behind main. Vercel SHA was never confirmed.
+- A revert of ab4bf71 + redeploy of f6943ed (logging-only) was recommended but NOT executed.
+- Project Task #2 ("score 11 legacy NULL recs") was PROPOSED, flagged CANCELLED in its description, awaiting my manual rejection in the UI.
+- SCAN_DEDUP_INVESTIGATION.md was requested — unclear if it was ever produced.
+- UAT was scheduled to start Mon 2026-05-18, with codebase frozen during UAT.
+- Charlize had pending retests on bugs #28 (Kalshi "not configured"), #29 (approve 500), #30 (rejected trades missing from history).
+- Signal Tracker was at 34.7% win rate, -$250 paper return.
+
+Investigation scope — answer each, with evidence
+
+1. GIT / COMMITS
+   - Current main HEAD SHA + timestamp + commit message.
+   - Full chronological list of every commit to main since ab4bf71 (2026-05-12T18:04Z). For each: SHA, date, one-line message, and whether it touches code or docs.
+   - Did ab4bf71 (Edge Calc) ever get reverted? Search the log for a revert commit. Report yes/no with the SHA if yes.
+   - Any merge commits from Project Tasks? List them.
+
+2. DEPLOYMENT STATE
+   - What SHA is the Replit dev environment running? Is the api-server workflow currently healthy or failed?
+   - You cannot see Railway/Vercel dashboards from inside Replit — state that clearly, and tell me exactly what to check on each (which tab, what to compare) so I can verify production myself.
+   - Hit the local health endpoint (/api/healthz) and report the response.
+
+3. PROJECT TASKS
+   - List every Project Task that exists, with current state (PROPOSED / IN_PROGRESS / MERGED / etc.).
+   - Did Task #2 ever get rejected, or is it still hanging?
+   - Were any new Project Tasks created in the last 2 weeks? If any were merged to main, that's a freeze violation during UAT — flag it loudly with the merge SHA and timestamp.
+
+4. UAT ARTIFACTS
+   - Search the repo + attached_assets for any UAT bug reports, test results, or new spreadsheet exports dated after 2026-05-15.
+   - Is there any evidence UAT ran (new bug tickets, new commits referencing UAT, tester accounts seeded)?
+   - Report the current state of bugs #28, #29, #30 — fixed, still open, no info?
+
+5. DEDUP INVESTIGATION
+   - Does SCAN_DEDUP_INVESTIGATION.md exist at repo root? If yes, summarize its findings in 5 lines. If no, say so.
+   - Did any scan-deduplication logic get added to services/recommendations.ts or services/scheduler.ts in the last 2 weeks? Check the code, not just the doc.
+
+6. DB / SIGNAL STATE
+   - Current row counts: total recommendations, open vs resolved, correct/incorrect/partial among resolved.
+   - Current win rate (correct / resolved) and compare to the 34.7% from 2 weeks ago.
+   - Open-rec duplication check: top 5 (asset, direction) groups by count among open recs (the scan-duplication signal).
+   - Any schema changes (new columns/tables) since 2026-05-12? Check the schema files + migration history.
+
+7. POST_UAT_POLISH.md
+   - Does it still exist? List its current contents (section titles only). Flag any new sections added in the last 2 weeks — those are things prior agents wanted to do that I haven't reviewed.
+
+Findings document
+
+Create STATUS_RECONCILIATION_2026-05-28.md at repo root with one section per scope item above (1-7), plus a final section:
+
+8. DELTA SUMMARY — in plain English: what changed while I was away, what's in an unexpected state, and what open decisions from 2 weeks ago are still open. Bullet list, no fixes proposed.
+
+Hard rules
+
+- DO NOT modify any source file except creating the one findings doc.
+- DO NOT create, propose, or spin up any Project Task. The standing rule from my last session still holds: no Project Tasks without explicit written approval from me naming the task.
+- DO NOT deploy, revert, or run any git write operation.
+- DO NOT propose next steps or "suggested tasks." Report state only.
+- If you discover something alarming (freeze violation, failed production deploy, data anomaly), put it at the TOP of the doc under a "⚠️ NEEDS ATTENTION" header, but still take no action.
+
+Produce the doc, then stand by.
