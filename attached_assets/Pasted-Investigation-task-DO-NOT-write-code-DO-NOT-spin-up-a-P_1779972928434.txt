@@ -1,0 +1,46 @@
+Investigation task — DO NOT write code, DO NOT spin up a Project Task, DO NOT merge, DO NOT deploy. Read-only: surface what the AI coach told testers, plus the coach's system prompt and the reasoning attached to specific losing calls. Produce a findings doc. I'll decide next steps after.
+
+Context
+
+The signal win rate is sub-40% on executed trades. ETH LONG calls (entered ~$2386.69, resolved $2100-$2313) were a major loss cluster. Testers with limited experience execute based on the AI coach's guidance. I need to see exactly what the coach was telling them — specifically whether it presented losing theses with appropriate uncertainty/bear-case, or as high-confidence calls.
+
+Investigation scope
+
+1. COACH SYSTEM PROMPT / GENERATION LOGIC
+   - Open services/coach.ts. Quote verbatim: the system prompt or prompt template the coach uses, the model it calls, and any temperature/params.
+   - Does the coach prompt instruct it to surface a bear case, express uncertainty, or note disconfirming evidence? Or does it optimize for confidence/persuasiveness/clarity? Quote the relevant instruction lines.
+   - Trace where the coach gets its inputs: does it receive the recommendation's full reasoning (why-signals, bear case, conviction), or only the headline call (asset + direction + conviction score)? This determines whether the coach can even convey nuance.
+
+2. WHAT THE COACH ACTUALLY SAID (if coach_messages table has data)
+   - Confirm whether you're on a DB with real coach_messages rows (the table was added 2026-05-20). Report row count + date range. If empty or you're on a dev DB with no tester data, say so and STOP this section — do not fabricate.
+   - If populated: pull the last 30 coach_messages, with user id, timestamp, and full message content (both the user's question and the coach's response if both are stored).
+   - Specifically search coach_messages for any conversation referencing ETH / Ethereum / the losing positions. Quote the coach's actual words verbatim. I want to see how it framed conviction on calls that lost.
+
+3. THE REASONING BEHIND THE LOSING CALLS
+   - For the ETH LONG recommendations that resolved incorrect (entry ~$2386.69), pull the stored reasoning fields: why-signals, bear case (if any), conviction score, edge, and any text-evidence or news fields the recommendation carried.
+   - Quote 3-5 of these losing ETH calls' reasoning verbatim. I want to see what thesis the system built and whether it included any disconfirming signal it then ignored.
+   - Same for 2-3 of the losing GLD trades (GLD was -$21.70, the worst non-FED-CUT line).
+
+4. CONFIDENCE CALIBRATION CHECK
+   - For resolved recommendations, compare conviction_score / confidence against outcome. Do high-conviction calls win more than low-conviction ones, or is conviction uncorrelated (or inversely correlated) with being correct? Simple breakdown: bucket by conviction (e.g. 60-69, 70-79, 80+) and show win rate per bucket.
+   - This tells us whether the conviction score means anything at all.
+
+Findings document
+
+Create COACH_REASONING_AUDIT_2026-05-28.md at repo root. Sections:
+A. Coach system prompt (verbatim) + whether it's built to convey uncertainty or confidence.
+B. Coach inputs — does it receive full reasoning or just the headline call.
+C. Actual coach messages to testers (verbatim quotes, or "no tester data / dev DB" if empty).
+D. Reasoning behind 3-5 losing ETH calls + 2-3 losing GLD calls (verbatim).
+E. Conviction calibration table (win rate by conviction bucket).
+F. One plain-English paragraph: based ONLY on what you found (no speculation), does the coach appear to present losing theses as confident, and does the conviction score correlate with being right?
+
+Hard rules
+
+- Read-only. No source changes except creating the one findings doc.
+- No Project Tasks, no git writes, no deploys. Standing no-Project-Tasks-without-named-approval rule holds.
+- If a query/field is empty or doesn't exist, report it as empty — do NOT infer or fabricate coach messages or reasoning text.
+- Quote verbatim where I asked for verbatim — do not paraphrase the coach's words or the calls' reasoning.
+- No suggested next steps.
+
+Produce the doc, then stand by.
