@@ -1,0 +1,47 @@
+Investigation task — DO NOT write code, DO NOT spin up a Project Task, DO NOT merge, DO NOT deploy. Read-only: map the full prediction → coach → resolution → scoring pipeline so we can plan a rebuild against what's actually in the code, not assumptions. Produce one findings doc. Decisions come after.
+
+Why this matters: previous audits this month found a hard-coded confidence constant (coach.ts:395), a coach blind to the bear case, and a conviction_score field with no usable spread. Before changing anything we need a single authoritative map of how data flows from a recommendation being generated, through the coach, to outcome resolution and scoring. Trace it end to end.
+
+Map these, in order, with verbatim code quotes and file:line references:
+
+1.⁠ ⁠RECOMMENDATION GENERATION
+   - In services/recommendations.ts (and scoring.ts if involved): trace where a recommendation is created. Quote the insert. List EVERY field written, and for each reasoning field (bear_case, why jsonb, historical_context, entry_trigger, urgency_reason, edge_explanation), note where its value comes from — model output, computed, or hardcoded.
+   - Where does the model's confidence/conviction come from at generation time? Quote the prompt section that asks for it and the code that parses/stores it.
+
+2.⁠ ⁠CONVICTION_SCORE — why it's dead
+   - Find every place conviction_score is computed or written. Quote the formula/logic verbatim.
+   - The resolved-set range was -7.7 to 4.3 (no meaningful spread). Based on the formula, explain WHY the range is so compressed. Is it a units bug, a formula error, a missing normalization? Diagnose from the code — don't fix.
+
+3.⁠ ⁠CONFIDENCE — every place it lives
+   - coach.ts:395 has ⁠ const confidence = 0.75 ⁠. Confirm and quote it in context.
+   - Separately: the coach prompt requires a ⁠ CONFIDENCE: 0-100 ⁠ line from the model. Trace what happens to that model-produced value. Is it parsed? Stored anywhere? Or fully discarded in favor of the 0.75 constant? 
+   - Is the model's real confidence value persisted on ANY table/field that a calibration analysis could later read? If not, state that plainly — it means real confidence has never been recorded.
+
+4.⁠ ⁠COACH INPUT ASSEMBLY
+   - In services/coach.ts: quote the exact code that assembles what the coach model receives about recommendations. Confirm it's only the top-3 one-liner summaries. List precisely which rec fields are included vs omitted.
+   - Confirm whether bear_case, why jsonb, historical_context, entry_trigger, urgency_reason are passed to the coach (the prior audit said no — verify against current code, quote the assembly).
+
+5.⁠ ⁠OUTCOME RESOLUTION
+   - In services/outcome-resolver.ts: quote how a recommendation is marked correct/incorrect/partial. What price/threshold logic determines outcome? How is paper_return computed?
+   - Is outcome resolution per-recommendation, and does it store enough (predicted direction, entry, exit, the rec's confidence-at-call) to support a calibration analysis later?
+
+6.⁠ ⁠CALIBRATION READINESS
+   - For a calibration harness — measuring predicted confidence vs actual outcome, broken out by asset_class — list exactly what already exists vs what's missing. Specifically: is the model's real confidence stored at call-time? Is asset_class on the resolved rows? Is there a clean join from a resolved outcome back to the confidence the system had when it made the call?
+   - Do NOT build it. Just inventory what a harness would need and what's absent.
+
+7.⁠ ⁠DUPLICATION (carry-over)
+   - Confirm current open-rec duplication state (top 5 asset/direction clusters by count). This affects any calibration math, so we need the current number.
+
+Findings doc
+
+Create PIPELINE_MAP_2026-05-28.md at repo root. One section per item 1-7. Then a final section:
+8.⁠ ⁠REBUILD READINESS SUMMARY — plain English, no fixes proposed: for each of the three known breaks (confidence constant, coach-blind-to-reasoning, dead conviction score), state in one line what the code change would need to touch (file:line), and flag any dependency or risk you noticed (e.g. "changing X requires regenerating codegen because the field is in the API contract").
+
+Hard rules
+•⁠  ⁠Read-only. No source changes except creating the one findings doc.
+•⁠  ⁠No Project Tasks, no git writes, no deploys. The standing no-Project-Tasks-without-named-approval rule holds.
+•⁠  ⁠Quote verbatim where asked. Do NOT paraphrase code.
+•⁠  ⁠If a field/value/path doesn't exist, report it as absent — do NOT infer or fabricate.
+•⁠  ⁠No suggested next steps beyond the factual rebuild-readiness summary in section 8.
+
+Produce the doc, then stand by.
