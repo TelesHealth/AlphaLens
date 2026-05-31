@@ -1,1 +1,3 @@
 - [Orval query option overrides](orval-query-options.md) — when passing a `{query:{...}}` override to a generated `useXxx` hook, you must include `queryKey: getXxxQueryKey()` or tsc fails (TS2741).
+- [AI Coach chat persistence](coach-chat-persistence.md) — scope coach sessionStorage + history query key per-user; hydrate server history with a merge-once that always runs (don't gate on cache/activity).
+- [Portfolio live mark price](portfolio-live-mark-price.md) — open-trade pnl is null until close; recompute pnl/mark from live assets.currentPrice each request so Mark Price tracks the market.

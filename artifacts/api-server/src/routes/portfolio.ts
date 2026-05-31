@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { tradesTable, portfolioTable, assetsTable } from "@workspace/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import {
   OpenTradeBody,
   CloseTradeParams,
@@ -62,6 +62,26 @@ router.get("/", async (req, res) => {
     const totalPnl = closedTrades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
     const displayBalance = Math.floor(portfolio.balance * 100) / 100;
 
+    // Open positions must show a LIVE mark price and the resulting unrealized
+    // P&L — not the static (null) values stored on the trade row, which are
+    // only written when a trade is closed. We pull the latest currentPrice for
+    // each held asset (refreshed by the market-data scheduler, same source the
+    // /market/:id page reads) and recompute mark/pnl on every request so the
+    // portfolio matches what the user sees on the market detail page.
+    const openAssetIds = [...new Set(openTrades.map((t) => t.assetId))];
+    const openAssets = openAssetIds.length
+      ? await db
+          .select({
+            id: assetsTable.id,
+            currentPrice: assetsTable.currentPrice,
+          })
+          .from(assetsTable)
+          .where(inArray(assetsTable.id, openAssetIds))
+      : [];
+    const priceByAssetId = new Map(
+      openAssets.map((a) => [a.id, a.currentPrice]),
+    );
+
     res.json({
       balance: displayBalance,
       initialBalance: portfolio.initialBalance,
@@ -70,7 +90,9 @@ router.get("/", async (req, res) => {
         portfolio.initialBalance > 0
           ? (totalPnl / portfolio.initialBalance) * 100
           : 0,
-      openTrades: openTrades.map(formatTrade),
+      openTrades: openTrades.map((t) =>
+        formatOpenTrade(t, priceByAssetId.get(t.assetId) ?? null),
+      ),
       closedTrades: closedTrades.map(formatTrade),
     });
   } catch (e: any) {
@@ -256,6 +278,27 @@ function formatTrade(t: typeof tradesTable.$inferSelect) {
     openedAt: t.openedAt,
     closedAt: t.closedAt,
   };
+}
+
+// Like formatTrade, but overlays a LIVE mark price and the unrealized P&L it
+// implies for an OPEN position. `markPrice` is the asset's latest currentPrice
+// (null if unavailable, in which case we fall back to the stored values). The
+// client derives the displayed Mark Price from `pnl`, so keeping pnl live keeps
+// the mark live too.
+function formatOpenTrade(
+  t: typeof tradesTable.$inferSelect,
+  markPrice: number | null,
+) {
+  const base = formatTrade(t);
+  const entry = t.entryPrice;
+  if (markPrice == null || entry == null || t.quantity == null) {
+    return base;
+  }
+  const priceDiff = markPrice - entry;
+  const dir = t.direction === "long" ? 1 : -1;
+  const pnl = dir * priceDiff * t.quantity;
+  const pnlPercent = entry > 0 ? dir * (priceDiff / entry) * 100 : 0;
+  return { ...base, pnl, pnlPercent };
 }
 
 export default router;

@@ -4,9 +4,7 @@ import {
   useEffect,
   useRef,
   useState,
-  type Dispatch,
   type ReactNode,
-  type SetStateAction,
 } from "react";
 import {
   useCoachAnalyze,
@@ -25,7 +23,17 @@ export type CoachMessage = {
   confidence?: number;
 };
 
-const COACH_STORAGE_KEY = "aiCoach.messages";
+const COACH_STORAGE_PREFIX = "aiCoach.messages";
+
+// sessionStorage is keyed PER USER. A single global key used to leak one
+// account's chat into the next account that signed in on the same browser
+// (the CoachProvider unmounts on logout before any cleanup effect can run, so
+// a shared key was never cleared). Scoping by userId makes cross-user leakage
+// structurally impossible — a brand-new account simply has no key and starts
+// empty, and each user only ever reads their own cache.
+function storageKey(userId: number | null): string {
+  return `${COACH_STORAGE_PREFIX}.${userId ?? "anon"}`;
+}
 
 export const COACH_WELCOME_MESSAGE: CoachMessage = {
   id: "welcome",
@@ -34,10 +42,10 @@ export const COACH_WELCOME_MESSAGE: CoachMessage = {
     "I'm Arclion, your AI investment coach. I analyze global market data, evidence signals, and structural shifts. How can I assist your portfolio today?",
 };
 
-function loadCoachMessages(): CoachMessage[] {
+function loadCoachMessages(userId: number | null): CoachMessage[] {
   if (typeof window === "undefined") return [COACH_WELCOME_MESSAGE];
   try {
-    const raw = window.sessionStorage.getItem(COACH_STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(storageKey(userId));
     if (!raw) return [COACH_WELCOME_MESSAGE];
     const parsed = JSON.parse(raw) as CoachMessage[];
     return Array.isArray(parsed) && parsed.length > 0
@@ -50,7 +58,6 @@ function loadCoachMessages(): CoachMessage[] {
 
 type CoachContextValue = {
   messages: CoachMessage[];
-  setMessages: Dispatch<SetStateAction<CoachMessage[]>>;
   ask: (question: string, assetId?: number) => void;
   isPending: boolean;
 };
@@ -59,169 +66,140 @@ const CoachContext = createContext<CoachContextValue | null>(null);
 
 // CoachProvider is mounted ABOVE the routed pages so the in-flight analyze
 // mutation and the messages state survive when the user navigates away from
-// /coach and back (UAT bug #11).
+// /coach and back.
 //
-// P3-15: Server-side persistence. When the user is authenticated we fetch
-// their chat history from /coach/messages and replace the local state. The
-// /coach/analyze route saves both the user question and the coach reply
-// server-side, so a logout/login round-trip restores the full thread.
-// Anonymous users continue to use sessionStorage as a best-effort cache.
+// Server-side persistence is the source of truth. When the user is
+// authenticated we fetch their chat history from /coach/messages and merge it
+// into the thread. The /coach/analyze route saves both the user question and
+// the coach reply server-side, so a logout/login round-trip restores the full
+// thread. sessionStorage is only a per-user paint cache for instant render
+// before the server history arrives.
 export function CoachProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const queryClient = useQueryClient();
-  const [messages, setMessages] = useState<CoachMessage[]>(loadCoachMessages);
+  const [messages, setMessages] = useState<CoachMessage[]>(() =>
+    loadCoachMessages(userId),
+  );
   const analyzeMutation = useCoachAnalyze();
-  const lastHydratedUserIdRef = useRef<number | null>(null);
+
   // Mirrors `userId` so async mutation callbacks can read the CURRENT auth
   // context without going stale in their captured closure. Used to drop
   // /analyze responses that arrive after the user logged out or switched
-  // accounts — otherwise user A's coach reply could land in user B's
-  // (or an anonymous) chat thread on the same browser.
+  // accounts — otherwise user A's coach reply could land in user B's chat.
   const currentUserIdRef = useRef<number | null>(userId);
   currentUserIdRef.current = userId;
-  // Tracks the *previous* userId on every render so we can detect a real
-  // auth transition (logout, or account switch) independent of whether
-  // server hydration has completed. Without this, a user who logged out
-  // before /coach/messages resolved would leave their thread cached.
+  // Tracks the previous userId so we can detect a real auth transition.
   const prevUserIdRef = useRef<number | null>(userId);
+  // Messages produced in THIS browser session via ask() (optimistic question
+  // + the coach reply/error). Tracked separately from `messages` so that when
+  // server history finally loads we can rebuild the thread as
+  // [welcome, ...serverHistory, ...sessionMessages] without dropping anything
+  // the user just typed and without duplicating the cached paint.
+  const sessionMsgsRef = useRef<CoachMessage[]>([]);
+  // Whether the user has sent anything this session. Decides replace-vs-merge
+  // when server history arrives.
+  const hasSessionActivityRef = useRef(false);
+  // Whether server history has been merged in for the current login. We merge
+  // exactly once; afterwards the in-memory thread is authoritative and ask()
+  // keeps both it and the server in sync. Crucially this is set AFTER the
+  // merge actually happens, so a message sent before history loads can never
+  // permanently skip restoration (the architect's race): the merge still runs
+  // once data arrives and prepends the restored history ahead of the live
+  // session messages.
+  const serverMergedRef = useRef(false);
 
-  // Pull server-side history whenever a user is signed in. `enabled` keeps
-  // the request suspended for anonymous sessions so we don't fire a 401 on
-  // every page load.
-  //
-  // SECURITY: scope the query key by `userId` so cached coach history can
-  // never leak between two accounts that signed in on the same browser.
-  // Without this scoping, the generated key is global ("/coach/messages")
-  // and React Query would happily hand user B the data it cached for user
-  // A on first render after switching accounts.
-  const historyQueryKey = [
-    ...getListCoachMessagesQueryKey(),
-    { userId: userId ?? "anon" },
-  ];
+  // Pull server-side history whenever a user is signed in. `enabled` keeps the
+  // request suspended for anonymous sessions so we don't fire a 401 on every
+  // page load. SECURITY: scope the query key by `userId` so cached coach
+  // history can never leak between two accounts on the same browser.
   const historyQuery = useListCoachMessages({
     query: {
-      queryKey: historyQueryKey,
+      queryKey: [...getListCoachMessagesQueryKey(), { userId: userId ?? "anon" }],
       enabled: userId != null,
       staleTime: 30_000,
-      // Don't refetch on focus — incoming /analyze responses already update
-      // the in-memory state and a refetch would briefly flicker the thread.
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
     },
   });
 
-  // Rehydrate when the user changes (login, account switch). For the same
-  // userId we only hydrate once — subsequent /analyze appends are managed
-  // optimistically in `ask` below.
-  //
-  // Race-condition guard: if the user already started chatting in this
-  // session (messages contains anything beyond the welcome bubble), DO NOT
-  // replace state — the optimistic user question and the in-flight coach
-  // reply must not be clobbered by the slower history fetch. The next
-  // mount/login will hydrate cleanly.
+  // Merge server history into the thread once per login (and reset everything
+  // on a real auth transition).
   useEffect(() => {
     const prevUserId = prevUserIdRef.current;
     prevUserIdRef.current = userId;
 
-    if (userId == null) {
-      // On any logout (or account-switch to null), drop the prior user's
-      // chat from in-memory state AND sessionStorage. We trigger this on
-      // the prev→null transition itself rather than on the hydration ref
-      // so that even a user who logged out BEFORE /coach/messages resolved
-      // doesn't leave a thread cached for the next viewer of this browser.
-      if (prevUserId != null) {
-        setMessages([COACH_WELCOME_MESSAGE]);
-        if (typeof window !== "undefined") {
-          try {
-            window.sessionStorage.removeItem(COACH_STORAGE_KEY);
-          } catch {
-            // ignore
-          }
-        }
-        // Drop any cached coach history rows so a different account
-        // signing in on the same browser can't reuse them.
-        queryClient.removeQueries({
-          queryKey: getListCoachMessagesQueryKey(),
-        });
-      }
-      lastHydratedUserIdRef.current = null;
-      return;
-    }
-    // Account switch: prior user → different user. Drop the previous
-    // thread immediately so it can't flash for the new account while
-    // hydration is in flight.
-    if (prevUserId != null && prevUserId !== userId) {
-      setMessages([COACH_WELCOME_MESSAGE]);
-      if (typeof window !== "undefined") {
-        try {
-          window.sessionStorage.removeItem(COACH_STORAGE_KEY);
-        } catch {
-          // ignore
-        }
-      }
+    // Real auth transition (logout -> null, or account switch A -> B): drop
+    // all per-session state and the previous account's cached query rows.
+    if (prevUserId !== userId) {
+      setMessages(loadCoachMessages(userId));
+      sessionMsgsRef.current = [];
+      hasSessionActivityRef.current = false;
+      serverMergedRef.current = false;
       queryClient.removeQueries({
         queryKey: getListCoachMessagesQueryKey(),
       });
-      lastHydratedUserIdRef.current = null;
     }
-    if (lastHydratedUserIdRef.current === userId) return;
-    if (analyzeMutation.isPending) return;
+
+    if (userId == null) return;
+    if (serverMergedRef.current) return;
     if (!historyQuery.data) return;
 
-    const hasLocalActivity =
-      messages.length > 1 ||
-      (messages.length === 1 && messages[0].id !== COACH_WELCOME_MESSAGE.id);
-    if (hasLocalActivity) {
-      // Mark this user as hydrated anyway so we don't keep re-triggering;
-      // local state already reflects fresher activity than the server cache.
-      lastHydratedUserIdRef.current = userId;
-      return;
-    }
-
     const rows = historyQuery.data.messages ?? [];
-    if (rows.length === 0) {
-      setMessages([COACH_WELCOME_MESSAGE]);
-    } else {
-      const restored: CoachMessage[] = rows.map((row: typeof rows[number]) => ({
-        id: `srv-${row.id}`,
-        role: row.role === "user" ? "user" : "coach",
-        content: row.content,
-        recommendations: row.recommendations ?? undefined,
-        riskAssessment: row.riskAssessment ?? null,
-        confidence:
-          typeof row.confidence === "number" ? row.confidence : undefined,
-      }));
-      setMessages([COACH_WELCOME_MESSAGE, ...restored]);
-    }
-    lastHydratedUserIdRef.current = userId;
-  }, [userId, historyQuery.data, analyzeMutation.isPending, messages]);
+    const serverMsgs: CoachMessage[] = rows.map((row: typeof rows[number]) => ({
+      id: `srv-${row.id}`,
+      role: row.role === "user" ? "user" : "coach",
+      content: row.content,
+      recommendations: row.recommendations ?? undefined,
+      riskAssessment: row.riskAssessment ?? null,
+      confidence:
+        typeof row.confidence === "number" ? row.confidence : undefined,
+    }));
 
+    // Restored history goes first (it's older); anything the user already sent
+    // this session stays after it. With no session activity this is a plain
+    // replace, which also discards the transient sessionStorage paint in favor
+    // of the authoritative server thread.
+    setMessages([
+      COACH_WELCOME_MESSAGE,
+      ...serverMsgs,
+      ...(hasSessionActivityRef.current ? sessionMsgsRef.current : []),
+    ]);
+    serverMergedRef.current = true;
+  }, [userId, historyQuery.data, queryClient]);
+
+  // Persist the current thread to the per-user session cache for instant paint
+  // on the next mount.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       window.sessionStorage.setItem(
-        COACH_STORAGE_KEY,
+        storageKey(userId),
         JSON.stringify(messages),
       );
     } catch {
       // ignore
     }
-  }, [messages]);
+  }, [messages, userId]);
+
+  const appendMessage = (msg: CoachMessage) => {
+    sessionMsgsRef.current = [...sessionMsgsRef.current, msg];
+    setMessages((prev) => [...prev, msg]);
+  };
 
   const ask = (question: string, assetId?: number) => {
     const trimmed = question.trim();
     if (!trimmed || analyzeMutation.isPending) return;
-    // Snapshot the auth context AT THE MOMENT the question is asked. If
-    // it changes before the response lands (logout / account switch), we
-    // discard the result so it can't leak into the next session.
+    hasSessionActivityRef.current = true;
+    // Snapshot the auth context AT THE MOMENT the question is asked. If it
+    // changes before the response lands (logout / account switch), we discard
+    // the result so it can't leak into the next session.
     const askedAsUserId = currentUserIdRef.current;
-    const userMsg: CoachMessage = {
+    appendMessage({
       id: Date.now().toString(),
       role: "user",
       content: trimmed,
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    });
     analyzeMutation.mutate(
       {
         data: {
@@ -232,29 +210,30 @@ export function CoachProvider({ children }: { children: ReactNode }) {
       {
         onSuccess: (res) => {
           if (currentUserIdRef.current !== askedAsUserId) return;
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: (Date.now() + 1).toString(),
-              role: "coach",
-              content: res.analysis,
-              recommendations: res.recommendations,
-              riskAssessment: res.riskAssessment,
-              confidence: res.confidence,
-            },
-          ]);
+          appendMessage({
+            id: (Date.now() + 1).toString(),
+            role: "coach",
+            content: res.analysis,
+            recommendations: res.recommendations,
+            riskAssessment: res.riskAssessment,
+            confidence: res.confidence,
+          });
+          // The server has now persisted this exchange; refresh the cached
+          // history so a later remount/login hydrates the full thread.
+          if (askedAsUserId != null) {
+            queryClient.invalidateQueries({
+              queryKey: getListCoachMessagesQueryKey(),
+            });
+          }
         },
         onError: () => {
           if (currentUserIdRef.current !== askedAsUserId) return;
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: (Date.now() + 1).toString(),
-              role: "coach",
-              content:
-                "I encountered an error analyzing the data. Please check connection and try again.",
-            },
-          ]);
+          appendMessage({
+            id: (Date.now() + 1).toString(),
+            role: "coach",
+            content:
+              "I encountered an error analyzing the data. Please check connection and try again.",
+          });
         },
       },
     );
@@ -264,7 +243,6 @@ export function CoachProvider({ children }: { children: ReactNode }) {
     <CoachContext.Provider
       value={{
         messages,
-        setMessages,
         ask,
         isPending: analyzeMutation.isPending,
       }}
