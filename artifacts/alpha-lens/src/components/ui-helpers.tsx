@@ -23,6 +23,22 @@ export function formatPercent(value: number | null | undefined) {
   return `${sign}${value.toFixed(2)}%`;
 }
 
+// P3-34 / P3-30: Prediction-market directions come back from the backend in
+// several vocabularies (yes/no, bullish/bearish, long/short, buy/sell). The
+// product now speaks a single trading vocabulary to the user — LONG / SHORT —
+// so every surface that renders a direction routes through this mapper. Yes →
+// LONG, No → SHORT. Anything we can't classify falls back to WATCH.
+export function directionLabel(
+  direction?: string | null,
+): "LONG" | "SHORT" | "WATCH" {
+  const d = (direction ?? "").toLowerCase().trim();
+  if (d === "long" || d === "bullish" || d === "yes" || d === "buy")
+    return "LONG";
+  if (d === "short" || d === "bearish" || d === "no" || d === "sell")
+    return "SHORT";
+  return "WATCH";
+}
+
 export function SectorBadge({ sector }: { sector: MarketSector }) {
   const colors: Record<MarketSector, string> = {
     crypto: "bg-blue-500/10 text-blue-400 border-blue-500/20",

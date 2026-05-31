@@ -1,0 +1,1 @@
+- [Orval query option overrides](orval-query-options.md) — when passing a `{query:{...}}` override to a generated `useXxx` hook, you must include `queryKey: getXxxQueryKey()` or tsc fails (TS2741).

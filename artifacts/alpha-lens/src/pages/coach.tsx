@@ -131,7 +131,7 @@ export default function Coach() {
   }
 
   return (
-    <div className="h-[calc(100vh-6rem)] md:h-[calc(100vh-4rem)] flex flex-col animate-in fade-in duration-500">
+    <div className="h-[calc(100vh-6rem)] lg:h-[calc(100vh-4rem)] flex flex-col animate-in fade-in duration-500">
       <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-display text-glow-primary flex items-center gap-3">
@@ -159,7 +159,7 @@ export default function Coach() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
         
         {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 z-10 scrollbar-thin">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-6 z-10 scrollbar-thin">
           {messages.map((msg, idx) => (
             <div key={msg.id} className={cn("flex w-full", msg.role === "user" ? "justify-end" : "justify-start")}>
               <div className={cn("flex gap-4 max-w-[85%]", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
@@ -269,10 +269,13 @@ export default function Coach() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
-        <div className="p-4 bg-background/50 border-t border-border backdrop-blur-md z-10">
+        {/* Input Area. P3-31: `shrink-0` guarantees the composer keeps its
+            height even when the chat area is short, and the starter-question
+            block is capped + scrollable so a long list can never push the
+            text input out of (or below) the card's `overflow-hidden` edge. */}
+        <div className="shrink-0 p-4 bg-background/50 border-t border-border backdrop-blur-md z-10">
           {messages.length <= 1 && !isPending && (
-            <div className="max-w-4xl mx-auto mb-3 space-y-3">
+            <div className="max-w-4xl mx-auto mb-3 space-y-3 max-h-[40vh] overflow-y-auto pr-1 scrollbar-thin">
               <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Sparkles className="w-3 h-3 text-primary" />
                 Suggested starter questions

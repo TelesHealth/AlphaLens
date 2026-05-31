@@ -142,25 +142,25 @@ function PlatformCard({
       </div>
 
       {info?.legalStatus && (
-        <div>
+        <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-0.5">
             Legal Status
           </div>
-          <div className="text-xs text-foreground/80">{info.legalStatus}</div>
+          <div className="text-xs text-foreground/80 break-words">{info.legalStatus}</div>
         </div>
       )}
 
       {info?.assetTypes && (
-        <div>
+        <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono mb-0.5">
             Asset Types
           </div>
-          <div className="text-xs text-foreground/80">{info.assetTypes}</div>
+          <div className="text-xs text-foreground/80 break-words">{info.assetTypes}</div>
         </div>
       )}
 
       {info?.message && (
-        <div className="text-xs text-muted-foreground border-t border-border pt-2">
+        <div className="text-xs text-muted-foreground border-t border-border pt-2 break-words min-w-0">
           {info.message}
         </div>
       )}
@@ -236,7 +236,7 @@ function OverviewTab() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <PlatformCard name="Kalshi" info={accounts?.kalshi} />
         <PlatformCard name="Alpaca" info={accounts?.alpaca} />
         <PlatformCard name="Polymarket" info={accounts?.polymarket} />

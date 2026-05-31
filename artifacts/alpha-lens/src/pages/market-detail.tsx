@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useRoute } from "wouter";
 import { 
   useGetMarket, 
@@ -392,9 +393,12 @@ export default function MarketDetail() {
         </div>
       </div>
 
-      {/* Trade Modal */}
-      {isTradeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
+      {/* Trade Modal. P3-29: rendered through a portal to <body> with a
+          z-index above the sidebar (z-50) so the layout chrome can never clip
+          or cover it on any breakpoint. */}
+      {isTradeModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary to-accent" />
             <h2 className="text-2xl font-display font-bold mb-1">Open Position</h2>
@@ -451,8 +455,9 @@ export default function MarketDetail() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -60,7 +60,7 @@ import {
   Trash2,
   MessageSquare,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/components/ui-helpers";
+import { cn, formatCurrency, directionLabel } from "@/components/ui-helpers";
 import { InfoTip } from "@/components/ui/info-tip";
 import { useToast } from "@/hooks/use-toast";
 
@@ -374,8 +374,11 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
     }
     if (recId == null || rec.assetId == null) return;
     setPaperAmountErr(null);
+    // P3-30: map every inbound direction vocabulary (yes/no, bullish/bearish,
+    // long/short) to the long/short the trade API expects. No / bearish /
+    // short → short; everything else → long.
     const direction: OpenTradeRequestDirection =
-      rec.direction === "bearish" || rec.direction === "short" ? "short" : "long";
+      directionLabel(rec.direction) === "SHORT" ? "short" : "long";
     paperMutation.mutate({
       data: {
         assetId: rec.assetId,
@@ -556,7 +559,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
           <div className="flex items-center gap-3 w-full sm:w-auto sm:shrink-0 justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
             {rec.direction && (
               <div className="flex items-center gap-1">
-                {rec.direction === "long" || rec.direction === "bullish" ? (
+                {directionLabel(rec.direction) === "LONG" ? (
                   <TrendingUp className="w-4 h-4 text-success" />
                 ) : (
                   <TrendingDown className="w-4 h-4 text-destructive" />
@@ -1102,7 +1105,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                     Direction
                   </div>
                   <div className="font-mono uppercase">
-                    {rec.direction ?? "—"}
+                    {rec.direction ? directionLabel(rec.direction) : "—"}
                   </div>
                 </div>
                 <div>
@@ -1232,7 +1235,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
                     Direction
                   </div>
                   <div className="font-mono uppercase">
-                    {rec.direction ?? "—"}
+                    {rec.direction ? directionLabel(rec.direction) : "—"}
                   </div>
                 </div>
               </div>
@@ -1527,18 +1530,21 @@ export default function Briefing() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-        <div>
+        <div className="flex-1 min-w-0 w-full">
           <h1 className="text-3xl font-display text-glow-primary">
             Intelligence Briefing
           </h1>
-          <p className="text-muted-foreground mt-1">
+          {/* P3-29: full-width description — `flex-1` lets the title block use
+              the row's available width so the copy never gets pinched to a
+              narrow column beside the Run AI Scan button. */}
+          <p className="text-muted-foreground mt-1 w-full">
             AI-powered daily market intelligence and trade recommendations.
           </p>
         </div>
         <button
           onClick={() => scanMutation.mutate()}
           disabled={scanMutation.isPending}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary/10 border border-primary/30 hover:bg-primary/20 text-sm font-medium transition-all group disabled:opacity-50"
+          className="shrink-0 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary/10 border border-primary/30 hover:bg-primary/20 text-sm font-medium transition-all group disabled:opacity-50"
         >
           <Zap
             className={cn(

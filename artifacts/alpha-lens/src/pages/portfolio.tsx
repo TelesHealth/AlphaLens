@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useGetPortfolio, useGetPortfolioStats, useCloseTrade } from "@workspace/api-client-react";
+import { useGetPortfolio, useGetPortfolioStats, useCloseTrade, getGetPortfolioQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
@@ -35,7 +35,20 @@ export default function Portfolio() {
   // is scannable on mobile without horizontal scrolling.
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
-  const { data: portfolio, isLoading: isPortLoading } = useGetPortfolio();
+  const { data: portfolio, isLoading: isPortLoading } = useGetPortfolio({
+    query: {
+      queryKey: getGetPortfolioQueryKey(),
+      // P3-35: keep the Mark Price (and resulting P&L) live. The backend
+      // recomputes each open position's mark from the latest asset price on
+      // every fetch, so polling here means the user sees the current mark
+      // without a manual refresh. 60s matches the pending-orders cadence used
+      // in the layout; React Query tears the interval down automatically when
+      // this page unmounts. Background polling is disabled so we don't refetch
+      // while the tab is hidden.
+      refetchInterval: 60_000,
+      refetchIntervalInBackground: false,
+    },
+  });
   const { data: stats, isLoading: isStatsLoading } = useGetPortfolioStats();
 
   const closeMutation = useCloseTrade({
@@ -104,7 +117,7 @@ export default function Portfolio() {
             <Wallet className="w-5 h-5 text-primary" />
             <span className="text-sm font-mono uppercase tracking-widest font-bold">Total Balance</span>
           </div>
-          <div className="text-3xl font-display font-bold">{formatCurrency(portfolio.balance)}</div>
+          <div className="text-3xl font-display font-bold break-words">{formatCurrency(portfolio.balance)}</div>
         </div>
 
         <div className="bg-card border border-border rounded-2xl p-6">
@@ -112,8 +125,8 @@ export default function Portfolio() {
             <TrendingUp className="w-5 h-5 text-primary" />
             <span className="text-sm font-mono uppercase tracking-widest font-bold">Total P&L</span>
           </div>
-          <div className="flex items-baseline gap-2">
-            <div className={cn("text-3xl font-display font-bold", portfolio.totalPnl >= 0 ? "text-success text-glow-success" : "text-destructive text-glow-destructive")}>
+          <div className="flex items-baseline flex-wrap gap-2 min-w-0">
+            <div className={cn("text-3xl font-display font-bold break-words", portfolio.totalPnl >= 0 ? "text-success text-glow-success" : "text-destructive text-glow-destructive")}>
               {portfolio.totalPnl >= 0 ? "+" : ""}{formatCurrency(portfolio.totalPnl)}
             </div>
             <div className={cn("text-sm font-mono font-medium", portfolio.totalPnlPercent >= 0 ? "text-success" : "text-destructive")}>

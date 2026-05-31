@@ -169,13 +169,15 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-72 border-r border-border/50 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 fixed inset-y-0 z-50">
+      {/* Desktop Sidebar. P3-29: the full sidebar only appears at lg+ (≥1024px).
+          On tablet (md, 768–1023) it would otherwise eat 18rem of width and
+          squeeze the page, so tablets get the hamburger header below instead. */}
+      <aside className="hidden lg:flex flex-col w-72 border-r border-border/50 bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 fixed inset-y-0 z-50">
         <SidebarContent />
       </aside>
 
-      {/* Mobile Header & Sidebar */}
-      <div className="md:hidden fixed top-0 inset-x-0 h-16 border-b border-border/50 bg-background/95 backdrop-blur-xl z-50 flex items-center justify-between px-4">
+      {/* Mobile/Tablet Header & Sidebar */}
+      <div className="lg:hidden fixed top-0 inset-x-0 h-16 border-b border-border/50 bg-background/95 backdrop-blur-xl z-50 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
             <span className="font-display font-bold text-base text-primary text-glow-primary leading-none">A</span>
@@ -191,13 +193,13 @@ export function Layout({ children }: { children: ReactNode }) {
       </div>
 
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-16 bg-background z-40 flex flex-col border-t border-border/50">
+        <div className="lg:hidden fixed inset-0 top-16 bg-background z-40 flex flex-col border-t border-border/50">
           <SidebarContent />
         </div>
       )}
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-72 pt-16 md:pt-0 min-h-screen relative flex flex-col min-w-0 overflow-x-hidden">
+      <main className="flex-1 lg:ml-72 pt-16 lg:pt-0 min-h-screen relative flex flex-col min-w-0 overflow-x-hidden">
         {/* Subtle background glow */}
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
         <div className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-8 lg:p-10 z-10 min-w-0">

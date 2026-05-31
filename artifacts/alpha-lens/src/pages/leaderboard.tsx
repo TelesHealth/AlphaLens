@@ -35,7 +35,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
-import { cn } from "@/components/ui-helpers";
+import { cn, directionLabel } from "@/components/ui-helpers";
 
 type FilterTab = "all" | "open" | "correct" | "incorrect";
 
@@ -431,14 +431,16 @@ function CalibrationChart({
 }
 
 function DirectionChip({ direction }: { direction?: string | null }) {
-  const d = (direction ?? "WATCH").toUpperCase();
+  // P3-34: normalise every direction vocabulary (yes/no, bullish/bearish,
+  // long/short) to the user-facing LONG / SHORT / WATCH labels.
+  const d = directionLabel(direction);
   const style =
-    d === "BULLISH" || d === "LONG"
+    d === "LONG"
       ? "text-success border-success/30 bg-success/10"
-      : d === "BEARISH" || d === "SHORT"
+      : d === "SHORT"
         ? "text-destructive border-destructive/30 bg-destructive/10"
         : "text-muted-foreground border-border bg-muted/30";
-  const Icon = d === "BULLISH" || d === "LONG" ? TrendingUp : d === "BEARISH" || d === "SHORT" ? TrendingDown : Activity;
+  const Icon = d === "LONG" ? TrendingUp : d === "SHORT" ? TrendingDown : Activity;
   return (
     <span
       className={cn(
@@ -483,10 +485,10 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
         onClick={() => setExpanded((v) => !v)}
         className="w-full text-left grid grid-cols-12 gap-2 items-center px-3 py-3 hover:bg-secondary/20 rounded-lg"
       >
-        <div className="col-span-2 md:col-span-1 text-xs font-mono text-muted-foreground">
+        <div className="col-span-2 lg:col-span-1 text-xs font-mono text-muted-foreground">
           {fmtDate(rec.createdAt)}
         </div>
-        <div className="col-span-10 md:col-span-3 min-w-0">
+        <div className="col-span-10 lg:col-span-3 min-w-0">
           <div className="text-sm font-medium truncate">
             {rec.assetTitle || rec.title}
           </div>
@@ -494,16 +496,16 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
             {rec.assetClass || rec.type}
           </div>
         </div>
-        <div className="hidden md:block md:col-span-1">
+        <div className="hidden lg:block lg:col-span-1">
           <DirectionChip direction={rec.direction} />
         </div>
-        <div className="hidden md:block md:col-span-1 text-right font-mono text-xs">
+        <div className="hidden lg:block lg:col-span-1 text-right font-mono text-xs">
           {fmtNumber(rec.aiProbability)}%
         </div>
-        <div className="hidden md:block md:col-span-1 text-right font-mono text-xs text-muted-foreground">
+        <div className="hidden lg:block lg:col-span-1 text-right font-mono text-xs text-muted-foreground">
           {fmtNumber(rec.marketPrice)}
         </div>
-        <div className="hidden md:block md:col-span-1 text-right font-mono text-xs">
+        <div className="hidden lg:block lg:col-span-1 text-right font-mono text-xs">
           <span
             className={cn(
               typeof rec.edge === "number" && rec.edge > 0
@@ -529,13 +531,13 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
             </div>
           )}
         </div>
-        <div className="hidden md:block md:col-span-1 text-right pr-2 font-mono text-xs text-muted-foreground">
+        <div className="hidden lg:block lg:col-span-1 text-right pr-2 font-mono text-xs text-muted-foreground">
           {fmtNumber(rec.confidence, 0)}
         </div>
-        <div className="col-span-6 md:col-span-1 flex md:justify-center md:pl-2">
+        <div className="col-span-6 lg:col-span-1 flex lg:justify-center lg:pl-2">
           <OutcomeBadge outcome={rec.outcome} />
         </div>
-        <div className="col-span-4 md:col-span-1 text-right font-mono text-xs">
+        <div className="col-span-4 lg:col-span-1 text-right font-mono text-xs">
           {rec.outcome ? (
             <span className={moneyColor(rec.paperReturn ?? 0)}>
               {fmtMoney(rec.paperReturn)}
@@ -544,7 +546,7 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
             <span className="text-muted-foreground/60">—</span>
           )}
         </div>
-        <div className="col-span-2 md:col-span-1 flex justify-end">
+        <div className="col-span-2 lg:col-span-1 flex justify-end">
           {expanded ? (
             <ChevronUp className="w-4 h-4 text-muted-foreground" />
           ) : (
@@ -830,7 +832,7 @@ export default function LeaderboardPage() {
               </div>
 
               {/* Header row (desktop) */}
-              <div className="hidden md:grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground border-b border-border/40">
+              <div className="hidden lg:grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground border-b border-border/40">
                 <div className="col-span-1">Date</div>
                 <div className="col-span-3">Asset</div>
                 <div className="col-span-1">Direction</div>

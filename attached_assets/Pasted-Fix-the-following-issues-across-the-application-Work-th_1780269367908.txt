@@ -1,0 +1,58 @@
+Fix the following issues across the application. Work through them in the order listed, as some changes share root causes or files.
+
+---
+
+**1. Isolate paper trades and AI coach chats per user — fix data leakage on login/logout (P3-33, P3-32, P3-15)**
+
+These three bugs share the same root cause: user-scoped data is not being cleared and reloaded correctly when the authenticated user changes.
+
+- When a user logs out, immediately clear all in-memory or local state for paper trades and AI coach chat history. Do not leave any previous user's data in any store, context, or cache.
+- When a user logs in, fetch paper trades and AI coach chat history fresh from the backend, scoped strictly to the newly authenticated user's ID. Do not read from any stale cache or previously loaded state.
+- If you use a global store (e.g., Zustand, Redux, Context, or similar), add a reset action for both paper trades and chat history, and call it on logout before clearing the session, and again immediately after login before fetching new data.
+- On the backend, ensure every query for paper trades and chat history filters by the authenticated user's ID server-side. Do not rely solely on the client to scope data.
+- For AI coach chats: persist chat history to the database tied to the user's ID. On login, load that user's history from the database. On first login for a new account, the history must be empty. Do not share chat history across users under any circumstances.
+- On the `/coach` route, when the user session resolves (even after a page reload), load chat history from the persisted store for that user. After logout and re-login, the correct user's history must appear without requiring a manual page refresh.
+- On `/portfolio`, ensure that paper trades load immediately upon login without requiring a manual page refresh. Subscribe to the auth state change event and trigger a data fetch as soon as the new user session is confirmed.
+
+---
+
+**2. Replace Yes/No labels with Long/Short direction labels (P3-34, P3-30)**
+
+- On `/leaderboard`, in the Track Record table or list, find all places where prediction asset directions are displayed as "Yes" or "No" and replace them with "Long" and "Short" respectively. Apply this mapping: Yes → Long, No → Short.
+- On `/briefing`, in the paper trade execution UI, find the direction field and replace "Yes"/"No" options with "Long"/"Short". Update both the display labels and any values submitted if the backend accepts "Long"/"Short"; if the backend requires "Yes"/"No", map the display label to the correct value before submission but always show "Long"/"Short" to the user.
+
+---
+
+**3. Show real-time mark price in Open Position details on `/portfolio` (P3-35)**
+
+- In the Open Position details panel on `/portfolio`, the Mark Price field must display a live price that updates at the same interval as the market price on `/market/{id}` or the scanner.
+- Subscribe to the same real-time price feed or polling mechanism used on those pages. Ensure the mark price value in the position details is derived from this live feed, not a stale snapshot stored at trade creation time.
+- If the price feed is a WebSocket or polling interval, ensure the subscription is active while `/portfolio` is mounted and cleaned up on unmount.
+
+---
+
+**4. Fix AI coach input box visibility on mobile and all breakpoints (P3-31)**
+
+- On `/coach`, the text input box must be visible and accessible at all screen sizes including mobile.
+- Ensure the input container is not hidden, clipped, or pushed off-screen by any flex or absolute positioning. Set it to always remain visible at the bottom of the chat area.
+- Test and fix at small (mobile), medium (tablet), and large (desktop) breakpoints. Use `position: sticky` or a fixed bottom layout pattern if needed to keep the input always in view.
+
+---
+
+**5. Fix tablet responsiveness across all routes (P3-29)**
+
+Address each of the following at tablet breakpoints (approximately 768px–1024px):
+
+- **Sidebar**: Add a hamburger menu button at tablet widths. The sidebar should be hidden by default and toggled by the hamburger. Do not show the full sidebar permanently at tablet widths.
+- **`/leaderboard` Track Record**: Fix overlapping and squished elements in the Track Record section. Ensure headers align correctly and text does not overflow or overlap adjacent elements. Apply proper column sizing or wrapping.
+- **`/portfolio`**: Fix the Total Balance and Total PnL container so text wraps correctly inside the box and does not overflow outside it.
+- **`/trading`**: Fix the three provider boxes (Kalshi, Alpaca, Polymarket) so that text and labels wrap inside their containers. Set overflow to hidden or use text wrapping. Do not let text exceed the box boundaries.
+- **`/briefing`**: The description text under the title card should span the full width of the card at all breakpoints. Set its width to 100% and remove any constraint that limits it to approximately 50% of the card width. Ensure modals are set to `width: 100%` and centered within the available viewport, not constrained to the card's inner width.
+- **`/market/{id}` — paper trade modal**: Ensure the paper trade modal renders above the sidebar (use a high `z-index` and render it in a portal at the document body level if not already). The modal must not be partially obscured by the sidebar at any breakpoint.
+- **`/market/{id}` — alpha score/ai prob/mkt imp container**: Remove or correct the overlay background that is causing this container to overlap adjacent buttons. Ensure the container has proper stacking context and does not visually intrude on other interactive elements.
+
+---
+
+**General**: After all changes, verify that no text is clipped, wrapped awkwardly, or displayed outside its container at mobile (375px), tablet (768px), and desktop (1280px) widths. Ensure all user-scoped data is isolated per authenticated user with no cross-user leakage.
+
+Run pnpm run typecheck and verify the app boots before declaring complete.
