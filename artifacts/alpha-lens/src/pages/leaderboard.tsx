@@ -555,10 +555,10 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
         onClick={() => setExpanded((v) => !v)}
         className="w-full text-left grid grid-cols-12 gap-2 items-center px-3 py-3 hover:bg-secondary/20 rounded-lg"
       >
-        <div className="col-span-2 2xl:col-span-1 text-xs font-mono text-muted-foreground">
+        <div className="col-span-2 lg:col-span-1 text-xs font-mono text-muted-foreground">
           {fmtDate(rec.createdAt)}
         </div>
-        <div className="col-span-10 2xl:col-span-3 min-w-0">
+        <div className="col-span-10 lg:col-span-3 min-w-0">
           <div className="text-sm font-medium truncate">
             {rec.assetTitle || rec.title}
           </div>
@@ -566,16 +566,16 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
             {rec.assetClass || rec.type}
           </div>
         </div>
-        <div className="hidden 2xl:block 2xl:col-span-1">
+        <div className="hidden lg:block lg:col-span-1">
           <DirectionChip direction={rec.direction} />
         </div>
-        <div className="hidden 2xl:block 2xl:col-span-1 text-right font-mono text-xs">
+        <div className="hidden lg:block lg:col-span-1 text-right font-mono text-xs">
           {fmtNumber(rec.aiProbability)}%
         </div>
-        <div className="hidden 2xl:block 2xl:col-span-1 text-right font-mono text-xs text-muted-foreground">
+        <div className="hidden lg:block lg:col-span-1 text-right font-mono text-xs text-muted-foreground">
           {fmtNumber(rec.marketPrice)}
         </div>
-        <div className="hidden 2xl:block 2xl:col-span-1 text-right font-mono text-xs">
+        <div className="hidden lg:block lg:col-span-1 text-right font-mono text-xs">
           <span
             className={cn(
               typeof rec.edge === "number" && rec.edge > 0
@@ -601,13 +601,13 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
             </div>
           )}
         </div>
-        <div className="hidden 2xl:block 2xl:col-span-1 text-right pr-2 font-mono text-xs text-muted-foreground">
+        <div className="hidden lg:block lg:col-span-1 text-right pr-2 font-mono text-xs text-muted-foreground">
           {fmtNumber(rec.confidence, 0)}
         </div>
-        <div className="col-span-6 2xl:col-span-1 flex 2xl:justify-center 2xl:pl-2">
+        <div className="col-span-6 lg:col-span-1 flex lg:justify-center lg:pl-2">
           <OutcomeBadge outcome={rec.outcome} />
         </div>
-        <div className="col-span-4 2xl:col-span-1 text-right font-mono text-xs">
+        <div className="col-span-4 lg:col-span-1 text-right font-mono text-xs">
           {rec.outcome ? (
             <span className={moneyColor(rec.paperReturn ?? 0)}>
               {fmtMoney(rec.paperReturn)}
@@ -616,7 +616,7 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
             <span className="text-muted-foreground/60">—</span>
           )}
         </div>
-        <div className="col-span-2 2xl:col-span-1 flex justify-end">
+        <div className="col-span-2 lg:col-span-1 flex justify-end">
           {expanded ? (
             <ChevronUp className="w-4 h-4 text-muted-foreground" />
           ) : (
@@ -902,7 +902,7 @@ export default function LeaderboardPage() {
               </div>
 
               {/* Header row (desktop) */}
-              <div className="hidden 2xl:grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground border-b border-border/40">
+              <div className="hidden lg:grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground border-b border-border/40">
                 <div className="col-span-1">Date</div>
                 <div className="col-span-3">Asset</div>
                 <div className="col-span-1">Direction</div>
