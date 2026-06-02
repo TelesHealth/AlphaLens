@@ -204,8 +204,8 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
           oversized win-rate number overflowed and clipped horizontally, so
           tablets now get a wrapping 2-/3-column grid instead and only the
           widest screens use the inline row. */}
-      <div className="px-6 pt-6 pb-6 flex flex-col xl:flex-row xl:gap-6">
-        <div className="xl:w-[340px] xl:shrink-0 xl:border-r xl:border-border/60 xl:pr-6 mb-6 xl:mb-0 min-w-0">
+      <div className="px-6 pt-6 pb-6 flex flex-col min-[1600px]:flex-row min-[1600px]:gap-6">
+        <div className="min-[1600px]:w-[340px] min-[1600px]:shrink-0 min-[1600px]:border-r min-[1600px]:border-border/60 min-[1600px]:pr-6 mb-6 min-[1600px]:mb-0 min-w-0">
           {/* P3-14: The hero Win Rate needs a strategy/timeframe footnote so
               the figure isn't read in isolation. We surface (a) an info icon
               with a methodology tooltip, (b) a short context strip under the
@@ -256,7 +256,7 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
           </div>
           <div
             className={cn(
-              "font-mono font-bold text-5xl sm:text-6xl xl:text-7xl leading-none tabular-nums whitespace-nowrap",
+              "font-mono font-bold text-5xl sm:text-6xl min-[1600px]:text-7xl leading-none tabular-nums whitespace-nowrap",
               winRateColor(winRate),
               winRateGlow(winRate),
             )}
@@ -297,7 +297,7 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
           </Link>
         </div>
 
-        <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-x-4 gap-y-6 xl:gap-x-0 min-w-0">
+        <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 min-[1600px]:grid-cols-5 gap-x-4 gap-y-6 min-[1600px]:gap-x-0 min-w-0">
           <StatTile
             label="Calls Made"
             value={String(stats.totalCalls)}
@@ -348,7 +348,7 @@ function StatTile({
   valueClass?: string;
 }) {
   return (
-    <div className="xl:px-6 xl:border-r xl:border-border/60 xl:last:border-r-0 min-w-0">
+    <div className="min-[1600px]:px-6 min-[1600px]:border-r min-[1600px]:border-border/60 min-[1600px]:last:border-r-0 min-w-0">
       <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">
         {label}
       </div>
