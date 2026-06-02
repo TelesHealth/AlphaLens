@@ -28,6 +28,7 @@ import {
   ArrowRight,
   LogIn,
   Info,
+  Sparkles,
 } from "lucide-react";
 import {
   Tooltip,
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { cn, directionLabel } from "@/components/ui-helpers";
+import { setAskCoachPrefill } from "@/lib/ask-coach";
 
 type FilterTab = "all" | "open" | "correct" | "incorrect";
 
@@ -109,6 +111,27 @@ function moneyColor(n: number): string {
   return "text-muted-foreground";
 }
 
+// Plain-language read of the headline Win Rate. A raw rate is easy to
+// misjudge in isolation — the model trades many near-coinflip prediction
+// markets, so a sub-50% figure isn't automatically "bad". This adapts the
+// guidance to the current level and points users at the metrics that
+// actually qualify the number.
+function winRateContext(
+  rate: number,
+  stats: LeaderboardResponse["stats"],
+): string {
+  if (stats.resolvedCalls === 0) {
+    return "No calls have resolved yet inside this track-record window. The win rate will populate as live events settle — until then, judge the book by the open calls and average edge, not this figure.";
+  }
+  if (rate >= 60) {
+    return "Above 60% across mixed asset classes is strong — most resolved calls landed correct. Confirm the wins were meaningful (not marginal) using Paper Return and the calibration chart below.";
+  }
+  if (rate >= 50) {
+    return "A win rate in the 50s is solid for a book that trades many near-coinflip prediction markets. Calibration and Paper Return matter as much as the raw rate — i.e. whether the wins paid more than the losses cost.";
+  }
+  return `Under 50% looks weak in isolation, but it doesn't mean the model is unprofitable — many calls are high-uncertainty prediction markets, and partial-credit outcomes lift the figure to ${fmtPct(stats.winRateWithPartial)}. Weigh it against Avg Edge, Paper Return, and calibration before judging.`;
+}
+
 function OutcomeBadge({ outcome }: { outcome: string | null | undefined }) {
   if (!outcome) {
     return (
@@ -175,16 +198,20 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
         </div>
       </div>
 
-      {/* Hero number — Win Rate (largest element) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr_1fr] gap-0 px-6 pt-6 pb-6">
-        <div className="lg:border-r lg:border-border/60 lg:pr-6 mb-6 lg:mb-0">
+      {/* Win Rate hero + supporting stat tiles.
+          The single-row multi-column layout is reserved for xl+. At the lg /
+          tablet width (e.g. iPad landscape ~1024px) six fixed columns plus the
+          oversized win-rate number overflowed and clipped horizontally, so
+          tablets now get a wrapping 2-/3-column grid instead and only the
+          widest screens use the inline row. */}
+      <div className="px-6 pt-6 pb-6 flex flex-col xl:flex-row xl:gap-6">
+        <div className="xl:w-[340px] xl:shrink-0 xl:border-r xl:border-border/60 xl:pr-6 mb-6 xl:mb-0 min-w-0">
           {/* P3-14: The hero Win Rate needs a strategy/timeframe footnote so
-              the figure isn't read in isolation. We add (a) an info icon
-              beside the label with a methodology tooltip, and (b) a short
-              context strip under the number describing the basis of the
-              calculation. Both surface info that already exists on the
-              backend (multi-class universe, partial-credit weighting,
-              90-day evaluation window from daysElapsed/daysRemaining). */}
+              the figure isn't read in isolation. We surface (a) an info icon
+              with a methodology tooltip, (b) a short context strip under the
+              number, (c) an adaptive plain-language read of what the figure
+              means, and (d) a one-click prompt to the AI Coach for users who
+              find a low win rate hard to interpret. */}
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
               Win Rate
@@ -202,20 +229,34 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
               </TooltipTrigger>
               <TooltipContent
                 side="top"
-                className="max-w-xs bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed"
+                className="max-w-sm bg-popover text-popover-foreground border border-border shadow-lg text-xs leading-relaxed space-y-1.5"
               >
-                Share of resolved AI calls that landed correct, across every
-                asset class the model covers (equities, crypto, prediction
-                markets, macro). Calls are evaluated against the live market
-                inside a fixed 90-day track record window, and partial-credit
-                outcomes are tracked separately so the headline number stays
-                risk-adjusted rather than rewarded for marginal wins.
+                <p>
+                  <span className="font-semibold text-foreground">
+                    Win Rate = correct ÷ resolved calls.
+                  </span>{" "}
+                  A call is "resolved" only once its event settles against the
+                  live market inside the fixed 90-day track-record window — open
+                  calls are never counted, so they can't inflate or drag the
+                  figure.
+                </p>
+                <p>
+                  "Correct" means the call's direction matched the actual
+                  outcome. Partial-credit results (right thesis, marginal move)
+                  are kept out of the headline and shown separately as
+                  "w/ partial", so the number isn't padded by near-misses.
+                </p>
+                <p className="text-muted-foreground">
+                  Because the model also trades many near-coinflip prediction
+                  markets, read it alongside Avg Edge, Paper Return, and the
+                  calibration chart — not in isolation.
+                </p>
               </TooltipContent>
             </Tooltip>
           </div>
           <div
             className={cn(
-              "font-mono font-bold text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-none tabular-nums whitespace-nowrap",
+              "font-mono font-bold text-5xl sm:text-6xl xl:text-7xl leading-none tabular-nums whitespace-nowrap",
               winRateColor(winRate),
               winRateGlow(winRate),
             )}
@@ -234,40 +275,62 @@ function HeroStats({ stats }: { stats: LeaderboardResponse["stats"] }) {
               </span>
             </div>
           )}
+          <p
+            className="text-xs text-muted-foreground leading-relaxed mt-3"
+            data-testid="text-win-rate-context"
+          >
+            {winRateContext(winRate, stats)}
+          </p>
+          <Link
+            href="/coach"
+            onClick={() =>
+              setAskCoachPrefill(
+                `How should I interpret a win rate of ${fmtPct(winRate)} on the Alpha Lens AI track record? It reflects ${stats.correctCalls} of ${stats.resolvedCalls} resolved calls (${fmtPct(stats.winRateWithPartial)} with partial credit) across all asset classes, with an average edge of ${fmtNumber(stats.avgEdge)} pts and average conviction of ${fmtNumber(stats.avgConvictionScore)}. What additional context and performance metrics should I weigh, and is this good or bad?`,
+              )
+            }
+            className="inline-flex items-center gap-1.5 mt-3 px-2.5 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 border border-primary/30 text-primary font-mono text-[11px] tracking-wide transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            data-testid="link-interpret-win-rate"
+          >
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            How should I interpret this win rate?
+            <ArrowRight className="w-3 h-3 shrink-0" />
+          </Link>
         </div>
 
-        <StatTile
-          label="Calls Made"
-          value={String(stats.totalCalls)}
-        />
-        <StatTile
-          label="Resolved"
-          value={String(stats.resolvedCalls)}
-          sub={stats.openCalls > 0 ? `${stats.openCalls} open` : undefined}
-        />
-        <StatTile
-          label="Paper Return"
-          value={fmtMoney(totalReturn)}
-          sub={
-            stats.paperReturnEligibleCalls > 0
-              ? `${fmtPct(stats.paperReturnPct, { sign: true })} · based on ${stats.paperReturnEligibleCalls} call${stats.paperReturnEligibleCalls === 1 ? "" : "s"} with verified entry price${stats.paperReturnExcludedCalls > 0 ? ` (${stats.paperReturnExcludedCalls} legacy excluded)` : ""}`
-              : stats.paperReturnExcludedCalls > 0
-                ? `${stats.paperReturnExcludedCalls} legacy call${stats.paperReturnExcludedCalls === 1 ? "" : "s"} excluded — no verified entry price`
+        <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-x-4 gap-y-6 xl:gap-x-0 min-w-0">
+          <StatTile
+            label="Calls Made"
+            value={String(stats.totalCalls)}
+          />
+          <StatTile
+            label="Resolved"
+            value={String(stats.resolvedCalls)}
+            sub={stats.openCalls > 0 ? `${stats.openCalls} open` : undefined}
+          />
+          <StatTile
+            label="Paper Return"
+            value={fmtMoney(totalReturn)}
+            sub={
+              stats.paperReturnEligibleCalls > 0
+                ? `${fmtPct(stats.paperReturnPct, { sign: true })} · based on ${stats.paperReturnEligibleCalls} call${stats.paperReturnEligibleCalls === 1 ? "" : "s"} with verified entry price${stats.paperReturnExcludedCalls > 0 ? ` (${stats.paperReturnExcludedCalls} legacy excluded)` : ""}`
+                : stats.paperReturnExcludedCalls > 0
+                  ? `${stats.paperReturnExcludedCalls} legacy call${stats.paperReturnExcludedCalls === 1 ? "" : "s"} excluded — no verified entry price`
+                  : undefined
+            }
+            valueClass={moneyColor(totalReturn)}
+          />
+          <StatTile label="Avg Edge" value={`${fmtNumber(stats.avgEdge)} pts`} />
+          <StatTile
+            label="Avg Conviction"
+            value={fmtNumber(stats.avgConvictionScore)}
+            sub={
+              stats.highConvictionWinRate != null ||
+              stats.lowConvictionWinRate != null
+                ? `Hi >15: ${fmtPct(stats.highConvictionWinRate)} · Lo <10: ${fmtPct(stats.lowConvictionWinRate)}`
                 : undefined
-          }
-          valueClass={moneyColor(totalReturn)}
-        />
-        <StatTile label="Avg Edge" value={`${fmtNumber(stats.avgEdge)} pts`} />
-        <StatTile
-          label="Avg Conviction"
-          value={fmtNumber(stats.avgConvictionScore)}
-          sub={
-            stats.highConvictionWinRate != null ||
-            stats.lowConvictionWinRate != null
-              ? `Hi >15: ${fmtPct(stats.highConvictionWinRate)} · Lo <10: ${fmtPct(stats.lowConvictionWinRate)}`
-              : undefined
-          }
-        />
+            }
+          />
+        </div>
       </div>
     </div>
   );
@@ -285,15 +348,22 @@ function StatTile({
   valueClass?: string;
 }) {
   return (
-    <div className="lg:px-6 lg:border-r lg:border-border/60 last:border-r-0">
+    <div className="xl:px-6 xl:border-r xl:border-border/60 xl:last:border-r-0 min-w-0">
       <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1">
         {label}
       </div>
-      <div className={cn("font-mono font-bold text-3xl leading-tight", valueClass)}>
+      <div
+        className={cn(
+          "font-mono font-bold text-2xl sm:text-3xl leading-tight tabular-nums break-words",
+          valueClass,
+        )}
+      >
         {value}
       </div>
       {sub && (
-        <div className="text-xs font-mono text-muted-foreground mt-1">{sub}</div>
+        <div className="text-xs font-mono text-muted-foreground mt-1 break-words">
+          {sub}
+        </div>
       )}
     </div>
   );
